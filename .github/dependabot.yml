@@ -18,12 +18,17 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
 
+  # As imagens base acompanham o JDK 25 e o Node 24 do CI e do enforcer; a troca de versão
+  # major é feita à mão, junto com o CI.
   - package-ecosystem: docker
     directories:
       - /debeatur-api
       - /frontend
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

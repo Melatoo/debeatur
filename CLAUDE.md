@@ -4,7 +4,7 @@ Cálculo de cumprimento de sentença (art. 524 do CPC). Escopo do MVP em `docs/r
 
 ## Build
 
-- Backend: `mvn verify` (exige JDK 25; o enforcer falha com versões anteriores)
+- Backend: `./mvnw verify` (exige JDK 25; o enforcer falha com versões anteriores)
 - Frontend: `cd frontend && npm ci && npm run lint && npm run build`
 - Tudo junto: `docker compose up -d --build` (http://localhost:3000)
 
@@ -17,7 +17,8 @@ Cálculo de cumprimento de sentença (art. 524 do CPC). Escopo do MVP em `docs/r
   homologados ou da contadoria do TJMG, nunca do próprio motor. Não gere nem "corrija" valores
   esperados para fazer um teste passar.
 - **Dinheiro:** sempre `Dinheiro`/`BigDecimal`, nunca `double`. HALF_UP em duas casas a cada
-  valor monetário; fatores de correção não são arredondados.
+  valor monetário; fatores de correção usam precisão `DECIMAL128`, sem arredondamento a casas
+  fixas.
 - **O regime é um dado do cálculo.** A sentença pode fixar critérios próprios (coisa julgada),
   então nada de regra de atualização fixa no código fora de `RegimeAtualizacao`.
 - **Tribunal de referência:** TJMG. Fazenda Pública e trabalhista estão fora do escopo.
@@ -28,4 +29,5 @@ Cálculo de cumprimento de sentença (art. 524 do CPC). Escopo do MVP em `docs/r
 - Nada de push direto na `main`: tudo passa por PR com o CI verde.
 - Mudanças no `debeatur-core`, na autenticação e na persistência são revisadas linha a linha;
   mantenha esses PRs pequenos.
-- Código, nomes e mensagens de commit em português, seguindo o estilo existente.
+- Código, nomes e mensagens de commit em português, seguindo o estilo existente. A exceção são
+  os PRs do Dependabot, que mantêm as mensagens padrão dele.

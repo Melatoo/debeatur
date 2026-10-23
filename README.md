@@ -17,8 +17,9 @@ monetária, juros de mora e acréscimos do art. 523, §1º, com memória de cál
 ## Requisitos
 
 - JDK 25
-- Maven 3.9+
-- Node.js 22+
+- Node.js 24
+
+O Maven vem pelo wrapper (`./mvnw`), fixado na versão usada pelo CI.
 
 ## Executando
 
@@ -36,12 +37,12 @@ diretamente.
 
 ```bash
 # backend (porta 8080)
-mvn verify
+./mvnw verify
 java -jar debeatur-api/target/debeatur-api-0.1.0-SNAPSHOT.jar
 
 # frontend (porta 5173, com proxy de /api para o backend)
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -72,17 +73,18 @@ a partir de setembro/2024.
 ### Convenções provisórias (a validar contra cálculos homologados)
 
 - **Granularidade mensal:** entram os meses do termo inicial (inclusive) até o mês da data-base (exclusive), sem pro rata die.
-- **Correção:** produto de (1 + variação mensal), sem arredondar o fator.
+- **Correção:** produto de (1 + variação mensal), com precisão `DECIMAL128` e sem arredondar o fator a casas fixas.
 - **Juros:** simples, somando os percentuais mensais, aplicados sobre o valor corrigido.
 - **Taxa legal:** subtração direta SELIC − IPCA por mês; conferir com a metodologia da Res. CMN 5.171/2024.
 - **Arredondamento:** HALF_UP em duas casas a cada valor monetário.
 
 ## Próximos passos
 
+O escopo do MVP está em `docs/requisitos-mvp.md`, inclusive o que fica de fora.
+
 - [ ] Testes de gabarito com cálculos reais homologados
 - [ ] Pro rata die na correção e nos juros
 - [ ] Regime configurável por cálculo (critérios fixados na sentença)
-- [ ] Pagamentos parciais (imputação: art. 354 CC)
 - [ ] Persistência (PostgreSQL + Flyway), cache das séries e snapshot dos índices por cálculo
-- [ ] Exportação em PDF e Excel
-- [ ] Autenticação e multi-tenancy (escritório → usuários → processos)
+- [ ] Exportação do demonstrativo em PDF
+- [ ] Autenticação mínima (um usuário por escritório)
