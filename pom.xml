@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.2</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>br.com.debeatur</groupId>
+    <artifactId>debeatur-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>Debeatur</name>
+    <description>Cálculo de cumprimento de sentença, do índice ao demonstrativo.</description>
+
+    <modules>
+        <module>debeatur-core</module>
+        <module>debeatur-indices</module>
+        <module>debeatur-api</module>
+    </modules>
+
+    <properties>
+        <java.version>25</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>br.com.debeatur</groupId>
+                <artifactId>debeatur-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>br.com.debeatur</groupId>
+                <artifactId>debeatur-indices</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

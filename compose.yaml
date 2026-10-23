@@ -1,0 +1,17 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: debeatur-api/Dockerfile
+    image: debeatur-api
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: debeatur-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy

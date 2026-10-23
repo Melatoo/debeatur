@@ -1,0 +1,153 @@
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+}
+
+header h1 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 2.2rem;
+  color: var(--destaque);
+}
+
+header p {
+  margin: 4px 0 32px;
+  color: var(--texto-suave);
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 28px 0 12px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+input {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  background: var(--superficie);
+  color: var(--texto);
+}
+
+.linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: end;
+}
+
+.parcela {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 0 0 12px;
+  background: var(--superficie);
+}
+
+@media (max-width: 760px) {
+  .parcela {
+    grid-template-columns: 1fr;
+  }
+}
+
+button {
+  font: inherit;
+  padding: 9px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--destaque);
+  background: var(--destaque);
+  color: var(--destaque-texto);
+  cursor: pointer;
+}
+
+button.secundario {
+  background: transparent;
+  color: var(--destaque);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.acoes {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.erro {
+  color: var(--erro);
+  margin-top: 24px;
+}
+
+.regime {
+  color: var(--texto-suave);
+  margin-top: -8px;
+}
+
+.tabela {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  background: var(--superficie);
+}
+
+th,
+td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--borda);
+  text-align: right;
+  white-space: nowrap;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+.totais {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: end;
+  gap: 6px 32px;
+  margin-top: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.totais dd {
+  margin: 0;
+  text-align: right;
+}
+
+.totais .total {
+  font-weight: 700;
+  font-size: 1.1rem;
+  border-top: 1px solid var(--borda);
+  padding-top: 6px;
+}
