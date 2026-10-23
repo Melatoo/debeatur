@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Contexto de build: raiz do repositório (projeto Maven multi-módulo)
 
-FROM maven:3.9-eclipse-temurin-25 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 WORKDIR /build
 COPY pom.xml .
 COPY debeatur-core debeatur-core
