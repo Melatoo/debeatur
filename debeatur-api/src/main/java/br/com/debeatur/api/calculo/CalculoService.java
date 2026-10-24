@@ -48,9 +48,8 @@ public class CalculoService {
         Set<Indice> indices = EnumSet.noneOf(Indice.class);
         for (RegraPeriodo regra : parametros.regime().regras()) {
             indices.add(regra.correcao());
-            if (regra.juros() instanceof Juros.SelicMenosIpca) {
-                indices.add(Indice.SELIC);
-                indices.add(Indice.IPCA);
+            if (regra.juros() instanceof Juros.TaxaLegal) {
+                indices.add(Indice.TAXA_LEGAL);
             }
         }
         return indices;

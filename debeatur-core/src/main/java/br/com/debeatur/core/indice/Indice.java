@@ -5,7 +5,8 @@ public enum Indice {
     IPCA("IPCA (IBGE)"),
     IPCA_E("IPCA-E (IBGE)"),
     INPC("INPC (IBGE)"),
-    SELIC("Taxa SELIC acumulada no mês (BCB)");
+    SELIC("Taxa SELIC acumulada no mês (BCB)"),
+    TAXA_LEGAL("Taxa legal do art. 406 do CC (BCB, Res. CMN 5.171/2024)");
 
     private final String descricao;
 
@@ -15,5 +16,10 @@ public enum Indice {
 
     public String descricao() {
         return descricao;
+    }
+
+    /** Se o índice pode corrigir o débito; a taxa legal só serve para juros. */
+    public boolean corrigeMoeda() {
+        return this != TAXA_LEGAL;
     }
 }
