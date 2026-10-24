@@ -34,24 +34,22 @@ public sealed interface Juros {
     }
 
     /**
-     * Taxa legal do art. 406, §1º, do CC (Lei 14.905/2024): SELIC deduzido o IPCA,
-     * considerada zero quando negativa (§3º).
+     * Taxa legal do art. 406, §1º, do CC (Lei 14.905/2024), na forma divulgada pelo BCB.
      * <p>
-     * Simplificação: subtração direta das variações mensais. A metodologia oficial
-     * (Res. CMN 5.171/2024) deve ser validada contra a taxa divulgada pelo BCB.
+     * Pela Res. CMN 5.171/2024, a taxa do mês m é {@code max(Fator Selic / Fator IPCA-15 − 1; 0)},
+     * com a SELIC e o IPCA-15 do mês anterior, em seis casas. O motor usa a taxa publicada
+     * em vez de recalculá-la.
      */
-    record SelicMenosIpca() implements Juros {
+    record TaxaLegal() implements Juros {
 
         @Override
         public BigDecimal percentualNoMes(YearMonth mes, SerieIndices serie) {
-            BigDecimal taxa = serie.variacaoMensal(Indice.SELIC, mes)
-                    .subtract(serie.variacaoMensal(Indice.IPCA, mes));
-            return taxa.max(BigDecimal.ZERO);
+            return serie.variacaoMensal(Indice.TAXA_LEGAL, mes);
         }
 
         @Override
         public String descricao() {
-            return "Taxa legal (SELIC − IPCA)";
+            return "Taxa legal (Res. CMN 5.171/2024)";
         }
     }
 
