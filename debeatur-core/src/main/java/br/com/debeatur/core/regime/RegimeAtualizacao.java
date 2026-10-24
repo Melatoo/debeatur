@@ -30,7 +30,7 @@ public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
 
     /**
      * Regime cível padrão: INPC + 1% a.m. até a vigência da Lei 14.905/2024 e, depois,
-     * IPCA + taxa legal (SELIC − IPCA).
+     * IPCA + taxa legal (Res. CMN 5.171/2024).
      * <p>
      * A lei vigora desde 30/08/2024; com granularidade mensal, a nova regra é aplicada a
      * partir de setembro/2024. O índice anterior varia conforme o tribunal (ex.: tabela
@@ -41,6 +41,6 @@ public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
                 new RegraPeriodo(YearMonth.of(1994, 7), YearMonth.of(2024, 8),
                         Indice.INPC, new Juros.TaxaFixa(BigDecimal.ONE)),
                 new RegraPeriodo(YearMonth.of(2024, 9), null,
-                        Indice.IPCA, new Juros.SelicMenosIpca())));
+                        Indice.IPCA, new Juros.TaxaLegal())));
     }
 }

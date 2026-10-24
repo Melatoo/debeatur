@@ -29,8 +29,9 @@ class MotorCalculoTest {
             .com(Indice.INPC, YearMonth.of(2024, 8), "-0.14")
             .com(Indice.IPCA, YearMonth.of(2024, 9), "0.44")
             .com(Indice.IPCA, YearMonth.of(2024, 10), "0.56")
-            .com(Indice.SELIC, YearMonth.of(2024, 9), "0.84")
-            .com(Indice.SELIC, YearMonth.of(2024, 10), "0.93");
+            // taxa legal divulgada pelo BCB (SGS 29543)
+            .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 9), "0.676227")
+            .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 10), "0.704241");
 
     private final MotorCalculo motor = new MotorCalculo(serie);
 
@@ -79,20 +80,18 @@ class MotorCalculoTest {
         // ago: INPC; set e out: IPCA
         assertThat(linha.fatorCorrecao()).isEqualByComparingTo("1.008610605504");
         assertThat(linha.valorCorrigido()).isEqualTo(Dinheiro.de("1008.61"));
-        // ago: 1%; set: 0,84 − 0,44; out: 0,93 − 0,56
-        assertThat(linha.percentualJuros()).isEqualByComparingTo("1.77");
-        assertThat(linha.valorJuros()).isEqualTo(Dinheiro.de("17.85"));
-        assertThat(d.total()).isEqualTo(Dinheiro.de("1026.46"));
+        // ago: 1%; set e out: taxa legal divulgada pelo BCB
+        assertThat(linha.percentualJuros()).isEqualByComparingTo("2.380468");
+        assertThat(linha.valorJuros()).isEqualTo(Dinheiro.de("24.01"));
+        assertThat(d.total()).isEqualTo(Dinheiro.de("1032.62"));
     }
 
     @Test
-    void taxaLegalNegativaEhConsideradaZero() {
-        SerieIndicesEmMemoria deflacaoDeJuros = new SerieIndicesEmMemoria()
-                .com(Indice.SELIC, YearMonth.of(2025, 1), "0.80")
-                .com(Indice.IPCA, YearMonth.of(2025, 1), "1.10");
-
-        assertThat(new Juros.SelicMenosIpca().percentualNoMes(YearMonth.of(2025, 1), deflacaoDeJuros))
-                .isEqualByComparingTo("0");
+    void taxaLegalEhADivulgadaPeloBcb() {
+        // Res. CMN 5.171/2024: SELIC de ago/2024 sobre o IPCA-15 de ago/2024 (0,19%) dá 0,676227% em set/2024;
+        // a subtração SELIC − IPCA do próprio mês daria 0,84 − 0,44 = 0,40%
+        assertThat(new Juros.TaxaLegal().percentualNoMes(YearMonth.of(2024, 9), serie))
+                .isEqualByComparingTo("0.676227");
     }
 
     @Test

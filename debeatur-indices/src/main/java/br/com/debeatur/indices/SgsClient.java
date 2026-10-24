@@ -34,7 +34,8 @@ public class SgsClient {
             Indice.IPCA, 433,
             Indice.INPC, 188,
             Indice.IPCA_E, 10764,
-            Indice.SELIC, 4390);
+            Indice.SELIC, 4390,
+            Indice.TAXA_LEGAL, 29543);
 
     private final HttpClient http;
     private final URI baseUrl;
