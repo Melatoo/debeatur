@@ -73,6 +73,41 @@ class ComparacaoGabaritoTest {
     }
 
     @Test
+    void divergenciaConhecidaNaoFalhaOCaso() {
+        CasoGabarito caso = exemplo("1.0172", null, "20.34", "1244.90")
+                .divergenciaConhecida("fator de correção", "Fonte arredonda diferente")
+                .criar();
+
+        assertThat(ComparacaoGabarito.problemas(caso, calcular(caso))).isEmpty();
+    }
+
+    @Test
+    void divergenciaConhecidaQueDeixouDeOcorrerFalhaOCaso() {
+        CasoGabarito caso = exemplo("1.0171", null, "20.34", "1244.90")
+                .divergenciaConhecida("fator de correção", "Fonte arredonda diferente")
+                .criar();
+
+        assertThat(ComparacaoGabarito.problemas(caso, calcular(caso))).singleElement().asString()
+                .startsWith("divergência conhecida não ocorreu mais em fator de correção");
+    }
+
+    @Test
+    void divergenciaConhecidaNoTotalNaoExplicaOSubtotal() {
+        CasoGabarito caso = CasoGabarito.de("Exemplo", "MotorCalculoTest (cálculo à mão)")
+                .dataBase("2024-04-20")
+                .regime(INPC_UM_PORCENTO)
+                .comArt523()
+                .serie(SERIE)
+                .parcela(PARCELA, new CasoGabarito.LinhaEsperada(null, null, null, null, dinheiro("1037.43")))
+                .totais(null, null, null, "1244.91")
+                .divergenciaConhecida("total", "Teste")
+                .criar();
+
+        assertThat(ComparacaoGabarito.problemas(caso, calcular(caso))).containsExactly(
+                "parcela 1 (Indenização), subtotal: esperado R$ 1037.43, motor R$ 1037.42 (diferença R$ -0.01)");
+    }
+
+    @Test
     void recusaToleranciaSemJustificativa() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> exemplo(null, "1017.08", "20.34", "1244.90").tolerancia("0.01", " ").criar())

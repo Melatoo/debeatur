@@ -18,8 +18,10 @@ import java.util.Objects;
  * Os valores esperados são os do documento de origem, nunca os do motor. Campos que o
  * documento não mostra ficam {@code null} e não são comparados.
  *
- * @param fonte       onde está o cálculo (processo, órgão, ID ou folhas)
- * @param tolerancia  diferença aceita nos valores monetários; acima de zero exige justificativa
+ * @param fonte                  onde está o cálculo (processo, órgão, ID ou folhas)
+ * @param tolerancia             diferença aceita nos valores monetários; acima de zero exige justificativa
+ * @param divergenciasConhecidas campos em que o motor diverge da fonte por uma causa já registrada
+ *                               em {@code docs/gabarito.md}; o teste exige que a divergência ocorra
  */
 public record CasoGabarito(
         String nome,
@@ -29,7 +31,8 @@ public record CasoGabarito(
         List<LinhaEsperada> linhas,
         Totais totais,
         Dinheiro tolerancia,
-        String justificativa) {
+        String justificativa,
+        List<DivergenciaConhecida> divergenciasConhecidas) {
 
     public CasoGabarito {
         Objects.requireNonNull(nome, "nome");
@@ -39,6 +42,7 @@ public record CasoGabarito(
         Objects.requireNonNull(totais, "totais");
         Objects.requireNonNull(tolerancia, "tolerancia");
         linhas = List.copyOf(linhas);
+        divergenciasConhecidas = List.copyOf(divergenciasConhecidas);
         if (linhas.size() != parametros.parcelas().size()) {
             throw new IllegalArgumentException(nome + ": informe uma linha esperada por parcela");
         }
@@ -59,6 +63,25 @@ public record CasoGabarito(
                          Dinheiro honorariosArt523, Dinheiro total) {
     }
 
+    /**
+     * @param campo  nome do campo como aparece na divergência (ex.: "fator de correção", "total")
+     * @param motivo causa registrada em {@code docs/gabarito.md}
+     */
+    public record DivergenciaConhecida(String campo, String motivo) {
+
+        public DivergenciaConhecida {
+            Objects.requireNonNull(campo, "campo");
+            if (motivo == null || motivo.isBlank()) {
+                throw new IllegalArgumentException("Divergência conhecida exige motivo: " + campo);
+            }
+        }
+
+        /** O campo inteiro, para "total" não explicar "subtotal". */
+        boolean explica(String divergencia) {
+            return divergencia.startsWith(campo + ":") || divergencia.contains(", " + campo + ":");
+        }
+    }
+
     public static Construtor de(String nome, String fonte) {
         return new Construtor(nome, fonte);
     }
@@ -69,6 +92,7 @@ public record CasoGabarito(
         private final String fonte;
         private final List<Parcela> parcelas = new ArrayList<>();
         private final List<LinhaEsperada> linhas = new ArrayList<>();
+        private final List<DivergenciaConhecida> divergenciasConhecidas = new ArrayList<>();
         private LocalDate dataBase;
         private RegimeAtualizacao regime;
         private boolean aplicarArt523;
@@ -120,11 +144,16 @@ public record CasoGabarito(
             return this;
         }
 
+        public Construtor divergenciaConhecida(String campo, String motivo) {
+            divergenciasConhecidas.add(new DivergenciaConhecida(campo, motivo));
+            return this;
+        }
+
         public CasoGabarito criar() {
             return new CasoGabarito(nome, fonte,
                     new ParametrosCalculo(parcelas, dataBase, regime, aplicarArt523),
                     serie != null ? serie : SeriesPublicadas.carregar(),
-                    linhas, totais, tolerancia, justificativa);
+                    linhas, totais, tolerancia, justificativa, divergenciasConhecidas);
         }
     }
 

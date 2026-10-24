@@ -15,6 +15,27 @@ final class ComparacaoGabarito {
     private ComparacaoGabarito() {
     }
 
+    /**
+     * O que faz o caso falhar: divergências sem causa registrada e divergências conhecidas que
+     * deixaram de ocorrer (o registro ficou desatualizado).
+     */
+    static List<String> problemas(CasoGabarito caso, Demonstrativo demonstrativo) {
+        List<String> divergencias = divergencias(caso, demonstrativo);
+        List<String> problemas = new ArrayList<>();
+        for (String divergencia : divergencias) {
+            if (caso.divergenciasConhecidas().stream().noneMatch(c -> c.explica(divergencia))) {
+                problemas.add(divergencia);
+            }
+        }
+        for (CasoGabarito.DivergenciaConhecida conhecida : caso.divergenciasConhecidas()) {
+            if (divergencias.stream().noneMatch(conhecida::explica)) {
+                problemas.add("divergência conhecida não ocorreu mais em " + conhecida.campo()
+                        + " (" + conhecida.motivo() + ")");
+            }
+        }
+        return problemas;
+    }
+
     static List<String> divergencias(CasoGabarito caso, Demonstrativo demonstrativo) {
         List<String> divergencias = new ArrayList<>();
         Dinheiro tolerancia = caso.tolerancia();

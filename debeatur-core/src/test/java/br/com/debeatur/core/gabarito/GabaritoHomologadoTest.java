@@ -12,22 +12,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 /**
- * Roda o motor contra cada cálculo homologado de {@link CasosHomologados} e lista todas as
- * divergências do caso de uma vez, para registrar qual convenção provisória as causou.
+ * Roda o motor contra cada caso de gabarito e lista todas as divergências do caso de uma vez,
+ * para registrar qual convenção provisória as causou.
  */
 class GabaritoHomologadoTest {
 
     @TestFactory
     Stream<DynamicTest> motorReproduzOsCalculosHomologados() {
-        List<CasoGabarito> casos = CasosHomologados.todos();
+        return testes(CasosHomologados.todos(), "Sem cálculos homologados em CasosHomologados (#2)");
+    }
+
+    @TestFactory
+    Stream<DynamicTest> motorReproduzOCadej() {
+        return testes(CasosCadej.todos(), "Sem casos em CasosCadej");
+    }
+
+    private static Stream<DynamicTest> testes(List<CasoGabarito> casos, String semCasos) {
         if (casos.isEmpty()) {
-            return Stream.of(DynamicTest.dynamicTest("nenhum caso homologado cadastrado",
-                    () -> abort("Sem cálculos homologados em CasosHomologados (#2)")));
+            return Stream.of(DynamicTest.dynamicTest("nenhum caso cadastrado", () -> abort(semCasos)));
         }
         return casos.stream().map(caso -> DynamicTest.dynamicTest(caso.nome(), () -> {
             Demonstrativo demonstrativo = new MotorCalculo(caso.serie()).calcular(caso.parametros());
 
-            assertThat(ComparacaoGabarito.divergencias(caso, demonstrativo))
+            assertThat(ComparacaoGabarito.problemas(caso, demonstrativo))
                     .as("Divergências com %s", caso.fonte())
                     .isEmpty();
         }));
