@@ -87,9 +87,8 @@ class MotorCalculoTest {
     }
 
     @Test
-    void taxaLegalEhADivulgadaPeloBcb() {
-        // Res. CMN 5.171/2024: SELIC de ago/2024 sobre o IPCA-15 de ago/2024 (0,19%) dá 0,676227% em set/2024;
-        // a subtração SELIC − IPCA do próprio mês daria 0,84 − 0,44 = 0,40%
+    void taxaLegalUsaASerieDoBcbSemRecalcular() {
+        // o motor não deriva a taxa da SELIC nem do IPCA: lê o valor publicado no SGS 29543
         assertThat(new Juros.TaxaLegal().percentualNoMes(YearMonth.of(2024, 9), serie))
                 .isEqualByComparingTo("0.676227");
     }

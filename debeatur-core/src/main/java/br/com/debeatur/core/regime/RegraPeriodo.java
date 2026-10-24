@@ -16,6 +16,9 @@ public record RegraPeriodo(YearMonth inicio, YearMonth fim, Indice correcao, Jur
         Objects.requireNonNull(inicio, "inicio");
         Objects.requireNonNull(correcao, "correcao");
         Objects.requireNonNull(juros, "juros");
+        if (!correcao.corrigeMoeda()) {
+            throw new IllegalArgumentException(correcao + " não é índice de correção monetária");
+        }
         if (fim != null && fim.isBefore(inicio)) {
             throw new IllegalArgumentException("fim (" + fim + ") anterior ao início (" + inicio + ")");
         }

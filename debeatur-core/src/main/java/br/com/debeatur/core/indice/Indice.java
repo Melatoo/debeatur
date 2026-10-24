@@ -17,4 +17,9 @@ public enum Indice {
     public String descricao() {
         return descricao;
     }
+
+    /** Se o índice pode corrigir o débito; a taxa legal só serve para juros. */
+    public boolean corrigeMoeda() {
+        return this != TAXA_LEGAL;
+    }
 }

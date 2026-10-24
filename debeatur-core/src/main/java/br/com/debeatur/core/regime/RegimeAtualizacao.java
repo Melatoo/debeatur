@@ -33,7 +33,9 @@ public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
      * IPCA + taxa legal (Res. CMN 5.171/2024).
      * <p>
      * A lei vigora desde 30/08/2024; com granularidade mensal, a nova regra é aplicada a
-     * partir de setembro/2024. O índice anterior varia conforme o tribunal (ex.: tabela
+     * partir de setembro/2024, e a taxa legal de agosto/2024, que vale para 30 e 31/08
+     * (Res. CMN 5.171/2024, art. 8º, parágrafo único), fica de fora até o pro rata die (#3).
+     * O índice anterior varia conforme o tribunal (ex.: tabela
      * prática do TJSP) e deve ser configurável por cálculo.
      */
     public static RegimeAtualizacao civelPadrao() {
