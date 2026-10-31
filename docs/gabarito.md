@@ -32,8 +32,9 @@ Para reproduzir um caso: informe o valor com vírgula (`10000,00`), confirme as 
 calendário e selecione o índice antes de adicionar as parcelas.
 
 As séries do SGS ficam fixadas em `debeatur-core/src/test/resources/gabarito/series`
-(INPC 188 e IPCA 433 desde 01/2015; taxa legal 29543 desde 08/2024). O teste da tabela da
-CGJ lê o INPC desse arquivo, então ele confere a própria série fixada.
+(INPC 188 desde 02/2003, IPCA 433 desde 01/2015 e taxa legal 29543 desde 08/2024). Os testes
+da tabela da CGJ e da planilha de alimentos da DPMG leem as séries desses arquivos, então eles
+conferem as próprias séries fixadas.
 
 Sem casos cadastrados, o `GabaritoHomologadoTest` aparece como ignorado (*skipped*) no
 relatório. Ele não passa em branco.
