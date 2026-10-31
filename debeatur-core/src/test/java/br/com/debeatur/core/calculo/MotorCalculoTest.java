@@ -27,6 +27,7 @@ class MotorCalculoTest {
             .com(Indice.INPC, YearMonth.of(2024, 2), "1.00")
             .com(Indice.INPC, YearMonth.of(2024, 3), "0.20")
             .com(Indice.INPC, YearMonth.of(2024, 8), "-0.14")
+            .com(Indice.IPCA, YearMonth.of(2024, 8), "-0.02")
             .com(Indice.IPCA, YearMonth.of(2024, 9), "0.44")
             .com(Indice.IPCA, YearMonth.of(2024, 10), "0.56")
             // taxa legal divulgada pelo BCB (SGS 29543)
@@ -77,13 +78,14 @@ class MotorCalculoTest {
                 List.of(parcela), LocalDate.of(2024, 11, 5), RegimeAtualizacao.civelPadrao(), false));
 
         LinhaDemonstrativo linha = d.linhas().getFirst();
-        // ago: INPC; set e out: IPCA
-        assertThat(linha.fatorCorrecao()).isEqualByComparingTo("1.008610605504");
-        assertThat(linha.valorCorrigido()).isEqualTo(Dinheiro.de("1008.61"));
+        // ago, set e out: IPCA (a tabela da CGJ de agosto/2024 só tem INPC até julho)
+        // 0,9998 × 1,0044 × 1,0056
+        assertThat(linha.fatorCorrecao()).isEqualByComparingTo("1.009822635072");
+        assertThat(linha.valorCorrigido()).isEqualTo(Dinheiro.de("1009.82"));
         // ago: 1%; set e out: taxa legal divulgada pelo BCB
         assertThat(linha.percentualJuros()).isEqualByComparingTo("2.380468");
-        assertThat(linha.valorJuros()).isEqualTo(Dinheiro.de("24.01"));
-        assertThat(d.total()).isEqualTo(Dinheiro.de("1032.62"));
+        assertThat(linha.valorJuros()).isEqualTo(Dinheiro.de("24.04"));
+        assertThat(d.total()).isEqualTo(Dinheiro.de("1033.86"));
     }
 
     @Test
