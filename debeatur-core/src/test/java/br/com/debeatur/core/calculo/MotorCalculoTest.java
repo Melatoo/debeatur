@@ -148,6 +148,45 @@ class MotorCalculoTest {
     }
 
     @Test
+    void transicaoRecusaCorteAntesDaVigenciaDaLei14905() {
+        // a taxa legal só existe a partir de 30/08/2024; antes, o regime falhava só no cálculo
+        assertThatThrownBy(() -> new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 8, 28), BigDecimal.ONE))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RegimeAtualizacao.transicaoTabelaCgjParaLei14905(
+                "corte em 15/07/2024", LocalDate.of(2024, 7, 15)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void transicaoComCorteNoDia30DeMesDe31DiasSegueAsBasesDaDpmg() {
+        // taxa fixa sobre o mês comercial (30/30 = 1%) e taxa legal nos dias corridos restantes
+        // (1/31 de 0,605306%): a mesma regra que dá 1,005752% com corte em 29/08/2024
+        Juros transicao = new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 8, 30), BigDecimal.ONE);
+
+        assertThat(transicao.percentualNoMes(YearMonth.of(2024, 8), serie))
+                .isEqualByComparingTo("1.019526");
+    }
+
+    @Test
+    void transicaoArredondaATaxaLegalProporcionalASeisCasas() {
+        // 15/30 de 0,676227% = 0,3381135, arredondado a 0,338114 (casas da taxa publicada)
+        Juros transicao = new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 9, 15), BigDecimal.ONE);
+
+        BigDecimal percentual = transicao.percentualNoMes(YearMonth.of(2024, 9), serie);
+
+        assertThat(percentual).isEqualByComparingTo("0.838114");
+        assertThat(percentual.scale()).isLessThanOrEqualTo(6);
+    }
+
+    @Test
+    void descricaoDaTransicaoSoCitaATaxaLegalQuandoEhAplicada() {
+        assertThat(new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 8, 29), BigDecimal.ONE).descricao())
+                .isEqualTo("1% a.m. até 29/08/2024 e taxa legal pro rata nos dias seguintes");
+        assertThat(new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 9, 30), BigDecimal.ONE).descricao())
+                .isEqualTo("1% a.m. até 30/09/2024");
+    }
+
+    @Test
     void taxaLegalUsaASerieDoBcbSemRecalcular() {
         // o motor não deriva a taxa da SELIC nem do IPCA: lê o valor publicado no SGS 29543
         assertThat(new Juros.TaxaLegal().percentualNoMes(YearMonth.of(2024, 9), serie))

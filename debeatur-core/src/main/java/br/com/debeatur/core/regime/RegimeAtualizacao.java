@@ -63,6 +63,9 @@ public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
      *       rata nos dias restantes ({@link Juros.TransicaoParaTaxaLegal}, #3).</li>
      * </ul>
      * Assim, no mês do corte a correção já é a da lei nova e os juros se dividem entre as duas.
+     * <p>
+     * O corte não pode ser anterior a 29/08/2024, véspera da vigência da Lei 14.905/2024: o
+     * regime é recusado já na montagem, e não no meio do cálculo.
      */
     public static RegimeAtualizacao transicaoTabelaCgjParaLei14905(String nome, LocalDate ultimoDiaCriterioAnterior) {
         YearMonth mesCorte = YearMonth.from(ultimoDiaCriterioAnterior);
