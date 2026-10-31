@@ -78,7 +78,7 @@ relatório. Ele não passa em branco.
 | Meses do termo inicial (inclusive) até o mês da data-base (exclusive) | Confirmada para correção e juros pela tabela da CGJ (#18) e pelos cinco casos do CADEJ |
 | Fator sem arredondamento, acumulando as variações do SGS | Divergência de até 3 × 10⁻⁷ contra a CGJ e o CADEJ; os valores corrigidos batem (ver abaixo) |
 | Taxa legal | Confirmada: usa a série 29543 do BCB, que reproduz a Res. CMN 5.171/2024 (#19) |
-| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). Ainda falta cálculo homologado; o pro rata da virada da Lei 14.905/2024 segue na #3 |
+| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). Ainda falta cálculo homologado. A exceção é o mês da virada da Lei 14.905/2024, dividido como na planilha da DPMG (#3) |
 | Juros simples sobre o valor corrigido | Confirmada pelo CADEJ (casos 1, 3, 4 e 5) |
 | HALF_UP em duas casas a cada valor monetário | Confirmada pelo CADEJ em todas as linhas dos cinco casos |
 | Multa de 10% sobre o débito atualizado | Confirmada pelo CADEJ (casos 1, 3 e 4) |
@@ -96,9 +96,10 @@ relatório. Ele não passa em branco.
 3. **Virada da Lei 14.905/2024.** O TJMG aplica IPCA e taxa legal a partir de 30/08/2024
    (ex.: TJMG, 1.0000.23.137113-9/002: tabela da CGJ e 1% a.m. até 29/08/2024). A tabela da
    CGJ vigente em 29/08/2024 só tem INPC até julho, então o regime padrão corrige agosto/2024
-   pelo IPCA, como a planilha da DPMG (#24). Os juros trocam de regra em 09/2024 por causa da
-   granularidade mensal, então o motor perde a taxa legal de 30 e 31/08/2024. Resolve-se com
-   o pro rata die (#3).
+   pelo IPCA, como a planilha da DPMG (#24). Nos juros, agosto/2024 se divide como na planilha
+   da DPMG (#3): 29/30 de 1% (0,9667%, arredondado a quatro casas) mais 2/31 da taxa legal de
+   agosto (Res. CMN 5.171/2024, arts. 6º e 8º, parágrafo único), total de 1,005752%. Os 2/31 da
+   taxa legal são norma; os 29/30 do mês comercial são convenção da planilha.
 4. **O critério anterior à lei varia no próprio TJMG.** Na apelação 1.0000.25.153453-3/001, a
    maioria aplicou a SELIC até 30/08/2024 (REsp 1.795.982); o voto vencido aplicou a tabela da
    CGJ e 1% a.m. Isso reforça que o regime precisa vir do título (#3), e cada caso deve
