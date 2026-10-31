@@ -94,9 +94,11 @@ relatório. Ele não passa em branco.
 2. **Taxa legal (#19).** A fórmula anterior (SELIC − IPCA do mês) dava juros cerca de 40%
    menores que a taxa da Res. CMN 5.171/2024. Corrigido: o motor usa a taxa publicada pelo BCB.
 3. **Virada da Lei 14.905/2024.** O TJMG aplica IPCA e taxa legal a partir de 30/08/2024
-   (ex.: TJMG, 1.0000.23.137113-9/002: tabela da CGJ e 1% a.m. até 29/08/2024). O motor troca
-   de regra em 09/2024 por causa da granularidade mensal, então perde a taxa legal de
-   30 e 31/08/2024. Resolve-se com o pro rata die (#3).
+   (ex.: TJMG, 1.0000.23.137113-9/002: tabela da CGJ e 1% a.m. até 29/08/2024). A tabela da
+   CGJ vigente em 29/08/2024 só tem INPC até julho, então o regime padrão corrige agosto/2024
+   pelo IPCA, como a planilha da DPMG (#24). Os juros trocam de regra em 09/2024 por causa da
+   granularidade mensal, então o motor perde a taxa legal de 30 e 31/08/2024. Resolve-se com
+   o pro rata die (#3).
 4. **O critério anterior à lei varia no próprio TJMG.** Na apelação 1.0000.25.153453-3/001, a
    maioria aplicou a SELIC até 30/08/2024 (REsp 1.795.982); o voto vencido aplicou a tabela da
    CGJ e 1% a.m. Isso reforça que o regime precisa vir do título (#3), e cada caso deve

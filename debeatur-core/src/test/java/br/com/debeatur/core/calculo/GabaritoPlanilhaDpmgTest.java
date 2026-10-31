@@ -2,7 +2,6 @@ package br.com.debeatur.core.calculo;
 
 import br.com.debeatur.core.Dinheiro;
 import br.com.debeatur.core.gabarito.SeriesPublicadas;
-import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 import br.com.debeatur.core.regime.RegimeAtualizacao;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,16 +41,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 5,9 × 10⁻⁷ (cerca de R$ 0,002 em R$ 1.000,00). De 06/2024 em diante o fator é exato, a
  * menos da precisão de ponto flutuante da planilha. Os juros não têm tolerância.
  * <p>
- * Divergências conhecidas do {@link RegimeAtualizacao#civelPadrao()} nas parcelas até 08/2024,
- * verificadas com o valor exato que cada uma produz:
- * <ul>
- *   <li>#24: o regime corrige agosto/2024 pelo INPC (−0,14%) e a planilha pelo IPCA (−0,02%),
- *       então o fator do motor é o da planilha × (1 − 0,0014) / (1 − 0,0002).</li>
- *   <li>#3: sem pro rata die, o regime aplica 1% de juros em agosto/2024 e a planilha
- *       1,005752%, então o percentual do motor é o da planilha − 0,005752.</li>
- * </ul>
- * Quando o regime ou o motor mudar, o teste falha nessas linhas: retire o ajuste
- * correspondente.
+ * Divergência conhecida do {@link RegimeAtualizacao#civelPadrao()} nas parcelas até 08/2024,
+ * verificada com o valor exato que produz (#3): sem pro rata die, o regime aplica 1% de juros
+ * em agosto/2024 e a planilha 1,005752%, então o percentual do motor é o da planilha
+ * − 0,005752. Quando o motor passar a fazer o pro rata die, o teste falha nessas linhas:
+ * retire o ajuste.
  */
 class GabaritoPlanilhaDpmgTest {
 
@@ -70,25 +64,18 @@ class GabaritoPlanilhaDpmgTest {
 
     private static final SerieIndicesEmMemoria SERIE = SeriesPublicadas.carregar();
 
-    /** #24: agosto/2024 pelo INPC no civelPadrao e pelo IPCA na planilha. */
-    private static final BigDecimal AJUSTE_FATOR_AGOSTO_2024 = fatorDoMes(Indice.INPC, AGOSTO_2024)
-            .divide(fatorDoMes(Indice.IPCA, AGOSTO_2024), PRECISAO);
-
     private final MotorCalculo motor = new MotorCalculo(SERIE);
 
     @ParameterizedTest(name = "{0}: fator {1}")
     @CsvFileSource(resources = "/gabarito/planilha-dpmg-alimentos-2026-10.csv", numLinesToSkip = 1)
     void fatorDeCorrecaoReproduzAPlanilha(YearMonth mes, BigDecimal fatorPlanilha, BigDecimal jurosPlanilha) {
-        BigDecimal esperado = mes.isAfter(AGOSTO_2024)
-                ? fatorPlanilha
-                : fatorPlanilha.multiply(AJUSTE_FATOR_AGOSTO_2024, PRECISAO);
         BigDecimal tolerancia = mes.isAfter(ULTIMO_MES_TABELA_CGJ) ? TOLERANCIA_EXATA : TOLERANCIA_TABELA_CGJ;
 
         BigDecimal fator = calcular(mes).fatorCorrecao();
-        BigDecimal erroRelativo = fator.divide(esperado, PRECISAO).subtract(BigDecimal.ONE).abs();
+        BigDecimal erroRelativo = fator.divide(fatorPlanilha, PRECISAO).subtract(BigDecimal.ONE).abs();
 
         assertThat(erroRelativo)
-                .as("erro relativo do fator (motor %s, esperado %s, planilha %s)", fator, esperado, fatorPlanilha)
+                .as("erro relativo do fator (motor %s, planilha %s)", fator, fatorPlanilha)
                 .isLessThanOrEqualTo(tolerancia);
     }
 
@@ -110,9 +97,5 @@ class GabaritoPlanilhaDpmgTest {
         Demonstrativo d = motor.calcular(new ParametrosCalculo(List.of(parcela), DATA_BASE,
                 RegimeAtualizacao.civelPadrao(), false));
         return d.linhas().getFirst();
-    }
-
-    private static BigDecimal fatorDoMes(Indice indice, YearMonth mes) {
-        return BigDecimal.ONE.add(SERIE.variacaoMensal(indice, mes).movePointLeft(2));
     }
 }

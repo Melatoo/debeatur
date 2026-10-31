@@ -26,7 +26,11 @@ class MotorCalculoTest {
             .com(Indice.INPC, YearMonth.of(2024, 1), "0.50")
             .com(Indice.INPC, YearMonth.of(2024, 2), "1.00")
             .com(Indice.INPC, YearMonth.of(2024, 3), "0.20")
+            .com(Indice.INPC, YearMonth.of(2024, 7), "0.26")
+            // fica na série de propósito: se o regime voltar a corrigir agosto/2024 pelo INPC,
+            // o fator muda e o teste falha
             .com(Indice.INPC, YearMonth.of(2024, 8), "-0.14")
+            .com(Indice.IPCA, YearMonth.of(2024, 8), "-0.02")
             .com(Indice.IPCA, YearMonth.of(2024, 9), "0.44")
             .com(Indice.IPCA, YearMonth.of(2024, 10), "0.56")
             // taxa legal divulgada pelo BCB (SGS 29543)
@@ -71,19 +75,48 @@ class MotorCalculoTest {
     @Test
     void regimeCivelPadraoMudaDeCriterioComALei14905() {
         Parcela parcela = new Parcela("Danos", Dinheiro.de("1000.00"),
-                LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 1));
+                LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 1));
 
         Demonstrativo d = motor.calcular(new ParametrosCalculo(
                 List.of(parcela), LocalDate.of(2024, 11, 5), RegimeAtualizacao.civelPadrao(), false));
 
         LinhaDemonstrativo linha = d.linhas().getFirst();
-        // ago: INPC; set e out: IPCA
-        assertThat(linha.fatorCorrecao()).isEqualByComparingTo("1.008610605504");
-        assertThat(linha.valorCorrigido()).isEqualTo(Dinheiro.de("1008.61"));
-        // ago: 1%; set e out: taxa legal divulgada pelo BCB
-        assertThat(linha.percentualJuros()).isEqualByComparingTo("2.380468");
-        assertThat(linha.valorJuros()).isEqualTo(Dinheiro.de("24.01"));
-        assertThat(d.total()).isEqualTo(Dinheiro.de("1032.62"));
+        // jul: INPC; ago, set e out: IPCA (a tabela da CGJ de agosto/2024 só tem INPC até julho)
+        // 1,0026 × 0,9998 × 1,0044 × 1,0056
+        assertThat(linha.fatorCorrecao()).isEqualByComparingTo("1.0124481739231872");
+        assertThat(linha.valorCorrigido()).isEqualTo(Dinheiro.de("1012.45"));
+        // jul e ago: 1%; set e out: taxa legal divulgada pelo BCB
+        assertThat(linha.percentualJuros()).isEqualByComparingTo("3.380468");
+        assertThat(linha.valorJuros()).isEqualTo(Dinheiro.de("34.23"));
+        assertThat(d.total()).isEqualTo(Dinheiro.de("1046.68"));
+    }
+
+    @Test
+    void regimeCivelPadraoTrocaCorrecaoEJurosNosMesesCertos() {
+        RegimeAtualizacao regime = RegimeAtualizacao.civelPadrao();
+
+        assertThat(regime.regraPara(YearMonth.of(2024, 7)))
+                .extracting(RegraPeriodo::correcao, RegraPeriodo::juros)
+                .containsExactly(Indice.INPC, new Juros.TaxaFixa(BigDecimal.ONE));
+        assertThat(regime.regraPara(YearMonth.of(2024, 8)))
+                .extracting(RegraPeriodo::correcao, RegraPeriodo::juros)
+                .containsExactly(Indice.IPCA, new Juros.TaxaFixa(BigDecimal.ONE));
+        assertThat(regime.regraPara(YearMonth.of(2024, 9)))
+                .extracting(RegraPeriodo::correcao, RegraPeriodo::juros)
+                .containsExactly(Indice.IPCA, new Juros.TaxaLegal());
+    }
+
+    @Test
+    void transicaoDaTabelaCgjAcompanhaADataDeCorte() {
+        // a edição de setembro/2024 da tabela só tem INPC até agosto
+        RegimeAtualizacao regime = RegimeAtualizacao.transicaoTabelaCgjParaLei14905(
+                "corte em 30/09/2024", LocalDate.of(2024, 9, 30));
+
+        assertThat(regime.regraPara(YearMonth.of(2024, 8)).correcao()).isEqualTo(Indice.INPC);
+        assertThat(regime.regraPara(YearMonth.of(2024, 9)))
+                .extracting(RegraPeriodo::correcao, RegraPeriodo::juros)
+                .containsExactly(Indice.IPCA, new Juros.TaxaFixa(BigDecimal.ONE));
+        assertThat(regime.regraPara(YearMonth.of(2024, 10)).juros()).isEqualTo(new Juros.TaxaLegal());
     }
 
     @Test
