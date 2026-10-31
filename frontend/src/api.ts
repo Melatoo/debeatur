@@ -6,7 +6,7 @@ export interface ParcelaRequest {
 }
 
 export type IndiceCorrecao = 'INPC' | 'IPCA' | 'IPCA_E' | 'SELIC'
-export type TipoJuros = 'TAXA_FIXA' | 'TAXA_LEGAL' | 'SEM_JUROS'
+export type TipoJuros = 'TAXA_FIXA' | 'TAXA_LEGAL' | 'TRANSICAO_TAXA_LEGAL' | 'SEM_JUROS'
 
 /** Meses no formato AAAA-MM; `fim` nulo quando a regra vale até a data-base. */
 export interface Regra {
@@ -15,6 +15,8 @@ export interface Regra {
   correcao: IndiceCorrecao
   juros: TipoJuros
   percentualJurosMensal: number | null
+  /** Só em TRANSICAO_TAXA_LEGAL: último dia (AAAA-MM-DD) da taxa fixa no mês da regra. */
+  ultimoDiaTaxaFixa: string | null
   /** Só na resposta. */
   descricaoJuros?: string
 }

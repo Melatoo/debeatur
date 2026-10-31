@@ -1,5 +1,5 @@
 import type { IndiceCorrecao, TipoJuros } from './api'
-import { INDICES, TIPOS_JUROS, mesSeguinte, regraVazia, type RegraEditavel } from './regime'
+import { INDICES, TIPOS_JUROS, mesSeguinte, regraVazia, usaPercentual, type RegraEditavel } from './regime'
 
 interface Props {
   nome: string
@@ -72,9 +72,9 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
               type="number"
               step="0.0001"
               min="0.0001"
-              disabled={r.juros !== 'TAXA_FIXA'}
-              required={r.juros === 'TAXA_FIXA'}
-              value={r.juros === 'TAXA_FIXA' ? r.percentual : ''}
+              disabled={!usaPercentual(r.juros)}
+              required={usaPercentual(r.juros)}
+              value={usaPercentual(r.juros) ? r.percentual : ''}
               onChange={(e) => alterar(i, { percentual: e.target.value })}
             />
           </label>
@@ -84,6 +84,19 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
             </button>
           ) : (
             <span />
+          )}
+          {r.juros === 'TRANSICAO_TAXA_LEGAL' && (
+            <label className="dia-corte">
+              Último dia da taxa fixa
+              <input
+                type="date"
+                required
+                min={r.inicio ? `${r.inicio}-01` : undefined}
+                value={r.ultimoDiaTaxaFixa}
+                title="A taxa fixa vale até este dia, inclusive; nos dias seguintes do mês, a taxa legal pro rata"
+                onChange={(e) => alterar(i, { ultimoDiaTaxaFixa: e.target.value })}
+              />
+            </label>
           )}
           {r.correcao === 'SELIC' && r.juros !== 'SEM_JUROS' && (
             <p className="aviso">

@@ -3,6 +3,7 @@ package br.com.debeatur.api.calculo;
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 import br.com.debeatur.indices.SgsClient;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -10,7 +11,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
+import java.nio.charset.StandardCharsets;
 import java.time.YearMonth;
 import java.util.EnumSet;
 
@@ -158,7 +161,83 @@ class CalculoControllerTest {
                 .hasPathSatisfying("$.regras[0].correcao", v -> v.assertThat().isEqualTo("INPC"))
                 .hasPathSatisfying("$.regras[0].juros", v -> v.assertThat().isEqualTo("TAXA_FIXA"))
                 .hasPathSatisfying("$.regras[0].percentualJurosMensal", v -> v.assertThat().asNumber().isEqualTo(1))
+                .hasPathSatisfying("$.regras[1].inicio", v -> v.assertThat().isEqualTo("2024-08"))
+                .hasPathSatisfying("$.regras[1].fim", v -> v.assertThat().isEqualTo("2024-08"))
+                .hasPathSatisfying("$.regras[1].juros", v -> v.assertThat().isEqualTo("TRANSICAO_TAXA_LEGAL"))
+                .hasPathSatisfying("$.regras[1].percentualJurosMensal", v -> v.assertThat().asNumber().isEqualTo(1))
+                .hasPathSatisfying("$.regras[1].ultimoDiaTaxaFixa", v -> v.assertThat().isEqualTo("2024-08-29"))
                 .hasPathSatisfying("$.regras[2].fim", v -> v.assertThat().isNull())
                 .hasPathSatisfying("$.regras[2].juros", v -> v.assertThat().isEqualTo("TAXA_LEGAL"));
+    }
+
+    @Test
+    void regimePadraoReenviadoSemAlteracaoDaOMesmoCalculo() throws Exception {
+        when(sgs.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+                .com(Indice.INPC, YearMonth.of(2024, 7), "0.26")
+                .com(Indice.IPCA, YearMonth.of(2024, 8), "-0.02")
+                .com(Indice.IPCA, YearMonth.of(2024, 9), "0.44")
+                .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 8), "0.605306")
+                .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 9), "0.676227"));
+        String padrao = mvc.get().uri("/api/regimes/padrao").exchange()
+                .getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String semRegime = """
+                {"dataBase": "2024-10-15", "aplicarArt523": false,
+                 "parcelas": [{"descricao": "Pensão de julho", "valor": 1000.00, "inicioCorrecao": "2024-07-10"}]%s}
+                """;
+
+        String calculoPadrao = corpo(calcular(semRegime.formatted("")));
+        String calculoEditado = corpo(calcular(semRegime.formatted(",\n \"regime\": " + padrao)));
+
+        // agosto/2024 com a transição (29/30 de 1% + 2/31 da taxa legal), e não 1% nem a taxa legal inteira
+        assertThat(JsonPath.<Object>read(calculoEditado, "$.linhas"))
+                .isEqualTo(JsonPath.read(calculoPadrao, "$.linhas"));
+        assertThat(JsonPath.<Object>read(calculoEditado, "$.total"))
+                .isEqualTo(JsonPath.read(calculoPadrao, "$.total"));
+    }
+
+    @Test
+    void recusaTransicaoSemUltimoDiaDaTaxaFixa() {
+        String regime = """
+                {"regras": [
+                  {"inicio": "2024-01", "fim": "2024-02", "correcao": "INPC", "juros": "TAXA_FIXA", "percentualJurosMensal": 1},
+                  {"inicio": "2024-03", "fim": "2024-03", "correcao": "IPCA", "juros": "TRANSICAO_TAXA_LEGAL", "percentualJurosMensal": 1},
+                  {"inicio": "2024-04", "correcao": "IPCA", "juros": "TAXA_LEGAL"}]}
+                """;
+
+        assertThat(calcular(requisicao(regime))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("último dia da taxa fixa"));
+    }
+
+    @Test
+    void recusaTransicaoEmRegraDeMaisDeUmMes() {
+        String regime = """
+                {"regras": [
+                  {"inicio": "2024-01", "fim": "2024-07", "correcao": "INPC", "juros": "TAXA_FIXA", "percentualJurosMensal": 1},
+                  {"inicio": "2024-08", "fim": "2024-09", "correcao": "IPCA", "juros": "TRANSICAO_TAXA_LEGAL",
+                   "percentualJurosMensal": 1, "ultimoDiaTaxaFixa": "2024-08-29"},
+                  {"inicio": "2024-10", "correcao": "IPCA", "juros": "TAXA_LEGAL"}]}
+                """;
+
+        assertThat(calcular(requisicao(regime))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("só para o mês do corte"));
+    }
+
+    @Test
+    void recusaTransicaoAntesDaVigenciaDaLei14905() {
+        String regime = """
+                {"regras": [
+                  {"inicio": "2024-01", "fim": "2024-01", "correcao": "IPCA", "juros": "TRANSICAO_TAXA_LEGAL",
+                   "percentualJurosMensal": 1, "ultimoDiaTaxaFixa": "2024-01-15"},
+                  {"inicio": "2024-02", "correcao": "IPCA", "juros": "TAXA_LEGAL"}]}
+                """;
+
+        assertThat(calcular(requisicao(regime))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("30/08/2024"));
+    }
+
+    private static String corpo(MockMvcTester.MockMvcRequestBuilder requisicao) throws Exception {
+        MvcTestResult resultado = requisicao.exchange();
+        assertThat(resultado).hasStatusOk();
+        return resultado.getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 }

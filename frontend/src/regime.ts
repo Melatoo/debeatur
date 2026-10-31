@@ -10,8 +10,12 @@ export const INDICES: Record<IndiceCorrecao, string> = {
 export const TIPOS_JUROS: Record<TipoJuros, string> = {
   TAXA_FIXA: 'Taxa fixa mensal',
   TAXA_LEGAL: 'Taxa legal (Lei 14.905/2024)',
+  TRANSICAO_TAXA_LEGAL: 'Taxa fixa até o corte + taxa legal pro rata',
   SEM_JUROS: 'Sem juros',
 }
+
+/** Se o tipo de juros tem percentual fixo: a taxa fixa e a parte fixa do mês de transição. */
+export const usaPercentual = (juros: TipoJuros) => juros === 'TAXA_FIXA' || juros === 'TRANSICAO_TAXA_LEGAL'
 
 /** Regra como o formulário a edita: campos de texto, meses em AAAA-MM e fim vazio = até a data-base. */
 export interface RegraEditavel {
@@ -20,6 +24,8 @@ export interface RegraEditavel {
   correcao: IndiceCorrecao
   juros: TipoJuros
   percentual: string
+  /** Último dia da taxa fixa (AAAA-MM-DD), só na transição para a taxa legal. */
+  ultimoDiaTaxaFixa: string
 }
 
 export const regraVazia = (inicio = ''): RegraEditavel => ({
@@ -28,6 +34,7 @@ export const regraVazia = (inicio = ''): RegraEditavel => ({
   correcao: 'IPCA',
   juros: 'TAXA_LEGAL',
   percentual: '',
+  ultimoDiaTaxaFixa: '',
 })
 
 export const paraEditavel = (regras: Regra[]): RegraEditavel[] =>
@@ -37,6 +44,7 @@ export const paraEditavel = (regras: Regra[]): RegraEditavel[] =>
     correcao: r.correcao,
     juros: r.juros,
     percentual: r.percentualJurosMensal == null ? '' : String(r.percentualJurosMensal),
+    ultimoDiaTaxaFixa: r.ultimoDiaTaxaFixa ?? '',
   }))
 
 export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
@@ -46,7 +54,8 @@ export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
     fim: r.fim || null,
     correcao: r.correcao,
     juros: r.juros,
-    percentualJurosMensal: r.juros === 'TAXA_FIXA' && r.percentual ? Number(r.percentual) : null,
+    percentualJurosMensal: usaPercentual(r.juros) && r.percentual ? Number(r.percentual) : null,
+    ultimoDiaTaxaFixa: r.juros === 'TRANSICAO_TAXA_LEGAL' && r.ultimoDiaTaxaFixa ? r.ultimoDiaTaxaFixa : null,
   })),
 })
 

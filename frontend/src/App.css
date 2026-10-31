@@ -93,6 +93,10 @@ input:disabled {
   margin-bottom: 12px;
 }
 
+.dia-corte {
+  grid-column: 1 / 3;
+}
+
 .aviso {
   grid-column: 1 / -1;
   margin: 0;
@@ -122,6 +126,10 @@ input:disabled {
   .parcela,
   .regra {
     grid-template-columns: 1fr;
+  }
+
+  .dia-corte {
+    grid-column: 1 / -1;
   }
 }
 
