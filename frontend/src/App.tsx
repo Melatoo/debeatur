@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { calcular, type Demonstrativo, type ParcelaRequest } from './api'
+import { buscarRegimePadrao, calcular, type Demonstrativo, type ParcelaRequest } from './api'
+import { EditorRegime } from './EditorRegime'
+import { INDICES, descreverPeriodo, paraEditavel, paraRegime, regraVazia, type RegraEditavel } from './regime'
 import './App.css'
 
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -13,12 +15,25 @@ function App() {
   const [dataBase, setDataBase] = useState(hoje)
   const [aplicarArt523, setAplicarArt523] = useState(true)
   const [parcelas, setParcelas] = useState<ParcelaRequest[]>([parcelaVazia()])
+  const [regimeProprio, setRegimeProprio] = useState(false)
+  const [nomeRegime, setNomeRegime] = useState('')
+  const [regras, setRegras] = useState<RegraEditavel[]>([])
   const [resultado, setResultado] = useState<Demonstrativo | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(false)
 
   const alterarParcela = (indice: number, campo: keyof ParcelaRequest, valor: string) =>
     setParcelas((atuais) => atuais.map((p, i) => (i === indice ? { ...p, [campo]: valor } : p)))
+
+  async function usarRegimeProprio(proprio: boolean) {
+    setRegimeProprio(proprio)
+    if (!proprio || regras.length > 0) return
+    try {
+      setRegras(paraEditavel((await buscarRegimePadrao()).regras))
+    } catch {
+      setRegras([regraVazia()])
+    }
+  }
 
   async function enviar(evento: FormEvent) {
     evento.preventDefault()
@@ -30,6 +45,7 @@ function App() {
           dataBase,
           aplicarArt523,
           parcelas: parcelas.map((p) => ({ ...p, inicioJuros: p.inicioJuros || null })),
+          regime: regimeProprio ? paraRegime(nomeRegime, regras) : undefined,
         }),
       )
     } catch (e) {
@@ -106,6 +122,24 @@ function App() {
           <button type="button" className="secundario" onClick={() => setParcelas([...parcelas, parcelaVazia()])}>
             Adicionar parcela
           </button>
+        </div>
+
+        <h2>Correção e juros</h2>
+        <div className="opcoes-regime">
+          <label className="checkbox">
+            <input type="radio" name="regime" checked={!regimeProprio} onChange={() => usarRegimeProprio(false)} />
+            Regime padrão do TJMG (tabela da CGJ + 1% a.m.; desde a Lei 14.905/2024, IPCA + taxa legal)
+          </label>
+          <label className="checkbox">
+            <input type="radio" name="regime" checked={regimeProprio} onChange={() => usarRegimeProprio(true)} />
+            Critérios fixados no título
+          </label>
+        </div>
+        {regimeProprio && (
+          <EditorRegime nome={nomeRegime} onNome={setNomeRegime} regras={regras} onRegras={setRegras} />
+        )}
+
+        <div className="acoes enviar">
           <button type="submit" disabled={carregando}>
             {carregando ? 'Calculando…' : 'Calcular'}
           </button>
@@ -117,7 +151,14 @@ function App() {
       {resultado && (
         <section>
           <h2>Demonstrativo atualizado até {data(resultado.dataBase)}</h2>
-          <p className="regime">Regime: {resultado.regime}</p>
+          <p className="regime">Regime: {resultado.regime.nome}</p>
+          <ul className="regras">
+            {resultado.regime.regras.map((r, i) => (
+              <li key={i}>
+                {descreverPeriodo(r)}: {INDICES[r.correcao]} + {r.descricaoJuros}
+              </li>
+            ))}
+          </ul>
           <div className="tabela">
             <table>
               <thead>
