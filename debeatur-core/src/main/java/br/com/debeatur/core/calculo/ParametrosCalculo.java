@@ -3,8 +3,10 @@ package br.com.debeatur.core.calculo;
 import br.com.debeatur.core.regime.RegimeAtualizacao;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * @param dataBase     data até a qual o débito é atualizado
@@ -25,6 +27,17 @@ public record ParametrosCalculo(List<Parcela> parcelas, LocalDate dataBase,
                     || (p.inicioJuros() != null && p.inicioJuros().isAfter(dataBase))) {
                 throw new IllegalArgumentException("Parcela '" + p.descricao() + "' tem termo inicial após a data-base");
             }
+        }
+        YearMonth primeiroMes = parcelas.stream()
+                .flatMap(p -> Stream.of(p.inicioCorrecao(), p.inicioJuros()))
+                .filter(Objects::nonNull)
+                .map(YearMonth::from)
+                .min(YearMonth::compareTo)
+                .orElseThrow();
+        YearMonth ultimoMes = YearMonth.from(dataBase).minusMonths(1);
+        if (!primeiroMes.isAfter(ultimoMes) && !regime.cobre(primeiroMes, ultimoMes)) {
+            throw new IllegalArgumentException("O regime '" + regime.nome() + "' não cobre todo o período do cálculo ("
+                    + primeiroMes + " a " + ultimoMes + ")");
         }
     }
 }

@@ -6,12 +6,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Conjunto de regras que define como um débito é atualizado ao longo do tempo.
  * <p>
  * A sentença pode fixar critérios próprios (a coisa julgada prevalece), por isso o
  * regime é um dado do cálculo e não uma regra fixa do sistema.
+ * <p>
+ * As regras vêm em ordem cronológica e são contíguas: cada uma começa no mês seguinte ao
+ * fim da anterior, e só a última pode ficar sem fim. Assim cada mês tem no máximo uma regra.
  */
 public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
 
@@ -19,10 +23,28 @@ public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
     private static final YearMonth INICIO_REAL = YearMonth.of(1994, 7);
 
     public RegimeAtualizacao {
+        Objects.requireNonNull(nome, "nome");
         regras = List.copyOf(regras);
         if (regras.isEmpty()) {
             throw new IllegalArgumentException("O regime precisa de ao menos uma regra");
         }
+        for (int i = 1; i < regras.size(); i++) {
+            YearMonth fimAnterior = regras.get(i - 1).fim();
+            YearMonth inicio = regras.get(i).inicio();
+            if (fimAnterior == null) {
+                throw new IllegalArgumentException("Só a última regra do regime pode ficar sem fim");
+            }
+            if (!inicio.equals(fimAnterior.plusMonths(1))) {
+                throw new IllegalArgumentException("A regra que começa em " + inicio
+                        + " deveria começar em " + fimAnterior.plusMonths(1) + ", mês seguinte ao fim da anterior");
+            }
+        }
+    }
+
+    /** Se há regra para todos os meses entre {@code de} e {@code ate} (inclusive). */
+    public boolean cobre(YearMonth de, YearMonth ate) {
+        YearMonth fim = regras.getLast().fim();
+        return !de.isBefore(regras.getFirst().inicio()) && (fim == null || !ate.isAfter(fim));
     }
 
     public RegraPeriodo regraPara(YearMonth mes) {
