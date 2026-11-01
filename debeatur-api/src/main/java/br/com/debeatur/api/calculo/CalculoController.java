@@ -1,5 +1,6 @@
 package br.com.debeatur.api.calculo;
 
+import br.com.debeatur.core.calculo.ParametrosCalculo;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,6 +19,7 @@ public class CalculoController {
 
     @PostMapping
     public DemonstrativoResponse calcular(@Valid @RequestBody CalculoRequest request) {
-        return DemonstrativoResponse.de(service.calcular(request.paraDominio()));
+        ParametrosCalculo parametros = request.paraDominio();
+        return DemonstrativoResponse.de(service.calcular(parametros), parametros.regime());
     }
 }

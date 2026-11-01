@@ -14,10 +14,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * @param regime critérios fixados no título; sem ele, vale o regime cível padrão do TJMG
+ */
 public record CalculoRequest(
         @NotNull LocalDate dataBase,
         boolean aplicarArt523,
-        @NotEmpty List<@Valid ParcelaRequest> parcelas) {
+        @NotEmpty List<@Valid ParcelaRequest> parcelas,
+        @Valid RegimeDto regime) {
 
     public record ParcelaRequest(
             @NotBlank String descricao,
@@ -33,6 +37,6 @@ public record CalculoRequest(
     ParametrosCalculo paraDominio() {
         return new ParametrosCalculo(
                 parcelas.stream().map(ParcelaRequest::paraDominio).toList(),
-                dataBase, RegimeAtualizacao.civelPadrao(), aplicarArt523);
+                dataBase, regime == null ? RegimeAtualizacao.civelPadrao() : regime.paraDominio(), aplicarArt523);
     }
 }
