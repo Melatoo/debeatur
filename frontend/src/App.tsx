@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { buscarRegimePadrao, calcular, type Demonstrativo, type ParcelaRequest } from './api'
+import { buscarRegimePadrao, calcular, type Demonstrativo, type ParcelaRequest, type Rito } from './api'
 import { EditorPensao } from './EditorPensao'
 import { paraPensao, pensaoVazia, type PensaoEditavel } from './pensao'
 import { EditorRegime } from './EditorRegime'
@@ -8,6 +8,8 @@ import './App.css'
 
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const data = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—')
+
+const RITOS: Record<Rito, string> = { PRISAO: 'Prisão', PENHORA: 'Penhora' }
 
 const hoje = () => new Date().toLocaleDateString('sv-SE')
 
@@ -192,6 +194,7 @@ function App() {
                   <th>Juros (%)</th>
                   <th>Juros (R$)</th>
                   <th>Subtotal</th>
+                  {resultado.ritos && <th>Rito</th>}
                 </tr>
               </thead>
               <tbody>
@@ -206,18 +209,28 @@ function App() {
                     <td>{l.percentualJuros.toFixed(2)}%</td>
                     <td>{moeda.format(l.valorJuros)}</td>
                     <td>{moeda.format(l.subtotal)}</td>
+                    {resultado.ritos && <td>{l.rito && RITOS[l.rito]}</td>}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
+          {resultado.ritos && (
+            <dl className="totais">
+              <dt>Rito da prisão ({resultado.ritos.prisao.parcelas} parcelas)</dt>
+              <dd>{moeda.format(resultado.ritos.prisao.debitoAtualizado)}</dd>
+              <dt>Rito da penhora ({resultado.ritos.penhora.parcelas} parcelas)</dt>
+              <dd>{moeda.format(resultado.ritos.penhora.debitoAtualizado)}</dd>
+            </dl>
+          )}
+
           <dl className="totais">
             <dt>Débito atualizado</dt>
             <dd>{moeda.format(resultado.debitoAtualizado)}</dd>
-            <dt>Multa (art. 523)</dt>
+            <dt>Multa (art. 523{resultado.ritos && ', sobre a penhora'})</dt>
             <dd>{moeda.format(resultado.multaArt523)}</dd>
-            <dt>Honorários (art. 523)</dt>
+            <dt>Honorários (art. 523{resultado.ritos && ', sobre a penhora'})</dt>
             <dd>{moeda.format(resultado.honorariosArt523)}</dd>
             <dt className="total">Total</dt>
             <dd className="total">{moeda.format(resultado.total)}</dd>

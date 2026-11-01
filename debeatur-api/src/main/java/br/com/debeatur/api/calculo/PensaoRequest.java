@@ -20,8 +20,11 @@ import java.util.List;
  * {@code primeiroMes} a {@code ultimoMes}.
  *
  * @param percentual percentual do salário mínimo, em pontos (ex.: {@code 30} para 30%)
- * @param citacao    obrigatória se {@code inicioJuros} for {@link InicioJuros#CITACAO}
- * @param pagamentos valores pagos, abatidos da parcela do mesmo mês
+ * @param citacao     obrigatória se {@code inicioJuros} for {@link InicioJuros#CITACAO}
+ * @param pagamentos  valores pagos, abatidos da parcela do mesmo mês
+ * @param ajuizamento data do ajuizamento da execução; se informada, as linhas do demonstrativo,
+ *                    inclusive as avulsas, são separadas entre o rito da prisão e o da penhora
+ *                    pelo vencimento, e o art. 523 incide só sobre a penhora
  */
 public record PensaoRequest(
         @NotNull @Positive BigDecimal percentual,
@@ -30,7 +33,8 @@ public record PensaoRequest(
         @NotNull YearMonth ultimoMes,
         @NotNull InicioJuros inicioJuros,
         LocalDate citacao,
-        List<@Valid PagamentoRequest> pagamentos) {
+        List<@Valid PagamentoRequest> pagamentos,
+        LocalDate ajuizamento) {
 
     public record PagamentoRequest(@NotNull YearMonth mes, @NotNull @Positive BigDecimal valor) {
     }

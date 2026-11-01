@@ -103,6 +103,58 @@ class CalculoPensaoControllerTest {
     }
 
     @Test
+    void comAjuizamentoSeparaOsRitosEAplicaOArt523SoNaPenhora() {
+        SerieIndicesEmMemoria serie = new SerieIndicesEmMemoria();
+        for (YearMonth mes = YearMonth.of(2023, 10); mes.isBefore(YearMonth.of(2024, 3)); mes = mes.plusMonths(1)) {
+            serie.com(Indice.INPC, mes, "0");
+        }
+        when(sgs.carregar(any(), any(), any())).thenReturn(serie);
+        when(sgs.carregarSalarioMinimo(any(), any())).thenReturn(new SalarioMinimoEmMemoria()
+                .com(YearMonth.of(2023, 10), "1320.00")
+                .com(YearMonth.of(2023, 11), "1320.00")
+                .com(YearMonth.of(2023, 12), "1320.00")
+                .com(YearMonth.of(2024, 1), "1412.00")
+                .com(YearMonth.of(2024, 2), "1412.00"));
+        String json = """
+                {"dataBase": "2024-03-15", "aplicarArt523": true, "regime": %s,
+                 "pensao": {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2023-10", "ultimoMes": "2024-02",
+                            "inicioJuros": "VENCIMENTO", "ajuizamento": "2024-02-01"}}
+                """.formatted(SEM_JUROS);
+
+        // prisão: 11/2023, 12/2023, 01/2024 (as três anteriores) e 02/2024 (no curso) = 1639.20
+        // penhora: 10/2023 = 396.00; multa e honorários de 10% = 39.60 cada
+        assertThat(calcular(json)).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].rito", v -> v.assertThat().isEqualTo("PENHORA"))
+                .hasPathSatisfying("$.linhas[1].rito", v -> v.assertThat().isEqualTo("PRISAO"))
+                .hasPathSatisfying("$.linhas[4].rito", v -> v.assertThat().isEqualTo("PRISAO"))
+                .hasPathSatisfying("$.ritos.ajuizamento", v -> v.assertThat().isEqualTo("2024-02-01"))
+                .hasPathSatisfying("$.ritos.prisao.parcelas", v -> v.assertThat().asNumber().isEqualTo(4))
+                .hasPathSatisfying("$.ritos.prisao.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(1639.2))
+                .hasPathSatisfying("$.ritos.penhora.parcelas", v -> v.assertThat().asNumber().isEqualTo(1))
+                .hasPathSatisfying("$.ritos.penhora.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(396.0))
+                .hasPathSatisfying("$.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(2035.2))
+                .hasPathSatisfying("$.multaArt523", v -> v.assertThat().asNumber().isEqualTo(39.6))
+                .hasPathSatisfying("$.honorariosArt523", v -> v.assertThat().asNumber().isEqualTo(39.6))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(2114.4));
+    }
+
+    @Test
+    void semAjuizamentoNaoSeparaOsRitos() {
+        when(sgs.carregarSalarioMinimo(any(), any()))
+                .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
+        String json = """
+                {"dataBase": "2024-03-15", "aplicarArt523": true, "regime": %s,
+                 "pensao": {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                            "inicioJuros": "VENCIMENTO"}}
+                """.formatted(SEM_JUROS);
+
+        assertThat(calcular(json)).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.ritos", v -> v.assertThat().isNull())
+                .hasPathSatisfying("$.linhas[0].rito", v -> v.assertThat().isNull())
+                .hasPathSatisfying("$.multaArt523", v -> v.assertThat().asNumber().isEqualTo(42.36));
+    }
+
+    @Test
     void recusaPensaoQueVaiAlemDaDataBase() {
         String pensao = """
                 {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-04",
