@@ -73,10 +73,23 @@ export function EditorPensao({ pensao, onPensao }: Props) {
             onChange={(e) => alterar({ citacao: e.target.value })}
           />
         </label>
+        <label>
+          Ajuizamento da execução
+          <input
+            type="date"
+            value={pensao.ajuizamento}
+            onChange={(e) => alterar({ ajuizamento: e.target.value })}
+          />
+        </label>
       </fieldset>
       <p className="dica">
         Cada parcela vale o percentual do salário mínimo vigente no mês do vencimento. Com juros desde a citação, as
         parcelas vencidas antes dela contam juros da citação; as seguintes, do próprio vencimento.
+      </p>
+      <p className="dica">
+        Com a data do ajuizamento, o demonstrativo separa os ritos (art. 528 do CPC): vão para a prisão as três parcelas
+        vencidas até o ajuizamento e as que vencem depois dele; as demais, para a penhora. Multa e honorários do art. 523
+        incidem só sobre a penhora.
       </p>
 
       <h3>Pagamentos parciais</h3>

@@ -1,5 +1,7 @@
 package br.com.debeatur.api.calculo;
 
+import br.com.debeatur.core.alimentos.DemonstrativoPorRito;
+import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.ParametrosCalculo;
 import br.com.debeatur.core.calculo.Parcela;
 import jakarta.validation.Valid;
@@ -24,6 +26,12 @@ public class CalculoController {
     public DemonstrativoResponse calcular(@Valid @RequestBody CalculoRequest request) {
         List<Parcela> parcelasDaPensao = request.pensao() == null ? List.of() : service.parcelas(request.pensao(), request.dataBase());
         ParametrosCalculo parametros = request.paraDominio(parcelasDaPensao);
-        return DemonstrativoResponse.de(service.calcular(parametros), parametros.regime());
+        Demonstrativo demonstrativo = service.calcular(parametros);
+        if (!request.separaPorRito()) {
+            return DemonstrativoResponse.de(demonstrativo, parametros.regime());
+        }
+        DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo, request.pensao().ajuizamento(),
+                request.aplicarArt523());
+        return DemonstrativoResponse.de(demonstrativo, parametros.regime(), porRito);
     }
 }
