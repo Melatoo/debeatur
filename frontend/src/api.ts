@@ -26,10 +26,32 @@ export interface Regime {
   regras: Regra[]
 }
 
+export type InicioJuros = 'VENCIMENTO' | 'CITACAO'
+
+/** Mês (AAAA-MM) e valor pago, abatido da parcela que vence no mesmo mês. */
+export interface PagamentoRequest {
+  mes: string
+  valor: string
+}
+
+/** Pensão em percentual do salário mínimo: uma parcela por mês, de `primeiroMes` a `ultimoMes`. */
+export interface PensaoRequest {
+  percentual: string
+  diaVencimento: number
+  primeiroMes: string
+  ultimoMes: string
+  inicioJuros: InicioJuros
+  /** Obrigatória com juros desde a citação. */
+  citacao: string | null
+  pagamentos: PagamentoRequest[]
+}
+
 export interface CalculoRequest {
   dataBase: string
   aplicarArt523: boolean
+  /** Parcelas avulsas; opcionais quando há pensão. */
   parcelas: ParcelaRequest[]
+  pensao?: PensaoRequest
   /** Sem regime, a API aplica o regime cível padrão do TJMG. */
   regime?: Regime
 }

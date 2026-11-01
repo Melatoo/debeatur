@@ -1,0 +1,170 @@
+package br.com.debeatur.api.calculo;
+
+import br.com.debeatur.core.indice.Indice;
+import br.com.debeatur.core.indice.SalarioMinimoEmMemoria;
+import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
+import br.com.debeatur.indices.SgsClient;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
+
+import java.time.YearMonth;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Pensão em percentual do salário mínimo pela API. Índices fictícios e sem juros: o que se
+ * testa é a geração das parcelas e o abatimento chegarem ao motor, que têm gabarito no core.
+ */
+@WebMvcTest(CalculoController.class)
+@Import(CalculoService.class)
+class CalculoPensaoControllerTest {
+
+    private static final String SEM_JUROS = """
+            {"regras": [{"inicio": "2023-01", "correcao": "INPC", "juros": "SEM_JUROS"}]}
+            """;
+
+    @Autowired
+    private MockMvcTester mvc;
+
+    @MockitoBean
+    private SgsClient sgs;
+
+    @BeforeEach
+    void indicesZerados() {
+        SerieIndicesEmMemoria serie = new SerieIndicesEmMemoria();
+        for (YearMonth mes = YearMonth.of(2023, 12); mes.isBefore(YearMonth.of(2024, 4)); mes = mes.plusMonths(1)) {
+            serie.com(Indice.INPC, mes, "0");
+        }
+        when(sgs.carregar(any(), any(), any())).thenReturn(serie);
+    }
+
+    private MockMvcTester.MockMvcRequestBuilder calcular(String json) {
+        return mvc.post().uri("/api/calculos").contentType(MediaType.APPLICATION_JSON).content(json);
+    }
+
+    private static String requisicao(String pensao, String parcelas) {
+        return """
+                {"dataBase": "2024-03-15", "aplicarArt523": false, "regime": %s,
+                 "pensao": %s%s}
+                """.formatted(SEM_JUROS, pensao, parcelas == null ? "" : ", \"parcelas\": " + parcelas);
+    }
+
+    @Test
+    void geraAsParcelasDaPensaoEAbateOsPagamentos() {
+        when(sgs.carregarSalarioMinimo(YearMonth.of(2023, 12), YearMonth.of(2024, 2)))
+                .thenReturn(new SalarioMinimoEmMemoria()
+                        .com(YearMonth.of(2023, 12), "1320.00")
+                        .com(YearMonth.of(2024, 1), "1412.00")
+                        .com(YearMonth.of(2024, 2), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-02",
+                 "inicioJuros": "VENCIMENTO", "pagamentos": [{"mes": "2024-02", "valor": 200.00}]}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas", v -> v.assertThat().asArray().hasSize(3))
+                .hasPathSatisfying("$.linhas[0].descricao", v -> v.assertThat().isEqualTo("Alimentos 12/2023"))
+                .hasPathSatisfying("$.linhas[0].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(396.0))
+                .hasPathSatisfying("$.linhas[0].inicioCorrecao", v -> v.assertThat().isEqualTo("2023-12-10"))
+                .hasPathSatisfying("$.linhas[1].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(423.6))
+                .hasPathSatisfying("$.linhas[2].descricao",
+                        v -> v.assertThat().isEqualTo("Alimentos 02/2024 (saldo após pagamento parcial)"))
+                .hasPathSatisfying("$.linhas[2].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(223.6))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(1043.2));
+    }
+
+    @Test
+    void parcelasAvulsasVemDepoisDasDaPensao() {
+        when(sgs.carregarSalarioMinimo(any(), any()))
+                .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                 "inicioJuros": "CITACAO", "citacao": "2024-02-05"}
+                """;
+        String avulsa = """
+                [{"descricao": "Despesa escolar", "valor": 150.00, "inicioCorrecao": "2024-02-01"}]
+                """;
+
+        assertThat(calcular(requisicao(pensao, avulsa))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].descricao", v -> v.assertThat().isEqualTo("Alimentos 01/2024"))
+                .hasPathSatisfying("$.linhas[0].inicioJuros", v -> v.assertThat().isEqualTo("2024-02-05"))
+                .hasPathSatisfying("$.linhas[1].descricao", v -> v.assertThat().isEqualTo("Despesa escolar"))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(573.6));
+    }
+
+    @Test
+    void recusaPensaoQueVaiAlemDaDataBase() {
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-04",
+                 "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("depois do mês da data-base"));
+        verify(sgs, never()).carregarSalarioMinimo(any(), any());
+    }
+
+    @Test
+    void recusaJurosDesdeACitacaoSemACitacao() {
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-02",
+                 "inicioJuros": "CITACAO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("citação"));
+    }
+
+    @Test
+    void recusaPagamentoMaiorQueAParcela() {
+        when(sgs.carregarSalarioMinimo(any(), any()))
+                .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                 "inicioJuros": "VENCIMENTO", "pagamentos": [{"mes": "2024-01", "valor": 500.00}]}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("maior que a parcela"));
+    }
+
+    @Test
+    void salarioMinimoIndisponivelDevolve422() {
+        when(sgs.carregarSalarioMinimo(any(), any())).thenReturn(new SalarioMinimoEmMemoria());
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                 "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatus(422).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("Salário mínimo indisponível"));
+    }
+
+    @Test
+    void recusaPercentualEDiaInvalidos() {
+        String pensao = """
+                {"percentual": 0, "diaVencimento": 32, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                 "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatus(400);
+    }
+
+    @Test
+    void recusaCalculoSemPensaoNemParcelas() {
+        assertThat(calcular("""
+                {"dataBase": "2024-03-15", "aplicarArt523": false}
+                """)).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("ao menos uma parcela"));
+    }
+}
