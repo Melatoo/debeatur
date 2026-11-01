@@ -1,6 +1,8 @@
 package br.com.debeatur.core.gabarito;
 
+import br.com.debeatur.core.Dinheiro;
 import br.com.debeatur.core.indice.Indice;
+import br.com.debeatur.core.indice.SalarioMinimoEmMemoria;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +19,16 @@ class SeriesPublicadasTest {
         assertThat(serie.variacaoMensal(Indice.INPC, YearMonth.of(2015, 1))).isEqualByComparingTo("1.48");
         assertThat(serie.variacaoMensal(Indice.IPCA, YearMonth.of(2024, 9))).isEqualByComparingTo("0.44");
         assertThat(serie.variacaoMensal(Indice.INPC, YearMonth.of(2024, 8))).isEqualByComparingTo("-0.14");
+    }
+
+    @Test
+    void carregaOSalarioMinimoFixadoDoSgs() {
+        SalarioMinimoEmMemoria salario = SeriesPublicadas.salarioMinimo();
+
+        assertThat(salario.vigente(YearMonth.of(2001, 4))).isEqualTo(Dinheiro.de("180.00"));
+        assertThat(salario.vigente(YearMonth.of(2023, 4))).isEqualTo(Dinheiro.de("1302.00"));
+        assertThat(salario.vigente(YearMonth.of(2023, 5))).isEqualTo(Dinheiro.de("1320.00"));
+        assertThat(salario.vigente(YearMonth.of(2026, 10))).isEqualTo(Dinheiro.de("1621.00"));
     }
 
     @Test

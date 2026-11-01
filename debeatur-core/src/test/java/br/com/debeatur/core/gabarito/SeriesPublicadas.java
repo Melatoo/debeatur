@@ -1,6 +1,7 @@
 package br.com.debeatur.core.gabarito;
 
 import br.com.debeatur.core.indice.Indice;
+import br.com.debeatur.core.indice.SalarioMinimoEmMemoria;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 
 import java.io.BufferedReader;
@@ -18,7 +19,8 @@ import java.util.Map;
  * Séries do SGS/BCB fixadas em {@code src/test/resources/gabarito/series}, para que os testes
  * de gabarito não dependam do SGS ao vivo.
  * <p>
- * Cada arquivo tem uma linha {@code AAAA-MM;variação} por mês, sem lacunas.
+ * Cada arquivo tem uma linha {@code AAAA-MM;valor} por mês, sem lacunas: a variação, nos
+ * índices, ou o valor em reais, no salário mínimo.
  */
 public final class SeriesPublicadas {
 
@@ -35,8 +37,17 @@ public final class SeriesPublicadas {
         return serie;
     }
 
+    /** Salário mínimo vigente em cada mês, de 04/2001 a 10/2026. */
+    public static SalarioMinimoEmMemoria salarioMinimo() {
+        return new SalarioMinimoEmMemoria().comTodos(ler("SALARIO_MINIMO"));
+    }
+
     static Map<YearMonth, BigDecimal> ler(Indice indice) {
-        String arquivo = "/gabarito/series/" + indice.name() + ".csv";
+        return ler(indice.name());
+    }
+
+    private static Map<YearMonth, BigDecimal> ler(String nome) {
+        String arquivo = "/gabarito/series/" + nome + ".csv";
         Map<YearMonth, BigDecimal> valores = new LinkedHashMap<>();
         try (InputStream in = SeriesPublicadas.class.getResourceAsStream(arquivo)) {
             if (in == null) {
