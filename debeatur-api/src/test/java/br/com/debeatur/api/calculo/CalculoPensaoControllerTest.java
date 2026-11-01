@@ -139,6 +139,39 @@ class CalculoPensaoControllerTest {
     }
 
     @Test
+    void comAjuizamentoRecusaDuasParcelasNoMesmoMes() {
+        when(sgs.carregarSalarioMinimo(any(), any()))
+                .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                 "inicioJuros": "VENCIMENTO", "ajuizamento": "2024-02-01"}
+                """;
+        String avulsa = """
+                [{"descricao": "Despesa escolar", "valor": 150.00, "inicioCorrecao": "2024-01-20"}]
+                """;
+
+        assertThat(calcular(requisicao(pensao, avulsa))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString()
+                        .contains("no máximo uma parcela por mês de vencimento").contains("2024-01"));
+    }
+
+    @Test
+    void semAjuizamentoAceitaDuasParcelasNoMesmoMes() {
+        when(sgs.carregarSalarioMinimo(any(), any()))
+                .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                 "inicioJuros": "VENCIMENTO"}
+                """;
+        String avulsa = """
+                [{"descricao": "Despesa escolar", "valor": 150.00, "inicioCorrecao": "2024-01-20"}]
+                """;
+
+        assertThat(calcular(requisicao(pensao, avulsa))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas", v -> v.assertThat().asArray().hasSize(2));
+    }
+
+    @Test
     void semAjuizamentoNaoSeparaOsRitos() {
         when(sgs.carregarSalarioMinimo(any(), any()))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));

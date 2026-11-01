@@ -24,7 +24,8 @@ import java.util.List;
  * @param pagamentos  valores pagos, abatidos da parcela do mesmo mês
  * @param ajuizamento data do ajuizamento da execução; se informada, as linhas do demonstrativo,
  *                    inclusive as avulsas, são separadas entre o rito da prisão e o da penhora
- *                    pelo vencimento, e o art. 523 incide só sobre a penhora
+ *                    pelo vencimento, e o art. 523 incide só sobre a penhora; exige no máximo
+ *                    uma parcela, da pensão ou avulsa, por mês de vencimento
  */
 public record PensaoRequest(
         @NotNull @Positive BigDecimal percentual,
