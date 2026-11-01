@@ -1,6 +1,7 @@
 package br.com.debeatur.indices;
 
 import br.com.debeatur.core.indice.Indice;
+import br.com.debeatur.core.indice.SalarioMinimoEmMemoria;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -36,6 +37,8 @@ public class SgsClient {
             Indice.IPCA_E, 10764,
             Indice.SELIC, 4390,
             Indice.TAXA_LEGAL, 29543);
+    /** Série 1619: salário mínimo nacional, valor vigente em cada mês. */
+    private static final int CODIGO_SALARIO_MINIMO = 1619;
 
     private final HttpClient http;
     private final URI baseUrl;
@@ -52,27 +55,40 @@ public class SgsClient {
 
     /** Variações mensais do índice entre os meses informados (inclusive). */
     public Map<YearMonth, BigDecimal> buscar(Indice indice, YearMonth de, YearMonth ate) {
-        URI uri = baseUrl.resolve("bcdata.sgs.%d/dados?formato=json&dataInicial=%s&dataFinal=%s".formatted(
-                CODIGOS.get(indice), de.atDay(1).format(DATA_BR), ate.atEndOfMonth().format(DATA_BR)));
-        HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).GET().build();
-        try {
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                throw new SgsException("SGS respondeu " + response.statusCode() + " para " + indice);
-            }
-            return interpretar(response.body());
-        } catch (IOException e) {
-            throw new SgsException("Falha ao consultar o SGS para " + indice, e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new SgsException("Consulta ao SGS interrompida", e);
-        }
+        return consultar(CODIGOS.get(indice), indice.name(), de, ate);
     }
 
     public SerieIndicesEmMemoria carregar(Set<Indice> indices, YearMonth de, YearMonth ate) {
         SerieIndicesEmMemoria serie = new SerieIndicesEmMemoria();
         indices.forEach(indice -> serie.comTodos(indice, buscar(indice, de, ate)));
         return serie;
+    }
+
+    /** Salário mínimo vigente em cada mês entre os meses informados (inclusive), em reais. */
+    public Map<YearMonth, BigDecimal> buscarSalarioMinimo(YearMonth de, YearMonth ate) {
+        return consultar(CODIGO_SALARIO_MINIMO, "salário mínimo", de, ate);
+    }
+
+    public SalarioMinimoEmMemoria carregarSalarioMinimo(YearMonth de, YearMonth ate) {
+        return new SalarioMinimoEmMemoria().comTodos(buscarSalarioMinimo(de, ate));
+    }
+
+    private Map<YearMonth, BigDecimal> consultar(int codigo, String serie, YearMonth de, YearMonth ate) {
+        URI uri = baseUrl.resolve("bcdata.sgs.%d/dados?formato=json&dataInicial=%s&dataFinal=%s".formatted(
+                codigo, de.atDay(1).format(DATA_BR), ate.atEndOfMonth().format(DATA_BR)));
+        HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).GET().build();
+        try {
+            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                throw new SgsException("SGS respondeu " + response.statusCode() + " para " + serie);
+            }
+            return interpretar(response.body());
+        } catch (IOException e) {
+            throw new SgsException("Falha ao consultar o SGS para " + serie, e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SgsException("Consulta ao SGS interrompida", e);
+        }
     }
 
     Map<YearMonth, BigDecimal> interpretar(String corpo) {
