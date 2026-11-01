@@ -11,7 +11,10 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -40,10 +43,31 @@ public record CalculoRequest(
     /** @param parcelasDaPensao parcelas já geradas a partir de {@link #pensao()} */
     ParametrosCalculo paraDominio(List<Parcela> parcelasDaPensao) {
         Stream<Parcela> avulsas = parcelas == null ? Stream.empty() : parcelas.stream().map(ParcelaRequest::paraDominio);
-        return new ParametrosCalculo(
-                Stream.concat(parcelasDaPensao.stream(), avulsas).toList(),
+        List<Parcela> todas = Stream.concat(parcelasDaPensao.stream(), avulsas).toList();
+        if (separaPorRito()) {
+            exigirUmaParcelaPorMes(todas);
+        }
+        return new ParametrosCalculo(todas,
                 dataBase, regime == null ? RegimeAtualizacao.civelPadrao() : regime.paraDominio(),
                 aplicarArt523 && !separaPorRito());
+    }
+
+    /**
+     * A separação dos ritos conta as três parcelas anteriores ao ajuizamento por linha; com duas
+     * linhas no mesmo mês, a prisão cobriria menos de três meses.
+     */
+    private static void exigirUmaParcelaPorMes(List<Parcela> parcelas) {
+        List<YearMonth> repetidos = parcelas.stream()
+                .collect(Collectors.groupingBy(p -> YearMonth.from(p.inicioCorrecao()), Collectors.counting()))
+                .entrySet().stream()
+                .filter(e -> e.getValue() > 1)
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
+        if (!repetidos.isEmpty()) {
+            throw new IllegalArgumentException("Para separar os ritos, informe no máximo uma parcela por mês de vencimento;"
+                    + " há mais de uma em " + repetidos);
+        }
     }
 
     /** Nos alimentos com ajuizamento, o art. 523 sai do motor e incide só sobre a penhora. */
