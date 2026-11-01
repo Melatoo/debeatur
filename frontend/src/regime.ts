@@ -59,6 +59,13 @@ export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
   })),
 })
 
+/**
+ * Se a regra é a SELIC terminando junto à virada da Lei 14.905/2024 (30/08/2024). Como as
+ * regras valem por mês inteiro, agosto/2024 fica todo com um critério só (#32).
+ */
+export const selicNaViradaDaLei14905 = (regra: RegraEditavel) =>
+  regra.correcao === 'SELIC' && (regra.fim === '2024-07' || regra.fim === '2024-08')
+
 /** Mês seguinte a um mês AAAA-MM. */
 export function mesSeguinte(mes: string): string {
   const [ano, m] = mes.split('-').map(Number)

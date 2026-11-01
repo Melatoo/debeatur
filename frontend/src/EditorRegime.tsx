@@ -1,5 +1,13 @@
 import type { IndiceCorrecao, TipoJuros } from './api'
-import { INDICES, TIPOS_JUROS, mesSeguinte, regraVazia, usaPercentual, type RegraEditavel } from './regime'
+import {
+  INDICES,
+  TIPOS_JUROS,
+  mesSeguinte,
+  regraVazia,
+  selicNaViradaDaLei14905,
+  usaPercentual,
+  type RegraEditavel,
+} from './regime'
 
 interface Props {
   nome: string
@@ -101,6 +109,13 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
           {r.correcao === 'SELIC' && r.juros !== 'SEM_JUROS' && (
             <p className="aviso">
               A SELIC já engloba correção e juros (Tema 1368/STJ). Só some outra taxa se o título mandar.
+            </p>
+          )}
+          {selicNaViradaDaLei14905(r) && (
+            <p className="aviso">
+              Os períodos valem por mês inteiro, então agosto/2024 fica todo{' '}
+              {r.fim === '2024-07' ? 'com o critério da regra seguinte' : 'com a SELIC'}. A Lei 14.905/2024 vale desde
+              30/08/2024, e a divisão do mês por dias ainda não é feita: confira esse mês no cálculo.
             </p>
           )}
         </fieldset>
