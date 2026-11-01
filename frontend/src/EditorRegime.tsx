@@ -40,6 +40,7 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
 
       {regras.map((r, i) => (
         <fieldset key={i} className="regra">
+          <legend className="sr-only">Período {i + 1}</legend>
           <label>
             De
             <input type="month" required value={r.inicio} onChange={(e) => alterar(i, { inicio: e.target.value })} />
@@ -87,7 +88,12 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
             />
           </label>
           {regras.length > 1 ? (
-            <button type="button" className="secundario" onClick={() => onRegras(regras.filter((_, j) => j !== i))}>
+            <button
+              type="button"
+              className="secundario"
+              aria-label={`Remover o período ${i + 1}`}
+              onClick={() => onRegras(regras.filter((_, j) => j !== i))}
+            >
               Remover
             </button>
           ) : (
