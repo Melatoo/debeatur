@@ -77,6 +77,36 @@ select {
   background: var(--superficie);
 }
 
+.pensao,
+.pagamento {
+  display: grid;
+  gap: 12px;
+  align-items: end;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 0 0 12px;
+  background: var(--superficie);
+}
+
+.pensao {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.pagamento {
+  grid-template-columns: 1fr 1fr auto;
+  max-width: 560px;
+}
+
+.editor-pensao {
+  margin: 12px 0 8px;
+}
+
+.editor-pensao h3 {
+  font-size: 1rem;
+  margin: 16px 0 8px;
+}
+
 input:disabled {
   opacity: 0.5;
 }
@@ -124,7 +154,9 @@ input:disabled {
 
 @media (max-width: 760px) {
   .parcela,
-  .regra {
+  .regra,
+  .pensao,
+  .pagamento {
     grid-template-columns: 1fr;
   }
 

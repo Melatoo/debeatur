@@ -1,6 +1,7 @@
 package br.com.debeatur.api;
 
 import br.com.debeatur.core.indice.IndiceIndisponivelException;
+import br.com.debeatur.core.indice.SalarioMinimoIndisponivelException;
 import br.com.debeatur.indices.SgsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -18,6 +19,11 @@ public class TratamentoErros {
 
     @ExceptionHandler(IndiceIndisponivelException.class)
     ProblemDetail indiceIndisponivel(IndiceIndisponivelException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(422), e.getMessage());
+    }
+
+    @ExceptionHandler(SalarioMinimoIndisponivelException.class)
+    ProblemDetail salarioMinimoIndisponivel(SalarioMinimoIndisponivelException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(422), e.getMessage());
     }
 

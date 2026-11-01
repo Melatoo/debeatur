@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { buscarRegimePadrao, calcular, type Demonstrativo, type ParcelaRequest } from './api'
+import { EditorPensao } from './EditorPensao'
+import { paraPensao, pensaoVazia, type PensaoEditavel } from './pensao'
 import { EditorRegime } from './EditorRegime'
 import { INDICES, descreverPeriodo, paraEditavel, paraRegime, regraVazia, type RegraEditavel } from './regime'
 import './App.css'
@@ -10,10 +12,13 @@ const data = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocale
 const hoje = () => new Date().toLocaleDateString('sv-SE')
 
 const parcelaVazia =(): ParcelaRequest => ({ descricao: '', valor: '', inicioCorrecao: '', inicioJuros: '' })
+const estaVazia = (p: ParcelaRequest) => !p.descricao && !p.valor && !p.inicioCorrecao && !p.inicioJuros
 
 function App() {
   const [dataBase, setDataBase] = useState(hoje)
   const [aplicarArt523, setAplicarArt523] = useState(true)
+  const [comPensao, setComPensao] = useState(false)
+  const [pensao, setPensao] = useState<PensaoEditavel>(pensaoVazia)
   const [parcelas, setParcelas] = useState<ParcelaRequest[]>([parcelaVazia()])
   const [regimeProprio, setRegimeProprio] = useState(false)
   const [nomeRegime, setNomeRegime] = useState('')
@@ -24,6 +29,13 @@ function App() {
 
   const alterarParcela = (indice: number, campo: keyof ParcelaRequest, valor: string) =>
     setParcelas((atuais) => atuais.map((p, i) => (i === indice ? { ...p, [campo]: valor } : p)))
+
+  function usarPensao(ativa: boolean) {
+    setComPensao(ativa)
+    // Com a pensão, as parcelas avulsas são opcionais: some a parcela em branco que bloquearia o envio.
+    if (ativa) setParcelas((atuais) => atuais.filter((p) => !estaVazia(p)))
+    else if (parcelas.length === 0) setParcelas([parcelaVazia()])
+  }
 
   async function usarRegimeProprio(proprio: boolean) {
     setRegimeProprio(proprio)
@@ -45,6 +57,7 @@ function App() {
           dataBase,
           aplicarArt523,
           parcelas: parcelas.map((p) => ({ ...p, inicioJuros: p.inicioJuros || null })),
+          pensao: comPensao ? paraPensao(pensao) : undefined,
           regime: regimeProprio ? paraRegime(nomeRegime, regras) : undefined,
         }),
       )
@@ -75,7 +88,14 @@ function App() {
           </label>
         </div>
 
-        <h2>Parcelas</h2>
+        <h2>Pensão alimentícia</h2>
+        <label className="checkbox">
+          <input type="checkbox" checked={comPensao} onChange={(e) => usarPensao(e.target.checked)} />
+          Alimentos fixados em percentual do salário mínimo
+        </label>
+        {comPensao && <EditorPensao pensao={pensao} onPensao={setPensao} />}
+
+        <h2>{comPensao ? 'Outras parcelas (opcional)' : 'Parcelas'}</h2>
         {parcelas.map((p, i) => (
           <fieldset key={i} className="parcela">
             <label>
@@ -110,7 +130,7 @@ function App() {
                 onChange={(e) => alterarParcela(i, 'inicioJuros', e.target.value)}
               />
             </label>
-            {parcelas.length > 1 && (
+            {(parcelas.length > 1 || comPensao) && (
               <button type="button" className="secundario" onClick={() => setParcelas(parcelas.filter((_, j) => j !== i))}>
                 Remover
               </button>
