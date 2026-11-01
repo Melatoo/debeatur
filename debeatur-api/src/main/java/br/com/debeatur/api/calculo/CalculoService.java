@@ -30,8 +30,16 @@ public class CalculoService {
         this.sgs = sgs;
     }
 
-    /** Parcelas da pensão, com o salário mínimo do SGS e os pagamentos já abatidos. */
-    public List<Parcela> parcelas(PensaoRequest pensao, LocalDate dataBase) {
+    /**
+     * Parcelas da pensão, com o salário mínimo do SGS e os pagamentos já abatidos.
+     *
+     * @param parcelas saldos que vão ao motor, na ordem dos meses
+     * @param memoria  de onde veio cada saldo, na mesma ordem
+     */
+    public record ParcelasDaPensao(List<Parcela> parcelas, List<DemonstrativoResponse.MesPensao> memoria) {
+    }
+
+    public ParcelasDaPensao parcelas(PensaoRequest pensao, LocalDate dataBase) {
         PensaoEmSalarioMinimo dominio = pensao.paraDominio();
         if (dominio.ultimoVencimento().isAfter(dataBase)) {
             throw new IllegalArgumentException("A última parcela da pensão vence em " + dominio.ultimoVencimento()
@@ -39,7 +47,13 @@ public class CalculoService {
         }
         PagamentosParciais pagamentos = pensao.pagamentosParaDominio();
         SalarioMinimo salarioMinimo = sgs.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes());
-        return pagamentos.abater(dominio.parcelas(salarioMinimo));
+        List<Parcela> devidas = dominio.parcelas(salarioMinimo);
+        List<DemonstrativoResponse.MesPensao> memoria = devidas.stream().map(parcela -> {
+            YearMonth mes = YearMonth.from(parcela.inicioCorrecao());
+            return new DemonstrativoResponse.MesPensao(mes, salarioMinimo.vigente(mes).valor(),
+                    parcela.valor().valor(), pensao.pagoEm(mes));
+        }).toList();
+        return new ParcelasDaPensao(pagamentos.abater(devidas), memoria);
     }
 
     // TODO: persistir séries e snapshot dos índices usados, em vez de consultar o SGS a cada cálculo

@@ -84,6 +84,34 @@ class CalculoPensaoControllerTest {
     }
 
     @Test
+    void informaDeOndeVeioCadaParcelaDaPensao() {
+        when(sgs.carregarSalarioMinimo(YearMonth.of(2023, 12), YearMonth.of(2024, 2)))
+                .thenReturn(new SalarioMinimoEmMemoria()
+                        .com(YearMonth.of(2023, 12), "1320.00")
+                        .com(YearMonth.of(2024, 1), "1412.00")
+                        .com(YearMonth.of(2024, 2), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-02",
+                 "inicioJuros": "VENCIMENTO", "pagamentos": [{"mes": "2024-02", "valor": 200.00}]}
+                """;
+        String avulsa = """
+                [{"descricao": "Despesa escolar", "valor": 150.00, "inicioCorrecao": "2024-02-01"}]
+                """;
+
+        assertThat(calcular(requisicao(pensao, avulsa))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].pensao.mes", v -> v.assertThat().isEqualTo("2023-12"))
+                .hasPathSatisfying("$.linhas[0].pensao.salarioMinimo", v -> v.assertThat().asNumber().isEqualTo(1320.0))
+                .hasPathSatisfying("$.linhas[0].pensao.valorDevido", v -> v.assertThat().asNumber().isEqualTo(396.0))
+                .hasPathSatisfying("$.linhas[0].pensao.valorPago", v -> v.assertThat().asNumber().isEqualTo(0))
+                .hasPathSatisfying("$.linhas[2].pensao.mes", v -> v.assertThat().isEqualTo("2024-02"))
+                .hasPathSatisfying("$.linhas[2].pensao.salarioMinimo", v -> v.assertThat().asNumber().isEqualTo(1412.0))
+                .hasPathSatisfying("$.linhas[2].pensao.valorDevido", v -> v.assertThat().asNumber().isEqualTo(423.6))
+                .hasPathSatisfying("$.linhas[2].pensao.valorPago", v -> v.assertThat().asNumber().isEqualTo(200.0))
+                .hasPathSatisfying("$.linhas[2].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(223.6))
+                .hasPathSatisfying("$.linhas[3].pensao", v -> v.assertThat().isNull());
+    }
+
+    @Test
     void parcelasAvulsasVemDepoisDasDaPensao() {
         when(sgs.carregarSalarioMinimo(any(), any()))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
@@ -127,6 +155,7 @@ class CalculoPensaoControllerTest {
                 .hasPathSatisfying("$.linhas[0].rito", v -> v.assertThat().isEqualTo("PENHORA"))
                 .hasPathSatisfying("$.linhas[1].rito", v -> v.assertThat().isEqualTo("PRISAO"))
                 .hasPathSatisfying("$.linhas[4].rito", v -> v.assertThat().isEqualTo("PRISAO"))
+                .hasPathSatisfying("$.linhas[4].pensao.mes", v -> v.assertThat().isEqualTo("2024-02"))
                 .hasPathSatisfying("$.ritos.ajuizamento", v -> v.assertThat().isEqualTo("2024-02-01"))
                 .hasPathSatisfying("$.ritos.prisao.parcelas", v -> v.assertThat().asNumber().isEqualTo(4))
                 .hasPathSatisfying("$.ritos.prisao.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(1639.2))
