@@ -80,18 +80,22 @@ public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
      *   <li><b>Correção.</b> Vale a edição da tabela vigente no último dia do critério anterior.
      *       A edição do mês M só tem INPC até M−1, porque o IBGE divulga o índice no mês
      *       seguinte; o mês M já não está na tabela e é corrigido pelo IPCA.</li>
-     *   <li><b>Juros.</b> Seguem a data: 1% a.m. até o mês do corte, inteiro, e taxa legal a
-     *       partir do mês seguinte. Com granularidade mensal, os dias do mês do corte
-     *       posteriores a ele ficam a 1% até o pro rata die (#3).</li>
+     *   <li><b>Juros.</b> Seguem a data: 1% a.m. até o mês anterior ao do corte, taxa legal a
+     *       partir do mês seguinte e, no mês do corte, 1% até o dia do corte e taxa legal pro
+     *       rata nos dias restantes ({@link Juros.TransicaoParaTaxaLegal}, #3).</li>
      * </ul>
-     * Assim, no mês do corte a correção já é a da lei nova e os juros ainda são os da antiga.
+     * Assim, no mês do corte a correção já é a da lei nova e os juros se dividem entre as duas.
+     * <p>
+     * O corte não pode ser anterior a 29/08/2024, véspera da vigência da Lei 14.905/2024: o
+     * regime é recusado já na montagem, e não no meio do cálculo.
      */
     public static RegimeAtualizacao transicaoTabelaCgjParaLei14905(String nome, LocalDate ultimoDiaCriterioAnterior) {
         YearMonth mesCorte = YearMonth.from(ultimoDiaCriterioAnterior);
         Juros umPorCento = new Juros.TaxaFixa(BigDecimal.ONE);
         return new RegimeAtualizacao(nome, List.of(
                 new RegraPeriodo(INICIO_REAL, mesCorte.minusMonths(1), Indice.INPC, umPorCento),
-                new RegraPeriodo(mesCorte, mesCorte, Indice.IPCA, umPorCento),
+                new RegraPeriodo(mesCorte, mesCorte, Indice.IPCA,
+                        new Juros.TransicaoParaTaxaLegal(ultimoDiaCriterioAnterior, BigDecimal.ONE)),
                 new RegraPeriodo(mesCorte.plusMonths(1), null, Indice.IPCA, new Juros.TaxaLegal())));
     }
 }

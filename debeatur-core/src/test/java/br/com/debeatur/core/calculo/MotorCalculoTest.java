@@ -34,6 +34,7 @@ class MotorCalculoTest {
             .com(Indice.IPCA, YearMonth.of(2024, 9), "0.44")
             .com(Indice.IPCA, YearMonth.of(2024, 10), "0.56")
             // taxa legal divulgada pelo BCB (SGS 29543)
+            .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 8), "0.605306")
             .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 9), "0.676227")
             .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 10), "0.704241");
 
@@ -85,10 +86,11 @@ class MotorCalculoTest {
         // 1,0026 × 0,9998 × 1,0044 × 1,0056
         assertThat(linha.fatorCorrecao()).isEqualByComparingTo("1.0124481739231872");
         assertThat(linha.valorCorrigido()).isEqualTo(Dinheiro.de("1012.45"));
-        // jul e ago: 1%; set e out: taxa legal divulgada pelo BCB
-        assertThat(linha.percentualJuros()).isEqualByComparingTo("3.380468");
-        assertThat(linha.valorJuros()).isEqualTo(Dinheiro.de("34.23"));
-        assertThat(d.total()).isEqualTo(Dinheiro.de("1046.68"));
+        // jul: 1%; ago: 1,005752% (29/30 de 1% + 2/31 da taxa legal de agosto, como a DPMG);
+        // set e out: taxa legal divulgada pelo BCB
+        assertThat(linha.percentualJuros()).isEqualByComparingTo("3.386220");
+        assertThat(linha.valorJuros()).isEqualTo(Dinheiro.de("34.28"));
+        assertThat(d.total()).isEqualTo(Dinheiro.de("1046.73"));
     }
 
     @Test
@@ -100,7 +102,8 @@ class MotorCalculoTest {
                 .containsExactly(Indice.INPC, new Juros.TaxaFixa(BigDecimal.ONE));
         assertThat(regime.regraPara(YearMonth.of(2024, 8)))
                 .extracting(RegraPeriodo::correcao, RegraPeriodo::juros)
-                .containsExactly(Indice.IPCA, new Juros.TaxaFixa(BigDecimal.ONE));
+                .containsExactly(Indice.IPCA,
+                        new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 8, 29), BigDecimal.ONE));
         assertThat(regime.regraPara(YearMonth.of(2024, 9)))
                 .extracting(RegraPeriodo::correcao, RegraPeriodo::juros)
                 .containsExactly(Indice.IPCA, new Juros.TaxaLegal());
@@ -115,8 +118,72 @@ class MotorCalculoTest {
         assertThat(regime.regraPara(YearMonth.of(2024, 8)).correcao()).isEqualTo(Indice.INPC);
         assertThat(regime.regraPara(YearMonth.of(2024, 9)))
                 .extracting(RegraPeriodo::correcao, RegraPeriodo::juros)
-                .containsExactly(Indice.IPCA, new Juros.TaxaFixa(BigDecimal.ONE));
+                .containsExactly(Indice.IPCA,
+                        new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 9, 30), BigDecimal.ONE));
         assertThat(regime.regraPara(YearMonth.of(2024, 10)).juros()).isEqualTo(new Juros.TaxaLegal());
+    }
+
+    @Test
+    void transicaoDivideOMesDoCorteComoAPlanilhaDaDpmg() {
+        // planilha da DPMG, agosto/2024: 29/30 de 1% (0,9667%) + 2/31 de 0,605306% (0,039052%)
+        Juros transicao = new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 8, 29), BigDecimal.ONE);
+
+        assertThat(transicao.percentualNoMes(YearMonth.of(2024, 8), serie))
+                .isEqualByComparingTo("1.005752");
+    }
+
+    @Test
+    void transicaoNoUltimoDiaDoMesMantemATaxaFixaInteira() {
+        Juros transicao = new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 9, 30), BigDecimal.ONE);
+
+        assertThat(transicao.percentualNoMes(YearMonth.of(2024, 9), serie)).isEqualByComparingTo("1");
+    }
+
+    @Test
+    void transicaoSoSeAplicaAoMesDoCorte() {
+        Juros transicao = new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 8, 29), BigDecimal.ONE);
+
+        assertThatThrownBy(() -> transicao.percentualNoMes(YearMonth.of(2024, 9), serie))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void transicaoRecusaCorteAntesDaVigenciaDaLei14905() {
+        // a taxa legal só existe a partir de 30/08/2024; antes, o regime falhava só no cálculo
+        assertThatThrownBy(() -> new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 8, 28), BigDecimal.ONE))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RegimeAtualizacao.transicaoTabelaCgjParaLei14905(
+                "corte em 15/07/2024", LocalDate.of(2024, 7, 15)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void transicaoComCorteNoDia30DeMesDe31DiasSegueAsBasesDaDpmg() {
+        // taxa fixa sobre o mês comercial (30/30 = 1%) e taxa legal nos dias corridos restantes
+        // (1/31 de 0,605306%): a mesma regra que dá 1,005752% com corte em 29/08/2024
+        Juros transicao = new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 8, 30), BigDecimal.ONE);
+
+        assertThat(transicao.percentualNoMes(YearMonth.of(2024, 8), serie))
+                .isEqualByComparingTo("1.019526");
+    }
+
+    @Test
+    void transicaoArredondaATaxaLegalProporcionalASeisCasas() {
+        // 15/30 de 0,676227% = 0,3381135, arredondado a 0,338114 (casas da taxa publicada)
+        Juros transicao = new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 9, 15), BigDecimal.ONE);
+
+        BigDecimal percentual = transicao.percentualNoMes(YearMonth.of(2024, 9), serie);
+
+        assertThat(percentual).isEqualByComparingTo("0.838114");
+        assertThat(percentual.scale()).isLessThanOrEqualTo(6);
+    }
+
+    @Test
+    void descricaoDaTransicaoSoCitaATaxaLegalQuandoEhAplicada() {
+        assertThat(new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 8, 29), BigDecimal.ONE).descricao())
+                .isEqualTo("1% a.m. até 29/08/2024 e taxa legal pro rata nos dias seguintes");
+        assertThat(new Juros.TransicaoParaTaxaLegal(LocalDate.of(2024, 9, 30), BigDecimal.ONE).descricao())
+                .isEqualTo("1% a.m. até 30/09/2024");
     }
 
     @Test

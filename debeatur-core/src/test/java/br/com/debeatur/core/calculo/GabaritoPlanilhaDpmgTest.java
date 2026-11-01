@@ -40,27 +40,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  * motor acumula as variações do SGS, que têm duas casas. A diferença relativa chega a
  * 5,9 × 10⁻⁷ (cerca de R$ 0,002 em R$ 1.000,00). De 06/2024 em diante o fator é exato, a
  * menos da precisão de ponto flutuante da planilha. Os juros não têm tolerância.
- * <p>
- * Divergência conhecida do {@link RegimeAtualizacao#civelPadrao()} nas parcelas até 08/2024,
- * verificada com o valor exato que produz (#3): sem pro rata die, o regime aplica 1% de juros
- * em agosto/2024 e a planilha 1,005752%, então o percentual do motor é o da planilha
- * − 0,005752. Quando o motor passar a fazer o pro rata die, o teste falha nessas linhas:
- * retire o ajuste.
  */
 class GabaritoPlanilhaDpmgTest {
 
     private static final MathContext PRECISAO = MathContext.DECIMAL128;
     private static final LocalDate DATA_BASE = LocalDate.of(2026, 10, 1);
-    private static final YearMonth AGOSTO_2024 = YearMonth.of(2024, 8);
 
     /** Último mês em que a planilha parte do número-índice da tabela da CGJ. */
     private static final YearMonth ULTIMO_MES_TABELA_CGJ = YearMonth.of(2024, 5);
     private static final BigDecimal TOLERANCIA_TABELA_CGJ = new BigDecimal("0.0000006");
     /** Folga para a precisão de ponto flutuante do fator armazenado na planilha. */
     private static final BigDecimal TOLERANCIA_EXATA = new BigDecimal("0.000000000001");
-
-    /** #3: 1% do civelPadrao menos 1,005752% da planilha em agosto/2024. */
-    private static final BigDecimal AJUSTE_JUROS_AGOSTO_2024 = new BigDecimal("-0.005752");
 
     private static final SerieIndicesEmMemoria SERIE = SeriesPublicadas.carregar();
 
@@ -82,13 +72,9 @@ class GabaritoPlanilhaDpmgTest {
     @ParameterizedTest(name = "{0}: juros {2}%")
     @CsvFileSource(resources = "/gabarito/planilha-dpmg-alimentos-2026-10.csv", numLinesToSkip = 1)
     void percentualDeJurosReproduzAPlanilha(YearMonth mes, BigDecimal fatorPlanilha, BigDecimal jurosPlanilha) {
-        BigDecimal esperado = mes.isAfter(AGOSTO_2024)
-                ? jurosPlanilha
-                : jurosPlanilha.add(AJUSTE_JUROS_AGOSTO_2024);
-
         assertThat(calcular(mes).percentualJuros())
                 .as("percentual de juros (planilha %s%%)", jurosPlanilha)
-                .isEqualByComparingTo(esperado);
+                .isEqualByComparingTo(jurosPlanilha);
     }
 
     private LinhaDemonstrativo calcular(YearMonth mes) {
