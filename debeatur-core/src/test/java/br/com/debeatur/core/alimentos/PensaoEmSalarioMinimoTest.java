@@ -57,6 +57,14 @@ class PensaoEmSalarioMinimoTest {
     }
 
     @Test
+    void ultimoVencimentoSegueODiaDoVencimento() {
+        assertThat(pensao("30", 31, YearMonth.of(2024, 1), YearMonth.of(2024, 2)).ultimoVencimento())
+                .isEqualTo(LocalDate.of(2024, 2, 29));
+        assertThat(pensao("30", 10, YearMonth.of(2024, 1), YearMonth.of(2024, 3)).ultimoVencimento())
+                .isEqualTo(LocalDate.of(2024, 3, 10));
+    }
+
+    @Test
     void jurosDesdeACitacaoSoAlcancamAsParcelasVencidasAntesDela() {
         LocalDate citacao = LocalDate.of(2024, 2, 5);
         List<Parcela> parcelas = new PensaoEmSalarioMinimo(new BigDecimal("30"), 10, YearMonth.of(2024, 1),

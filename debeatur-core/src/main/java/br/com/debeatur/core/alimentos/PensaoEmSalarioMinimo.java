@@ -54,11 +54,20 @@ public record PensaoEmSalarioMinimo(BigDecimal percentual, int diaVencimento, Ye
     public List<Parcela> parcelas(SalarioMinimo salarioMinimo) {
         List<Parcela> parcelas = new ArrayList<>();
         for (YearMonth mes = primeiroMes; !mes.isAfter(ultimoMes); mes = mes.plusMonths(1)) {
-            LocalDate vencimento = mes.atDay(Math.min(diaVencimento, mes.lengthOfMonth()));
+            LocalDate vencimento = vencimento(mes);
             Dinheiro valor = salarioMinimo.vigente(mes).percentual(percentual);
             parcelas.add(new Parcela("Alimentos " + mes.format(MES_ANO), valor, vencimento, inicioJuros(vencimento)));
         }
         return parcelas;
+    }
+
+    /** Vencimento da última parcela, em {@code ultimoMes}. */
+    public LocalDate ultimoVencimento() {
+        return vencimento(ultimoMes);
+    }
+
+    private LocalDate vencimento(YearMonth mes) {
+        return mes.atDay(Math.min(diaVencimento, mes.lengthOfMonth()));
     }
 
     private LocalDate inicioJuros(LocalDate vencimento) {

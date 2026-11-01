@@ -110,8 +110,35 @@ class CalculoPensaoControllerTest {
                 """;
 
         assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
-                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("depois do mês da data-base"));
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("vence em 2024-04-10, depois da data-base (2024-03-15)"));
         verify(sgs, never()).carregarSalarioMinimo(any(), any());
+    }
+
+    @Test
+    void recusaPensaoNoMesDaDataBaseQueVenceDepoisDela() {
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 20, "primeiroMes": "2024-01", "ultimoMes": "2024-03",
+                 "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail",
+                        v -> v.assertThat().asString().contains("vence em 2024-03-20, depois da data-base (2024-03-15)"));
+        verify(sgs, never()).carregarSalarioMinimo(any(), any());
+    }
+
+    @Test
+    void aceitaPensaoNoMesDaDataBaseQueVenceAteEla() {
+        when(sgs.carregarSalarioMinimo(any(), any()))
+                .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 3), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 15, "primeiroMes": "2024-03", "ultimoMes": "2024-03",
+                 "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].inicioCorrecao", v -> v.assertThat().isEqualTo("2024-03-15"))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(423.6));
     }
 
     @Test

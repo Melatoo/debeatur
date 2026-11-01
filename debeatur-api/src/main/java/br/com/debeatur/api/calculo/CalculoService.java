@@ -33,9 +33,9 @@ public class CalculoService {
     /** Parcelas da pensão, com o salário mínimo do SGS e os pagamentos já abatidos. */
     public List<Parcela> parcelas(PensaoRequest pensao, LocalDate dataBase) {
         PensaoEmSalarioMinimo dominio = pensao.paraDominio();
-        if (dominio.ultimoMes().isAfter(YearMonth.from(dataBase))) {
-            throw new IllegalArgumentException("A pensão vai até " + dominio.ultimoMes()
-                    + ", depois do mês da data-base (" + YearMonth.from(dataBase) + ")");
+        if (dominio.ultimoVencimento().isAfter(dataBase)) {
+            throw new IllegalArgumentException("A última parcela da pensão vence em " + dominio.ultimoVencimento()
+                    + ", depois da data-base (" + dataBase + ")");
         }
         PagamentosParciais pagamentos = pensao.pagamentosParaDominio();
         SalarioMinimo salarioMinimo = sgs.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes());
