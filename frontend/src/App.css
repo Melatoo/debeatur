@@ -815,10 +815,20 @@ tfoot .total td {
   }
 
   tr,
-  .resumo,
+  .resumo > *,
   .linha-do-tempo,
   .parametros {
     break-inside: avoid;
+  }
+
+  /* O título e a regra do rito acompanham a tabela na mesma folha. */
+  .memoria h3,
+  .regra-rito {
+    break-after: avoid;
+  }
+
+  .memoria h3 + .regra-rito {
+    break-before: avoid;
   }
 
   tbody tr:hover {
