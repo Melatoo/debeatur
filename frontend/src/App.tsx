@@ -10,6 +10,7 @@ const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 const data = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—')
 
 const RITOS: Record<Rito, string> = { PRISAO: 'Prisão', PENHORA: 'Penhora' }
+const contarParcelas = (n: number) => `${n} ${n === 1 ? 'parcela' : 'parcelas'}`
 
 const hoje = () => new Date().toLocaleDateString('sv-SE')
 
@@ -218,9 +219,9 @@ function App() {
 
           {resultado.ritos && (
             <dl className="totais">
-              <dt>Rito da prisão ({resultado.ritos.prisao.parcelas} parcelas)</dt>
+              <dt>Rito da prisão ({contarParcelas(resultado.ritos.prisao.parcelas)})</dt>
               <dd>{moeda.format(resultado.ritos.prisao.debitoAtualizado)}</dd>
-              <dt>Rito da penhora ({resultado.ritos.penhora.parcelas} parcelas)</dt>
+              <dt>Rito da penhora ({contarParcelas(resultado.ritos.penhora.parcelas)})</dt>
               <dd>{moeda.format(resultado.ritos.penhora.debitoAtualizado)}</dd>
             </dl>
           )}
