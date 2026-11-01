@@ -24,11 +24,14 @@ materiais, danos morais, cobrança).
 
 **TJMG.** Os cálculos de gabarito virão da contadoria do TJMG ou de processos homologados lá.
 
-- Até 08/2024: fatores da tabela da Corregedoria-Geral de Justiça do TJMG (base INPC).
+- Correção até 07/2024: fatores da tabela da Corregedoria-Geral de Justiça do TJMG (base
+  INPC). A edição vigente em 29/08/2024 só tem INPC até julho, então agosto/2024 já é
+  corrigido pelo IPCA (#24). Juros de 1% a.m. até 29/08/2024; em agosto/2024, 29/30 de 1%
+  mais 2/31 da taxa legal de agosto, como a planilha da DPMG (#3).
   A confirmar: se os fatores publicados batem com o INPC puro do SGS ou se a tabela precisa
   entrar como série própria.
 - A partir de 09/2024: IPCA + taxa legal (Lei 14.905/2024). A confirmar: como o TJMG
-  operacionalizou a mudança (data de corte e se publica tabela própria).
+  operacionalizou a mudança (se publica tabela própria e se trata 30 e 31/08/2024 como a DPMG).
 
 ## Definição de pronto
 

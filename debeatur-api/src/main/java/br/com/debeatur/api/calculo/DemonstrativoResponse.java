@@ -2,6 +2,7 @@ package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.LinhaDemonstrativo;
+import br.com.debeatur.core.regime.RegimeAtualizacao;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,7 +10,7 @@ import java.util.List;
 
 public record DemonstrativoResponse(
         LocalDate dataBase,
-        String regime,
+        RegimeDto regime,
         List<Linha> linhas,
         BigDecimal totalCorrigido,
         BigDecimal totalJuros,
@@ -37,8 +38,8 @@ public record DemonstrativoResponse(
         }
     }
 
-    static DemonstrativoResponse de(Demonstrativo d) {
-        return new DemonstrativoResponse(d.dataBase(), d.regime(),
+    static DemonstrativoResponse de(Demonstrativo d, RegimeAtualizacao regime) {
+        return new DemonstrativoResponse(d.dataBase(), RegimeDto.de(regime),
                 d.linhas().stream().map(Linha::de).toList(),
                 d.totalCorrigido().valor(), d.totalJuros().valor(), d.debitoAtualizado().valor(),
                 d.multaArt523().valor(), d.honorariosArt523().valor(), d.total().valor());

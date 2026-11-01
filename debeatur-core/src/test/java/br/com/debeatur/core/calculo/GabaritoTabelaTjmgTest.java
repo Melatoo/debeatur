@@ -1,8 +1,8 @@
 package br.com.debeatur.core.calculo;
 
 import br.com.debeatur.core.Dinheiro;
+import br.com.debeatur.core.gabarito.SeriesPublicadas;
 import br.com.debeatur.core.indice.Indice;
-import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 import br.com.debeatur.core.regime.Juros;
 import br.com.debeatur.core.regime.RegimeAtualizacao;
 import br.com.debeatur.core.regime.RegraPeriodo;
@@ -38,13 +38,8 @@ class GabaritoTabelaTjmgTest {
     private static final RegimeAtualizacao SO_INPC = new RegimeAtualizacao("INPC sem juros", List.of(
             new RegraPeriodo(YearMonth.of(2024, 1), null, Indice.INPC, new Juros.SemJuros())));
 
-    /** INPC (SGS 188), variação mensal em %, de jan/2024 a abr/2026. */
-    private static final String[] INPC = {
-            "0.57", "0.81", "0.19", "0.37", "0.46", "0.25", "0.26", "-0.14", "0.48", "0.61", "0.33", "0.48",
-            "0.00", "1.48", "0.51", "0.48", "0.35", "0.23", "0.21", "-0.21", "0.52", "0.03", "0.03", "0.21",
-            "0.39", "0.56", "0.91", "0.81"};
-
-    private final MotorCalculo motor = new MotorCalculo(serieInpc());
+    /** INPC (SGS 188) fixado em {@code gabarito/series/INPC.csv}; a tabela também confere o arquivo. */
+    private final MotorCalculo motor = new MotorCalculo(SeriesPublicadas.carregar());
 
     @ParameterizedTest(name = "{0}: fator {1}")
     @CsvSource({
@@ -83,15 +78,5 @@ class GabaritoTabelaTjmgTest {
         Demonstrativo d = motor.calcular(new ParametrosCalculo(List.of(parcela), DATA_BASE, SO_INPC, false));
 
         assertThat(d.linhas().getFirst().fatorCorrecao()).isCloseTo(fatorTjmg, within(TOLERANCIA));
-    }
-
-    private static SerieIndicesEmMemoria serieInpc() {
-        SerieIndicesEmMemoria serie = new SerieIndicesEmMemoria();
-        YearMonth mes = YearMonth.of(2024, 1);
-        for (String variacao : INPC) {
-            serie.com(Indice.INPC, mes, variacao);
-            mes = mes.plusMonths(1);
-        }
-        return serie;
     }
 }

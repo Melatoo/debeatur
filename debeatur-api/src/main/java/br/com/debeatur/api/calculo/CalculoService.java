@@ -6,7 +6,6 @@ import br.com.debeatur.core.calculo.Parcela;
 import br.com.debeatur.core.calculo.ParametrosCalculo;
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
-import br.com.debeatur.core.regime.Juros;
 import br.com.debeatur.core.regime.RegraPeriodo;
 import br.com.debeatur.indices.SgsClient;
 import org.springframework.stereotype.Service;
@@ -48,7 +47,7 @@ public class CalculoService {
         Set<Indice> indices = EnumSet.noneOf(Indice.class);
         for (RegraPeriodo regra : parametros.regime().regras()) {
             indices.add(regra.correcao());
-            if (regra.juros() instanceof Juros.TaxaLegal) {
+            if (regra.juros().usaTaxaLegal()) {
                 indices.add(Indice.TAXA_LEGAL);
             }
         }

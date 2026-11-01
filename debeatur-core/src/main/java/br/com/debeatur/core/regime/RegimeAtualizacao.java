@@ -3,22 +3,48 @@ package br.com.debeatur.core.regime;
 import br.com.debeatur.core.indice.Indice;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Conjunto de regras que define como um débito é atualizado ao longo do tempo.
  * <p>
  * A sentença pode fixar critérios próprios (a coisa julgada prevalece), por isso o
  * regime é um dado do cálculo e não uma regra fixa do sistema.
+ * <p>
+ * As regras vêm em ordem cronológica e são contíguas: cada uma começa no mês seguinte ao
+ * fim da anterior, e só a última pode ficar sem fim. Assim cada mês tem no máximo uma regra.
  */
 public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
 
+    /** Início do Plano Real: primeiro mês coberto pelos regimes de fábrica. */
+    private static final YearMonth INICIO_REAL = YearMonth.of(1994, 7);
+
     public RegimeAtualizacao {
+        Objects.requireNonNull(nome, "nome");
         regras = List.copyOf(regras);
         if (regras.isEmpty()) {
             throw new IllegalArgumentException("O regime precisa de ao menos uma regra");
         }
+        for (int i = 1; i < regras.size(); i++) {
+            YearMonth fimAnterior = regras.get(i - 1).fim();
+            YearMonth inicio = regras.get(i).inicio();
+            if (fimAnterior == null) {
+                throw new IllegalArgumentException("Só a última regra do regime pode ficar sem fim");
+            }
+            if (!inicio.equals(fimAnterior.plusMonths(1))) {
+                throw new IllegalArgumentException("A regra que começa em " + inicio
+                        + " deveria começar em " + fimAnterior.plusMonths(1) + ", mês seguinte ao fim da anterior");
+            }
+        }
+    }
+
+    /** Se há regra para todos os meses entre {@code de} e {@code ate} (inclusive). */
+    public boolean cobre(YearMonth de, YearMonth ate) {
+        YearMonth fim = regras.getLast().fim();
+        return !de.isBefore(regras.getFirst().inicio()) && (fim == null || !ate.isAfter(fim));
     }
 
     public RegraPeriodo regraPara(YearMonth mes) {
@@ -29,20 +55,47 @@ public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
     }
 
     /**
-     * Regime cível padrão: INPC + 1% a.m. até a vigência da Lei 14.905/2024 e, depois,
-     * IPCA + taxa legal (Res. CMN 5.171/2024).
+     * Regime cível padrão do TJMG: tabela da CGJ (INPC) + 1% a.m. até 29/08/2024, véspera da
+     * vigência da Lei 14.905/2024, e, depois, IPCA + taxa legal (Res. CMN 5.171/2024).
      * <p>
-     * A lei vigora desde 30/08/2024; com granularidade mensal, a nova regra é aplicada a
-     * partir de setembro/2024, e a taxa legal de agosto/2024, que vale para 30 e 31/08
-     * (Res. CMN 5.171/2024, art. 8º, parágrafo único), fica de fora até o pro rata die (#3).
-     * O índice anterior varia conforme o tribunal (ex.: tabela
-     * prática do TJSP) e deve ser configurável por cálculo.
+     * Equivale a {@link #transicaoTabelaCgjParaLei14905} com corte em 29/08/2024, ou seja,
+     * INPC até 07/2024, IPCA desde 08/2024 e taxa legal desde 09/2024 (#24). O nome traz o
+     * último mês de INPC para que o demonstrativo identifique o critério que o produziu.
+     * <p>
+     * O critério anterior à lei varia conforme o tribunal e o título (ex.: SELIC até
+     * 30/08/2024, tabela prática do TJSP) e deve ser configurável por cálculo (#3).
      */
     public static RegimeAtualizacao civelPadrao() {
-        return new RegimeAtualizacao("Cível padrão (Lei 14.905/2024)", List.of(
-                new RegraPeriodo(YearMonth.of(1994, 7), YearMonth.of(2024, 8),
-                        Indice.INPC, new Juros.TaxaFixa(BigDecimal.ONE)),
-                new RegraPeriodo(YearMonth.of(2024, 9), null,
-                        Indice.IPCA, new Juros.TaxaLegal())));
+        return transicaoTabelaCgjParaLei14905(
+                "Cível padrão TJMG (tabela CGJ: INPC até 07/2024; Lei 14.905/2024)",
+                LocalDate.of(2024, 8, 29));
+    }
+
+    /**
+     * Tabela da CGJ-TJMG + 1% a.m. até {@code ultimoDiaCriterioAnterior} e, depois, IPCA + taxa
+     * legal (Lei 14.905/2024).
+     * <p>
+     * Correção e juros têm cortes diferentes, e não por acaso:
+     * <ul>
+     *   <li><b>Correção.</b> Vale a edição da tabela vigente no último dia do critério anterior.
+     *       A edição do mês M só tem INPC até M−1, porque o IBGE divulga o índice no mês
+     *       seguinte; o mês M já não está na tabela e é corrigido pelo IPCA.</li>
+     *   <li><b>Juros.</b> Seguem a data: 1% a.m. até o mês anterior ao do corte, taxa legal a
+     *       partir do mês seguinte e, no mês do corte, 1% até o dia do corte e taxa legal pro
+     *       rata nos dias restantes ({@link Juros.TransicaoParaTaxaLegal}, #3).</li>
+     * </ul>
+     * Assim, no mês do corte a correção já é a da lei nova e os juros se dividem entre as duas.
+     * <p>
+     * O corte não pode ser anterior a 29/08/2024, véspera da vigência da Lei 14.905/2024: o
+     * regime é recusado já na montagem, e não no meio do cálculo.
+     */
+    public static RegimeAtualizacao transicaoTabelaCgjParaLei14905(String nome, LocalDate ultimoDiaCriterioAnterior) {
+        YearMonth mesCorte = YearMonth.from(ultimoDiaCriterioAnterior);
+        Juros umPorCento = new Juros.TaxaFixa(BigDecimal.ONE);
+        return new RegimeAtualizacao(nome, List.of(
+                new RegraPeriodo(INICIO_REAL, mesCorte.minusMonths(1), Indice.INPC, umPorCento),
+                new RegraPeriodo(mesCorte, mesCorte, Indice.IPCA,
+                        new Juros.TransicaoParaTaxaLegal(ultimoDiaCriterioAnterior, BigDecimal.ONE)),
+                new RegraPeriodo(mesCorte.plusMonths(1), null, Indice.IPCA, new Juros.TaxaLegal())));
     }
 }

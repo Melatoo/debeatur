@@ -64,11 +64,13 @@ curl -X POST http://localhost:8080/api/calculos -H "Content-Type: application/js
 
 | Período | Correção | Juros de mora |
 |---|---|---|
-| até 08/2024 | INPC | 1% a.m. (art. 406 CC, redação anterior) |
-| a partir de 09/2024 | IPCA | taxa legal: SELIC − IPCA, mínimo zero (Lei 14.905/2024) |
+| até 07/2024 | INPC (tabela da CGJ-TJMG) | 1% a.m. (art. 406 CC, redação anterior) |
+| 08/2024 | IPCA | 1% a.m. |
+| a partir de 09/2024 | IPCA | taxa legal divulgada pelo BCB (Lei 14.905/2024, Res. CMN 5.171/2024) |
 
-A Lei 14.905/2024 vigora desde 30/08/2024; com granularidade mensal, a nova regra é aplicada
-a partir de setembro/2024.
+A Lei 14.905/2024 vigora desde 30/08/2024. A tabela da CGJ vigente em 29/08/2024 só tem INPC
+até julho, então agosto/2024 já é corrigido pelo IPCA. Com granularidade mensal, a taxa legal
+é aplicada a partir de setembro/2024.
 
 ### Convenções provisórias (a validar contra cálculos homologados)
 
