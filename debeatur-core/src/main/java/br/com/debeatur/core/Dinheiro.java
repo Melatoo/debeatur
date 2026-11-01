@@ -29,6 +29,10 @@ public record Dinheiro(BigDecimal valor) implements Comparable<Dinheiro> {
         return new Dinheiro(valor.add(outro.valor));
     }
 
+    public Dinheiro menos(Dinheiro outro) {
+        return new Dinheiro(valor.subtract(outro.valor));
+    }
+
     public Dinheiro vezes(BigDecimal fator) {
         return new Dinheiro(valor.multiply(fator));
     }
