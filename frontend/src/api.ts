@@ -44,6 +44,8 @@ export interface PensaoRequest {
   /** Obrigatória com juros desde a citação. */
   citacao: string | null
   pagamentos: PagamentoRequest[]
+  /** Se informado, separa as linhas entre o rito da prisão e o da penhora; o art. 523 incide só na penhora. */
+  ajuizamento: string | null
 }
 
 export interface CalculoRequest {
@@ -66,6 +68,23 @@ export interface LinhaDemonstrativo {
   percentualJuros: number
   valorJuros: number
   subtotal: number
+  /** Nulo se o cálculo não separa os ritos. */
+  rito: Rito | null
+}
+
+export type Rito = 'PRISAO' | 'PENHORA'
+
+export interface SubtotalRito {
+  parcelas: number
+  totalCorrigido: number
+  totalJuros: number
+  debitoAtualizado: number
+}
+
+export interface Ritos {
+  ajuizamento: string
+  prisao: SubtotalRito
+  penhora: SubtotalRito
 }
 
 export interface Demonstrativo {
@@ -78,6 +97,7 @@ export interface Demonstrativo {
   multaArt523: number
   honorariosArt523: number
   total: number
+  ritos: Ritos | null
 }
 
 async function lerResposta<T>(resposta: Response, acao: string): Promise<T> {

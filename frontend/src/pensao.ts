@@ -9,6 +9,7 @@ export interface PensaoEditavel {
   inicioJuros: InicioJuros
   citacao: string
   pagamentos: PagamentoRequest[]
+  ajuizamento: string
 }
 
 export const pensaoVazia = (): PensaoEditavel => ({
@@ -19,6 +20,7 @@ export const pensaoVazia = (): PensaoEditavel => ({
   inicioJuros: 'VENCIMENTO',
   citacao: '',
   pagamentos: [],
+  ajuizamento: '',
 })
 
 export function paraPensao(p: PensaoEditavel): PensaoRequest {
@@ -30,5 +32,6 @@ export function paraPensao(p: PensaoEditavel): PensaoRequest {
     inicioJuros: p.inicioJuros,
     citacao: p.inicioJuros === 'CITACAO' ? p.citacao : null,
     pagamentos: p.pagamentos,
+    ajuizamento: p.ajuizamento || null,
   }
 }

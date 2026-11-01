@@ -42,6 +42,12 @@ public record CalculoRequest(
         Stream<Parcela> avulsas = parcelas == null ? Stream.empty() : parcelas.stream().map(ParcelaRequest::paraDominio);
         return new ParametrosCalculo(
                 Stream.concat(parcelasDaPensao.stream(), avulsas).toList(),
-                dataBase, regime == null ? RegimeAtualizacao.civelPadrao() : regime.paraDominio(), aplicarArt523);
+                dataBase, regime == null ? RegimeAtualizacao.civelPadrao() : regime.paraDominio(),
+                aplicarArt523 && !separaPorRito());
+    }
+
+    /** Nos alimentos com ajuizamento, o art. 523 sai do motor e incide só sobre a penhora. */
+    boolean separaPorRito() {
+        return pensao != null && pensao.ajuizamento() != null;
     }
 }
