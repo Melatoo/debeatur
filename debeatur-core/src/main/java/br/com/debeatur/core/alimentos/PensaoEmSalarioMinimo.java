@@ -51,12 +51,28 @@ public record PensaoEmSalarioMinimo(BigDecimal percentual, int diaVencimento, Ye
         }
     }
 
+    /**
+     * Parcela da pensão com o salário mínimo de que saiu, para a memória de cálculo.
+     *
+     * @param mes           mês da parcela
+     * @param salarioMinimo salário mínimo vigente no mês, sobre o qual incide o percentual
+     */
+    public record ParcelaDoMes(YearMonth mes, Dinheiro salarioMinimo, Parcela parcela) {
+    }
+
     public List<Parcela> parcelas(SalarioMinimo salarioMinimo) {
-        List<Parcela> parcelas = new ArrayList<>();
+        return parcelasPorMes(salarioMinimo).stream().map(ParcelaDoMes::parcela).toList();
+    }
+
+    /** As mesmas parcelas de {@link #parcelas}, cada uma com o salário mínimo do mês. */
+    public List<ParcelaDoMes> parcelasPorMes(SalarioMinimo salarioMinimo) {
+        List<ParcelaDoMes> parcelas = new ArrayList<>();
         for (YearMonth mes = primeiroMes; !mes.isAfter(ultimoMes); mes = mes.plusMonths(1)) {
             LocalDate vencimento = vencimento(mes);
-            Dinheiro valor = salarioMinimo.vigente(mes).percentual(percentual);
-            parcelas.add(new Parcela("Alimentos " + mes.format(MES_ANO), valor, vencimento, inicioJuros(vencimento)));
+            Dinheiro vigente = salarioMinimo.vigente(mes);
+            Parcela parcela = new Parcela("Alimentos " + mes.format(MES_ANO), vigente.percentual(percentual),
+                    vencimento, inicioJuros(vencimento));
+            parcelas.add(new ParcelaDoMes(mes, vigente, parcela));
         }
         return parcelas;
     }
