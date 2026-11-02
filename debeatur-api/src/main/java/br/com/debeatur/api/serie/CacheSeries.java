@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.InstantSource;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -81,22 +80,30 @@ public class CacheSeries implements FonteSeries {
             YearMonth ate = maior(consulta.fim(), mesAtual);
             try {
                 consultarSgs(consulta.serie(), de, ate, consultaDa(consulta.serie()));
-            } catch (SgsException | IllegalArgumentException e) {
+            } catch (RuntimeException e) {
                 LOG.warn("Falha ao atualizar a série {} no SGS: {}", consulta.serie(), e.getMessage());
             }
         }
     }
 
+    /**
+     * Fora do intervalo já consultado, vai ao SGS e uma falha sobe (502): o cache nada sabe
+     * daqueles meses. Dentro dele, só busca os meses que ainda não tinham saído, e com o SGS fora
+     * do ar valem os que o cache já tem. As revisões dos meses antigos ficam com
+     * {@link #atualizarTodas()}, e não com o caminho do cálculo.
+     */
     private Map<YearMonth, BigDecimal> buscar(String serie, YearMonth de, YearMonth ate, ConsultaSgs sgs) {
         Optional<RepositorioSeries.Consulta> consulta = repositorio.consulta(serie);
-        if (consulta.isEmpty() || !cobre(consulta.get(), de)) {
+        if (consulta.isEmpty() || de.isBefore(consulta.get().inicio())) {
             YearMonth inicio = consulta.map(c -> menor(c.inicio(), de)).orElse(de);
             YearMonth fim = consulta.map(c -> maior(c.fim(), ate)).orElse(ate);
             consultarSgs(serie, inicio, fim, sgs);
-        } else if (precisaReconsultar(consulta.get(), ate)) {
+        } else if (ate.isAfter(consulta.get().fim())) {
+            consultarSgs(serie, aindaSemValor(consulta.get()), ate, sgs);
+        } else if (faltaMesRecente(consulta.get(), ate)) {
             RepositorioSeries.Consulta c = consulta.get();
             try {
-                consultarSgs(serie, c.inicio(), maior(c.fim(), ate), sgs);
+                consultarSgs(serie, aindaSemValor(c), c.fim(), sgs);
             } catch (SgsException e) {
                 // os meses que o cache já tem continuam valendo; o que faltar o motor acusa
                 LOG.warn("SGS indisponível ao reconsultar {}; usando o cache: {}", serie, e.getMessage());
@@ -105,28 +112,26 @@ public class CacheSeries implements FonteSeries {
         return repositorio.ler(serie, de, ate);
     }
 
-    /** Se o cache já consultou o SGS desde o mês {@code de}. */
-    private static boolean cobre(RepositorioSeries.Consulta consulta, YearMonth de) {
-        return !de.isBefore(consulta.inicio());
+    /**
+     * Se o último mês pedido ainda não tinha saído e a última consulta já tem mais que
+     * {@link PropriedadesSeries#reconsulta()}.
+     */
+    private boolean faltaMesRecente(RepositorioSeries.Consulta consulta, YearMonth ate) {
+        boolean semValor = consulta.ultimoMesComValor() == null || ate.isAfter(consulta.ultimoMesComValor());
+        return semValor && consulta.consultadoEm().plus(propriedades.reconsulta()).isBefore(relogio.instant());
     }
 
-    /**
-     * Reconsulta quando o período vai além do intervalo consultado, ou quando o último mês pedido
-     * ainda não tinha saído e a última consulta já tem mais que {@link PropriedadesSeries#reconsulta()}.
-     */
-    private boolean precisaReconsultar(RepositorioSeries.Consulta consulta, YearMonth ate) {
-        if (ate.isAfter(consulta.fim())) {
-            return true;
+    /** Primeiro mês do intervalo consultado que ficou sem valor, de onde a reconsulta parte. */
+    private static YearMonth aindaSemValor(RepositorioSeries.Consulta consulta) {
+        if (consulta.ultimoMesComValor() == null) {
+            return consulta.inicio();
         }
-        boolean faltaMesRecente = consulta.ultimoMesComValor() == null || ate.isAfter(consulta.ultimoMesComValor());
-        return faltaMesRecente && consulta.consultadoEm().plus(propriedades.reconsulta()).isBefore(relogio.instant());
+        return maior(consulta.inicio(), menor(consulta.ultimoMesComValor(), consulta.fim()).plusMonths(1));
     }
 
     private void consultarSgs(String serie, YearMonth de, YearMonth ate, ConsultaSgs sgs) {
         Map<YearMonth, BigDecimal> valores = sgs.buscar(de, ate);
-        Instant agora = relogio.instant();
-        repositorio.gravar(serie, valores, agora);
-        repositorio.registrarConsulta(serie, de, ate, agora);
+        repositorio.gravarConsulta(serie, de, ate, valores, relogio.instant());
     }
 
     private ConsultaSgs consultaDa(String serie) {

@@ -1,7 +1,9 @@
 package br.com.debeatur.api.serie;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -29,9 +31,12 @@ class RepositorioSeries {
     }
 
     private final JdbcClient jdbc;
+    /** O {@link JdbcClient} não grava em lote. */
+    private final JdbcTemplate lote;
 
-    RepositorioSeries(JdbcClient jdbc) {
+    RepositorioSeries(JdbcClient jdbc, JdbcTemplate lote) {
         this.jdbc = jdbc;
+        this.lote = lote;
     }
 
     Map<YearMonth, BigDecimal> ler(String serie, YearMonth de, YearMonth ate) {
@@ -44,15 +49,23 @@ class RepositorioSeries {
         return valores;
     }
 
-    /** Grava os valores, substituindo os que o SGS revisou. */
-    void gravar(String serie, Map<YearMonth, BigDecimal> valores, Instant agora) {
-        valores.forEach((mes, valor) -> jdbc.sql("""
-                        INSERT INTO serie_mensal (serie, mes, valor, atualizado_em) VALUES (?, ?, ?, ?)
-                        ON CONFLICT (serie, mes) DO UPDATE SET valor = EXCLUDED.valor, atualizado_em = EXCLUDED.atualizado_em
-                        WHERE serie_mensal.valor IS DISTINCT FROM EXCLUDED.valor
-                        """)
-                .params(serie, dia1(mes), valor, utc(agora))
-                .update());
+    /**
+     * Grava o resultado de uma consulta ao SGS: os valores, substituindo os que o BCB revisou, e o
+     * intervalo consultado, que nunca encolhe. Tudo numa transação, para que o intervalo não
+     * conste como consultado sem os valores dele.
+     */
+    @Transactional
+    public void gravarConsulta(String serie, YearMonth inicio, YearMonth fim, Map<YearMonth, BigDecimal> valores,
+                               Instant agora) {
+        List<Object[]> linhas = valores.entrySet().stream()
+                .map(e -> new Object[] {serie, dia1(e.getKey()), e.getValue(), utc(agora)})
+                .toList();
+        lote.batchUpdate("""
+                INSERT INTO serie_mensal (serie, mes, valor, atualizado_em) VALUES (?, ?, ?, ?)
+                ON CONFLICT (serie, mes) DO UPDATE SET valor = EXCLUDED.valor, atualizado_em = EXCLUDED.atualizado_em
+                WHERE serie_mensal.valor IS DISTINCT FROM EXCLUDED.valor
+                """, linhas);
+        registrarConsulta(serie, inicio, fim, agora);
     }
 
     Optional<Consulta> consulta(String serie) {
@@ -63,8 +76,7 @@ class RepositorioSeries {
         return jdbc.sql(SELECT_CONSULTA + " ORDER BY c.serie").query(RepositorioSeries::consulta).list();
     }
 
-    /** Amplia o intervalo consultado da série, que nunca encolhe. */
-    void registrarConsulta(String serie, YearMonth inicio, YearMonth fim, Instant agora) {
+    private void registrarConsulta(String serie, YearMonth inicio, YearMonth fim, Instant agora) {
         jdbc.sql("""
                         INSERT INTO serie_consulta (serie, inicio, fim, consultado_em) VALUES (?, ?, ?, ?)
                         ON CONFLICT (serie) DO UPDATE SET

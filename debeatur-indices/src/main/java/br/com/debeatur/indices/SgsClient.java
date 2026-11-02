@@ -84,16 +84,33 @@ public class SgsClient {
         HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).GET().build();
         try {
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (semValores(response)) {
+                return new TreeMap<>();
+            }
             if (response.statusCode() != 200) {
                 throw new SgsException("SGS respondeu " + response.statusCode() + " para " + serie);
             }
-            return interpretar(response.body());
+            try {
+                return interpretar(response.body());
+            } catch (RuntimeException e) {
+                // uma página de manutenção com 200, por exemplo: é falha do SGS, e não do pedido
+                throw new SgsException("Resposta inválida do SGS para " + serie, e);
+            }
         } catch (IOException e) {
             throw new SgsException("Falha ao consultar o SGS para " + serie, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new SgsException("Consulta ao SGS interrompida", e);
         }
+    }
+
+    /**
+     * O SGS responde 404 com "Value(s) not found" quando não há valor no período (um mês ainda
+     * não publicado, ou a taxa legal antes de 08/2024). Qualquer outro 404 continua sendo falha.
+     */
+    private static boolean semValores(HttpResponse<String> response) {
+        return response.statusCode() == 404 && response.body() != null
+                && response.body().contains("Value(s) not found");
     }
 
     Map<YearMonth, BigDecimal> interpretar(String corpo) {
