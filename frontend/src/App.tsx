@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   buscarRegimePadrao,
   calcular,
@@ -76,6 +76,9 @@ function App() {
   /** O cálculo que está no servidor; um mais novo cancela o anterior, que chegaria fora de ordem. */
   const emCurso = useRef<AbortController | null>(null)
   const espera = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  /** Chave do formulário com um recálculo esperando a pausa na digitação. */
+  const agendadaPara = useRef<string | null>(null)
+  const [buscandoRegime, setBuscandoRegime] = useState(false)
 
   const ritosAtivos = comPensao && separarRitos
 
@@ -101,32 +104,38 @@ function App() {
   async function usarRegimeProprio(proprio: boolean) {
     setRegimeProprio(proprio)
     if (!proprio || regras.length > 0) return
+    // Sem as regras, o pedido iria sem regime e o servidor o recusaria: o recálculo espera a busca.
+    setBuscandoRegime(true)
     try {
       setRegras(paraEditavel((await buscarRegimePadrao()).regras))
     } catch {
       setRegras([regraVazia()])
+    } finally {
+      setBuscandoRegime(false)
     }
   }
 
-  /** O pedido com o formulário atual; lança erro se um valor não puder ser lido. */
-  function montarPedido(): CalculoRequest {
-    return {
-      dataBase,
-      aplicarArt523,
-      parcelas: parcelas.map((p) => ({ ...p, valor: exigirDecimal(p.valor, 'Valor da parcela'), inicioJuros: p.inicioJuros || null })),
-      pensao: comPensao ? paraPensao(pensao, separarRitos) : undefined,
-      regime: regimeProprio ? paraRegime(nomeRegime, regras) : undefined,
-      processo: paraProcesso(processo),
+  /**
+   * O formulário como pedido de cálculo, sem o processo, que só identifica o PDF. Refeito só quando
+   * um dado do cálculo muda; se algum valor nem pode ser lido, fica a mensagem, e a chave vazia.
+   */
+  const atual = useMemo(() => {
+    try {
+      const pedido: CalculoRequest = {
+        dataBase,
+        aplicarArt523,
+        parcelas: parcelas.map((p) => ({ ...p, valor: exigirDecimal(p.valor, 'Valor da parcela'), inicioJuros: p.inicioJuros || null })),
+        pensao: comPensao ? paraPensao(pensao, separarRitos) : undefined,
+        regime: regimeProprio ? paraRegime(nomeRegime, regras) : undefined,
+      }
+      return { pedido, chave: chaveDoPedido(pedido), falha: null }
+    } catch (e) {
+      return { pedido: null, chave: '', falha: e instanceof Error ? e.message : String(e) }
     }
-  }
+  }, [dataBase, aplicarArt523, parcelas, comPensao, pensao, separarRitos, regimeProprio, nomeRegime, regras])
+  const chaveAtual = atual.chave
+  const chaveCalculada = calculo?.chave ?? null
 
-  /** Identidade do formulário agora; vazia se algum valor nem pode ser lido. */
-  let chaveAtual = ''
-  try {
-    chaveAtual = chaveDoPedido(montarPedido())
-  } catch {
-    // fica vazia, e o recálculo espera o campo ser corrigido
-  }
   const desatualizado = calculo !== null && chaveAtual !== calculo.chave
   const invalido = desatualizado && invalidoEm === chaveAtual
   // Antes do primeiro cálculo, o erro fica até o próximo clique; depois, só enquanto o formulário não muda.
@@ -137,24 +146,25 @@ function App() {
     emCurso.current?.abort()
     const controle = new AbortController()
     emCurso.current = controle
-    const chaveEnviada = chaveAtual
+    const { pedido, chave, falha } = atual
+    // Uma nova tentativa tira o erro anterior da tela, e a faixa passa a dizer que está atualizando.
+    setErro(null)
     setCarregando(true)
     try {
-      const pedido = montarPedido()
-      const resultado = await calcular(pedido, controle.signal)
+      if (!pedido) throw new Error(falha ?? 'Há campos a corrigir no formulário.')
+      const resultado = await calcular({ ...pedido, processo: paraProcesso(processo) }, controle.signal)
       if (controle.signal.aborted) return
-      setErro(null)
       setInvalidoEm(null)
       setCalculo((anterior) => ({
         numero: manual || !anterior ? (anterior?.numero ?? 0) + 1 : anterior.numero,
         pedido,
-        chave: chaveDoPedido(pedido),
+        chave,
         resultado,
       }))
     } catch (e) {
       if (controle.signal.aborted) return
       // O demonstrativo anterior fica, marcado como desatualizado, em vez de sumir com o erro.
-      setErro({ chave: chaveEnviada, mensagem: e instanceof Error ? e.message : String(e) })
+      setErro({ chave, mensagem: e instanceof Error ? e.message : String(e) })
     } finally {
       if (emCurso.current === controle) {
         emCurso.current = null
@@ -172,22 +182,46 @@ function App() {
     void executar(false)
   })
 
+  function cancelarEspera() {
+    clearTimeout(espera.current)
+    agendadaPara.current = null
+  }
+
   // Depois do primeiro cálculo, cada edição recalcula sozinha, assim que o formulário fica válido.
   useEffect(() => {
-    if (!calculo) return
-    if (chaveAtual === calculo.chave) {
+    if (chaveCalculada === null) return
+    if (chaveAtual === chaveCalculada) {
+      cancelarEspera()
       // Voltou ao que já está na tela: o cálculo em curso, de um valor intermediário, ficou velho.
       emCurso.current?.abort()
       return
     }
-    espera.current = setTimeout(recalcular, ESPERA_RECALCULO_MS)
-    return () => clearTimeout(espera.current)
-  }, [chaveAtual, calculo])
+    if (buscandoRegime) {
+      cancelarEspera()
+      return
+    }
+    // Uma resposta que chega durante a espera muda o demonstrativo, não o formulário: a espera segue.
+    if (agendadaPara.current === chaveAtual) return
+    clearTimeout(espera.current)
+    agendadaPara.current = chaveAtual
+    espera.current = setTimeout(() => {
+      agendadaPara.current = null
+      recalcular()
+    }, ESPERA_RECALCULO_MS)
+  }, [chaveAtual, chaveCalculada, buscandoRegime])
+
+  useEffect(() => () => clearTimeout(espera.current), [])
 
   function enviar(evento: FormEvent) {
     evento.preventDefault()
-    clearTimeout(espera.current)
+    cancelarEspera()
     void executar(true)
+  }
+
+  /** Depois de uma falha, o formulário não muda sozinho, e nada chamaria outro recálculo. */
+  function tentarDeNovo() {
+    cancelarEspera()
+    void executar(false)
   }
 
   const situacao = !desatualizado
@@ -399,8 +433,11 @@ function App() {
         </div>
       </form>
 
-      {/* Com demonstrativo na tela, o erro vai na faixa dele, que acompanha a rolagem. */}
-      {mensagemDeErro && !calculo && (
+      {/*
+        Com demonstrativo desatualizado, o erro vai na faixa dele, que acompanha a rolagem. Se o
+        formulário ainda bate com o demonstrativo, os números valem, e o erro fica aqui.
+      */}
+      {mensagemDeErro && !desatualizado && (
         <p className="erro" role="alert">
           {mensagemDeErro}
         </p>
@@ -420,6 +457,7 @@ function App() {
                 ? `O cálculo com os dados atuais falhou: ${mensagemDeErro.replace(/\.$/, '')}. Os valores abaixo são do cálculo anterior.`
                 : null
           }
+          aoTentarDeNovo={mensagemDeErro && !invalido ? tentarDeNovo : undefined}
         />
       )}
     </main>

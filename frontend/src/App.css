@@ -235,9 +235,10 @@ button:disabled {
 .enviar {
   display: flex;
   flex-direction: row-reverse;
+  flex-wrap: wrap;
   justify-content: flex-start;
   align-items: center;
-  gap: 16px;
+  gap: 8px 16px;
   padding-top: 20px;
   border-top: 1px solid var(--borda);
   margin-top: 16px;
@@ -284,6 +285,12 @@ button:disabled {
   background: var(--superficie);
   border: 1px solid var(--borda-forte);
   color: var(--texto-suave);
+}
+
+.situacao button {
+  margin-left: 4px;
+  padding: 4px 12px;
+  font-size: 0.9rem;
 }
 
 .situacao:empty {
