@@ -48,6 +48,14 @@ export interface PensaoRequest {
   ajuizamento: string | null
 }
 
+/** Identificação do processo no cabeçalho do PDF; nenhum campo entra no cálculo, e todos são opcionais. */
+export interface ProcessoRequest {
+  numero: string
+  juizo: string
+  exequente: string
+  executado: string
+}
+
 export interface CalculoRequest {
   dataBase: string
   aplicarArt523: boolean
@@ -56,6 +64,7 @@ export interface CalculoRequest {
   pensao?: PensaoRequest
   /** Sem regime, a API aplica o regime cível padrão do TJMG. */
   regime?: Regime
+  processo?: ProcessoRequest
 }
 
 export interface LinhaDemonstrativo {
@@ -128,6 +137,42 @@ export async function calcular(request: CalculoRequest): Promise<Demonstrativo> 
     body: JSON.stringify(request),
   })
   return lerResposta(resposta, 'calcular')
+}
+
+/**
+ * Nome do arquivo no Content-Disposition, preferindo o `filename*` (RFC 5987), que vem em UTF-8.
+ * Sem cabeçalho legível, fica o padrão.
+ */
+export function nomeDoAnexo(disposicao: string | null, padrao: string): string {
+  if (!disposicao) return padrao
+  const estendido = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(disposicao)
+  if (estendido) {
+    try {
+      return decodeURIComponent(estendido[1].trim())
+    } catch {
+      // segue para o filename simples
+    }
+  }
+  const simples = /filename\s*=\s*"([^"]+)"|filename\s*=\s*([^;]+)/i.exec(disposicao)
+  return simples?.[1] ?? simples?.[2]?.trim() ?? padrao
+}
+
+export interface Anexo {
+  conteudo: Blob
+  nome: string
+}
+
+/** O mesmo cálculo de `calcular`, como demonstrativo em PDF para juntar aos autos. */
+export async function gerarPdf(request: CalculoRequest): Promise<Anexo> {
+  const resposta = await fetch('/api/calculos/pdf', {
+    method: 'POST',
+    // sem o problem+json, o erro do cálculo viria como 406, sem a mensagem
+    headers: { 'Content-Type': 'application/json', Accept: 'application/pdf, application/problem+json' },
+    body: JSON.stringify(request),
+  })
+  if (!resposta.ok) await lerResposta(resposta, 'gerar o PDF')
+  const nome = nomeDoAnexo(resposta.headers.get('Content-Disposition'), `demonstrativo-${request.dataBase}.pdf`)
+  return { conteudo: await resposta.blob(), nome }
 }
 
 export async function buscarRegimePadrao(): Promise<Regime> {

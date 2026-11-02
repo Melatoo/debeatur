@@ -4,10 +4,20 @@ import br.com.debeatur.core.alimentos.DemonstrativoPorRito;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.ParametrosCalculo;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 
 @RestController
@@ -15,9 +25,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class CalculoController {
 
     private final CalculoService service;
+    private final Clock relogio;
 
+    @Autowired
     public CalculoController(CalculoService service) {
+        // o fuso do servidor (UTC no contêiner) poria a emissão da noite no dia seguinte
+        this(service, Clock.system(ZoneId.of("America/Sao_Paulo")));
+    }
+
+    /** @param relogio data e hora de emissão do PDF */
+    CalculoController(CalculoService service, Clock relogio) {
         this.service = service;
+        this.relogio = relogio;
     }
 
     @PostMapping
@@ -33,5 +52,23 @@ public class CalculoController {
         DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo, request.pensao().ajuizamento(),
                 request.aplicarArt523());
         return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), porRito);
+    }
+
+    /**
+     * O mesmo cálculo de {@link #calcular}, como demonstrativo em PDF para juntar aos autos.
+     * <p>
+     * Recebe o pedido, e não um cálculo salvo, enquanto os cálculos não são persistidos (#4).
+     */
+    @PostMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> pdf(@Valid @RequestBody CalculoRequest request) {
+        DemonstrativoResponse resultado = calcular(request);
+        byte[] pdf = DemonstrativoPdf.gerar(request, resultado, LocalDateTime.now(relogio));
+        ContentDisposition anexo = ContentDisposition.attachment()
+                .filename(DemonstrativoPdf.nomeDoArquivo(request), StandardCharsets.UTF_8)
+                .build();
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, anexo.toString())
+                .body(pdf);
     }
 }

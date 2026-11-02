@@ -21,13 +21,15 @@ import java.util.stream.Stream;
  * @param parcelas parcelas avulsas; opcionais se houver {@code pensao}
  * @param pensao   pensão em percentual do salário mínimo, cujas parcelas vêm antes das avulsas
  * @param regime   critérios fixados no título; sem ele, vale o regime cível padrão do TJMG
+ * @param processo identificação do processo para o cabeçalho do PDF; não entra no cálculo
  */
 public record CalculoRequest(
         @NotNull LocalDate dataBase,
         boolean aplicarArt523,
         List<@Valid ParcelaRequest> parcelas,
         @Valid PensaoRequest pensao,
-        @Valid RegimeDto regime) {
+        @Valid RegimeDto regime,
+        @Valid ProcessoRequest processo) {
 
     public record ParcelaRequest(
             @NotBlank String descricao,
