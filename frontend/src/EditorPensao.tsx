@@ -1,4 +1,5 @@
 import type { InicioJuros, PagamentoRequest } from './api'
+import { CampoDecimal } from './CampoDecimal'
 import { mes } from './formato'
 import type { PensaoEditavel } from './pensao'
 
@@ -17,14 +18,12 @@ export function EditorPensao({ pensao, onPensao }: Props) {
       <div className="campos quatro">
         <label>
           % do salário mínimo
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
+          <CampoDecimal
+            casas={2}
+            milhar={false}
             required
-            inputMode="decimal"
             value={pensao.percentual}
-            onChange={(e) => alterar({ percentual: e.target.value })}
+            onValor={(v) => alterar({ percentual: v })}
           />
         </label>
         <label>
@@ -103,15 +102,7 @@ export function EditorPensao({ pensao, onPensao }: Props) {
           </label>
           <label>
             Valor pago (R$)
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-              inputMode="decimal"
-              value={p.valor}
-              onChange={(e) => alterarPagamento(i, { valor: e.target.value })}
-            />
+            <CampoDecimal casas={2} required value={p.valor} onValor={(v) => alterarPagamento(i, { valor: v })} />
           </label>
           <button
             type="button"

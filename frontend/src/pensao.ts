@@ -1,4 +1,5 @@
 import type { InicioJuros, PagamentoRequest, PensaoRequest } from './api'
+import { lerDecimal } from './numero'
 
 /** Pensão como o formulário a guarda: campos em texto, como os inputs devolvem. */
 export interface PensaoEditavel {
@@ -26,13 +27,13 @@ export const pensaoVazia = (): PensaoEditavel => ({
 /** @param separarRitos sem a separação, o ajuizamento não vai para a API */
 export function paraPensao(p: PensaoEditavel, separarRitos: boolean): PensaoRequest {
   return {
-    percentual: p.percentual,
+    percentual: lerDecimal(p.percentual, false) ?? p.percentual,
     diaVencimento: Number(p.diaVencimento),
     primeiroMes: p.primeiroMes,
     ultimoMes: p.ultimoMes,
     inicioJuros: p.inicioJuros,
     citacao: p.inicioJuros === 'CITACAO' ? p.citacao : null,
-    pagamentos: p.pagamentos,
+    pagamentos: p.pagamentos.map((pg) => ({ ...pg, valor: lerDecimal(pg.valor) ?? pg.valor })),
     ajuizamento: separarRitos && p.ajuizamento ? p.ajuizamento : null,
   }
 }
