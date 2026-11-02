@@ -1,6 +1,7 @@
 package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.core.Dinheiro;
+import br.com.debeatur.core.alimentos.DemonstrativoPorRito;
 import br.com.debeatur.core.alimentos.PensaoEmSalarioMinimo;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.MotorCalculo;
@@ -34,13 +35,40 @@ public class CalculoService {
     }
 
     /**
+     * Calcula o demonstrativo com as séries do cache do SGS.
+     *
+     * @throws IllegalArgumentException se o pedido for inconsistente
+     */
+    public DemonstrativoResponse calcular(CalculoRequest request) {
+        return calcular(request, series);
+    }
+
+    /**
+     * Calcula o demonstrativo com as séries da fonte informada; com o snapshot de um cálculo
+     * salvo, refaz o demonstrativo daquele dia.
+     */
+    public DemonstrativoResponse calcular(CalculoRequest request, FonteSeries fonte) {
+        ParcelasDaPensao pensao = request.pensao() == null
+                ? ParcelasDaPensao.vazia()
+                : parcelas(request.pensao(), request.dataBase(), fonte);
+        ParametrosCalculo parametros = request.paraDominio(pensao.parcelas());
+        Demonstrativo demonstrativo = calcular(parametros, fonte);
+        if (!request.separaPorRito()) {
+            return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria());
+        }
+        DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo, request.pensao().ajuizamento(),
+                request.aplicarArt523());
+        return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), porRito);
+    }
+
+    /**
      * Saldos da pensão e a memória de cada um.
      *
      * @param parcelas saldos que vão ao motor, na ordem dos meses
      * @param memoria  de onde veio cada saldo, indexada pela própria {@link Parcela} (por
      *                 identidade), que o motor repassa às linhas do demonstrativo; só leitura
      */
-    public record ParcelasDaPensao(List<Parcela> parcelas, Map<Parcela, DemonstrativoResponse.MesPensao> memoria) {
+    record ParcelasDaPensao(List<Parcela> parcelas, Map<Parcela, DemonstrativoResponse.MesPensao> memoria) {
 
         public ParcelasDaPensao {
             parcelas = List.copyOf(parcelas);
@@ -53,17 +81,17 @@ public class CalculoService {
     }
 
     /**
-     * Parcelas da pensão, com o salário mínimo do cache do SGS e os pagamentos já abatidos.
+     * Parcelas da pensão, com o salário mínimo da fonte e os pagamentos já abatidos.
      *
      * @throws IllegalArgumentException se a última parcela vencer depois da data-base
      */
-    public ParcelasDaPensao parcelas(PensaoRequest pensao, LocalDate dataBase) {
+    private static ParcelasDaPensao parcelas(PensaoRequest pensao, LocalDate dataBase, FonteSeries fonte) {
         PensaoEmSalarioMinimo dominio = pensao.paraDominio();
         if (dominio.ultimoVencimento().isAfter(dataBase)) {
             throw new IllegalArgumentException("A última parcela da pensão vence em " + dominio.ultimoVencimento()
                     + ", depois da data-base (" + dataBase + ")");
         }
-        SalarioMinimo salarioMinimo = series.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes());
+        SalarioMinimo salarioMinimo = fonte.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes());
         List<PensaoEmSalarioMinimo.ParcelaDoMes> devidas = dominio.parcelasPorMes(salarioMinimo);
         List<Parcela> saldos = pensao.pagamentosParaDominio()
                 .abater(devidas.stream().map(PensaoEmSalarioMinimo.ParcelaDoMes::parcela).toList());
@@ -81,8 +109,7 @@ public class CalculoService {
         return new ParcelasDaPensao(saldos, memoria);
     }
 
-    // TODO: guardar o snapshot dos índices usados junto com o cálculo salvo (#4)
-    public Demonstrativo calcular(ParametrosCalculo parametros) {
+    private static Demonstrativo calcular(ParametrosCalculo parametros, FonteSeries fonte) {
         YearMonth ultimoMes = YearMonth.from(parametros.dataBase()).minusMonths(1);
         YearMonth primeiroMes = parametros.parcelas().stream()
                 .flatMap(p -> Stream.of(p.inicioCorrecao(), p.inicioJuros()))
@@ -93,7 +120,7 @@ public class CalculoService {
 
         SerieIndicesEmMemoria serie = primeiroMes.isAfter(ultimoMes)
                 ? new SerieIndicesEmMemoria()
-                : series.carregar(indicesNecessarios(parametros), primeiroMes, ultimoMes);
+                : fonte.carregar(indicesNecessarios(parametros), primeiroMes, ultimoMes);
 
         return new MotorCalculo(serie).calcular(parametros);
     }
