@@ -63,6 +63,19 @@ curl -X POST http://localhost:8080/api/calculos -H "Content-Type: application/js
 }'
 ```
 
+### Cálculos salvos
+
+| Endpoint | O que faz |
+|---|---|
+| `POST /api/calculos/salvos` | `{"titulo": "...", "calculo": <pedido de POST /api/calculos>}`: calcula, salva e devolve `201` com o id |
+| `GET /api/calculos/salvos` | lista os cálculos do escritório, do mais recente para o mais antigo |
+| `GET /api/calculos/salvos/{id}` | devolve o pedido salvo e o demonstrativo refeito com o snapshot |
+
+Cada cálculo salvo guarda o pedido, com o regime usado já resolvido, e o snapshot dos valores
+das séries que usou. Reabrir refaz o demonstrativo com esse snapshot, e não com o cache: o
+resultado é o mesmo do dia em que foi salvo, mesmo que o BCB tenha revisado uma série ou o SGS
+esteja fora do ar. Para atualizar um cálculo, reenvie o pedido salvo com a nova data-base.
+
 A conexão vem de `DEBEATUR_DB_URL`, `DEBEATUR_DB_USUARIO` e `DEBEATUR_DB_SENHA`, com padrão
 `jdbc:postgresql://localhost:5432/debeatur`, usuário e senha `debeatur`.
 
@@ -105,6 +118,6 @@ O escopo do MVP está em `docs/requisitos-mvp.md`, inclusive o que fica de fora.
 - [ ] Pro rata die na correção e nos juros
 - [ ] Regime configurável por cálculo (critérios fixados na sentença)
 - [x] PostgreSQL + Flyway e cache das séries do SGS
-- [ ] Cálculos salvos, com snapshot dos índices usados
+- [x] Cálculos salvos, com snapshot dos índices usados
 - [ ] Exportação do demonstrativo em PDF
 - [ ] Autenticação mínima (um usuário por escritório)

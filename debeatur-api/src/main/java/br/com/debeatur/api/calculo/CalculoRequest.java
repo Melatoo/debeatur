@@ -42,6 +42,11 @@ public record CalculoRequest(
         }
     }
 
+    /** O mesmo pedido com o regime informado; serve para fixar o regime padrão num cálculo salvo. */
+    CalculoRequest comRegime(RegimeDto regime) {
+        return new CalculoRequest(dataBase, aplicarArt523, parcelas, pensao, regime, processo);
+    }
+
     /** @param parcelasDaPensao parcelas já geradas a partir de {@link #pensao()} */
     ParametrosCalculo paraDominio(List<Parcela> parcelasDaPensao) {
         Stream<Parcela> avulsas = parcelas == null ? Stream.empty() : parcelas.stream().map(ParcelaRequest::paraDominio);
