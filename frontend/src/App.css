@@ -294,7 +294,6 @@ button:disabled {
 
 .demonstrativo[data-situacao='desatualizado'] .situacao {
   border-color: var(--aviso);
-  border-left-width: 4px;
   color: var(--texto);
   background: color-mix(in srgb, var(--aviso) 10%, var(--superficie));
 }
