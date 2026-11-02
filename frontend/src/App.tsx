@@ -12,10 +12,11 @@ import { mes } from './formato'
 import { EditorPensao } from './EditorPensao'
 import { CampoDecimal } from './CampoDecimal'
 import { exigirDecimal } from './numero'
-import { paraPensao, pensaoVazia, type PensaoEditavel } from './pensao'
+import { paraPensao, pensaoVazia } from './pensao'
+import { armazenamentoDoNavegador } from './armazenamento'
 import {
+  ESPERA_RASCUNHO_MS,
   apagarRascunho,
-  armazenamentoDoNavegador,
   ehRascunhoVazio,
   lerRascunho,
   salvarRascunho,
@@ -67,6 +68,9 @@ const rascunhoVazio = (): Rascunho => ({
   regras: [],
 })
 
+/** Critérios do título escolhidos, mas sem as regras: elas ainda precisam vir do servidor. */
+const faltamRegras = (r: Rascunho) => r.regimeProprio && r.regras.length === 0
+
 const quando = (d: Date) =>
   d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -89,20 +93,32 @@ function App() {
   // Lido uma vez, na carga: o caso em que a pessoa estava antes de recarregar ou fechar a aba.
   const [inicio] = useState(() => {
     const salvo = lerRascunho(armazenamentoDoNavegador())
-    return { salvoEm: salvo?.salvoEm ?? null, rascunho: salvo?.rascunho ?? rascunhoVazio() }
+    return {
+      salvoEm: salvo?.salvoEm ?? null,
+      rascunho: salvo?.rascunho ?? rascunhoVazio(),
+      // Quem restaura o rascunho passa a responder por ele: o "Limpar" desta aba o apaga.
+      aba: salvo?.aba || Math.random().toString(36).slice(2),
+    }
   })
-  const [processo, setProcesso] = useState<ProcessoRequest>(inicio.rascunho.processo)
-  const [dataBase, setDataBase] = useState(inicio.rascunho.dataBase)
+  const { aba } = inicio
+  /** O formulário inteiro, num estado só: é ele que vai para o rascunho, para o "Limpar" e para o "Desfazer". */
+  const [rascunho, setRascunho] = useState<Rascunho>(inicio.rascunho)
+  const {
+    processo,
+    dataBase,
+    aplicarArt523,
+    comPensao,
+    separarRitos,
+    pensao,
+    parcelas,
+    outrasAbertas,
+    regimeProprio,
+    nomeRegime,
+    regras,
+  } = rascunho
+  const alterar = <K extends keyof Rascunho>(campo: K, valor: Rascunho[K]) =>
+    setRascunho((atual) => ({ ...atual, [campo]: valor }))
   const [mesFechado] = useState(() => mes(fimDoMesAnterior().slice(0, 7)))
-  const [aplicarArt523, setAplicarArt523] = useState(inicio.rascunho.aplicarArt523)
-  const [comPensao, setComPensao] = useState(inicio.rascunho.comPensao)
-  const [separarRitos, setSepararRitos] = useState(inicio.rascunho.separarRitos)
-  const [pensao, setPensao] = useState<PensaoEditavel>(inicio.rascunho.pensao)
-  const [parcelas, setParcelas] = useState<ParcelaRequest[]>(inicio.rascunho.parcelas)
-  const [outrasAbertas, setOutrasAbertas] = useState(inicio.rascunho.outrasAbertas)
-  const [regimeProprio, setRegimeProprio] = useState(inicio.rascunho.regimeProprio)
-  const [nomeRegime, setNomeRegime] = useState(inicio.rascunho.nomeRegime)
-  const [regras, setRegras] = useState<RegraEditavel[]>(inicio.rascunho.regras)
   /** Quando o rascunho restaurado na carga foi salvo; some com o "Limpar". */
   const [restauradoDe, setRestauradoDe] = useState(inicio.salvoEm)
   const [limpeza, setLimpeza] = useState<Limpeza | null>(null)
@@ -118,78 +134,67 @@ function App() {
   const espera = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   /** Chave do formulário com um recálculo esperando a pausa na digitação. */
   const agendadaPara = useRef<string | null>(null)
-  const [buscandoRegime, setBuscandoRegime] = useState(false)
+  const [buscandoRegime, setBuscandoRegime] = useState(() => faltamRegras(inicio.rascunho))
   /** Muda quando o formulário é trocado inteiro, para respostas que chegam depois serem descartadas. */
   const versaoDoFormulario = useRef(0)
 
   const ritosAtivos = comPensao && separarRitos
 
-  const rascunho = useMemo<Rascunho>(
-    () => ({
-      processo,
-      dataBase,
-      aplicarArt523,
-      comPensao,
-      separarRitos,
-      pensao,
-      parcelas,
-      outrasAbertas,
-      regimeProprio,
-      nomeRegime,
-      regras,
-    }),
-    [processo, dataBase, aplicarArt523, comPensao, separarRitos, pensao, parcelas, outrasAbertas, regimeProprio, nomeRegime, regras],
-  )
   const emBranco = useMemo(() => ehRascunhoVazio(rascunho, rascunhoVazio()), [rascunho])
 
   /** O que está no navegador agora; abrir a página sem mexer em nada não regrava, nem muda a hora do rascunho. */
   const ultimoSalvo = useRef(JSON.stringify(inicio.rascunho))
-  // Cada edição vai para o navegador; o formulário em branco apaga o que havia.
+  /** A gravação esperando a pausa na digitação; sair da página a faz na hora. */
+  const gravacaoPendente = useRef<(() => void) | null>(null)
+  // Cada edição vai para o navegador, depois de uma pausa; o formulário em branco apaga o que havia.
   useEffect(() => {
     const texto = JSON.stringify(rascunho)
-    if (texto === ultimoSalvo.current) return
-    ultimoSalvo.current = texto
-    salvarRascunho(armazenamentoDoNavegador(), rascunho, rascunhoVazio())
-  }, [rascunho])
-
-  function aplicar(r: Rascunho) {
-    setProcesso(r.processo)
-    setDataBase(r.dataBase)
-    setAplicarArt523(r.aplicarArt523)
-    setComPensao(r.comPensao)
-    setSepararRitos(r.separarRitos)
-    setPensao(r.pensao)
-    setParcelas(r.parcelas)
-    setOutrasAbertas(r.outrasAbertas)
-    setRegimeProprio(r.regimeProprio)
-    setNomeRegime(r.nomeRegime)
-    setRegras(r.regras)
-  }
+    if (texto === ultimoSalvo.current) {
+      gravacaoPendente.current = null
+      return
+    }
+    const gravarAgora = () => {
+      gravacaoPendente.current = null
+      ultimoSalvo.current = texto
+      const armazenamento = armazenamentoDoNavegador()
+      if (emBranco) apagarRascunho(armazenamento, aba)
+      else salvarRascunho(armazenamento, rascunho, aba)
+    }
+    gravacaoPendente.current = gravarAgora
+    const espera = setTimeout(gravarAgora, ESPERA_RASCUNHO_MS)
+    return () => clearTimeout(espera)
+  }, [rascunho, emBranco, aba])
+  useEffect(() => {
+    const descarregar = () => gravacaoPendente.current?.()
+    window.addEventListener('pagehide', descarregar)
+    return () => {
+      window.removeEventListener('pagehide', descarregar)
+      descarregar()
+    }
+  }, [])
 
   const alterarParcela = (indice: number, campo: keyof ParcelaRequest, valor: string) =>
-    setParcelas((atuais) => atuais.map((p, i) => (i === indice ? { ...p, [campo]: valor } : p)))
+    setRascunho((r) => ({ ...r, parcelas: r.parcelas.map((p, i) => (i === indice ? { ...p, [campo]: valor } : p)) }))
 
   function usarPensao(ativa: boolean) {
-    setComPensao(ativa)
-    // Com a pensão, as parcelas avulsas são opcionais: some a parcela em branco que bloquearia o envio.
-    if (ativa) {
-      const restantes = parcelas.filter((p) => !estaVazia(p))
-      setParcelas(restantes)
+    setRascunho((r) => {
+      if (!ativa) return { ...r, comPensao: false, parcelas: r.parcelas.length === 0 ? [parcelaVazia()] : r.parcelas }
+      // Com a pensão, as parcelas avulsas são opcionais: some a parcela em branco que bloquearia o envio.
+      const restantes = r.parcelas.filter((p) => !estaVazia(p))
       // As que sobraram ficam à vista: um campo obrigatório escondido trava o envio sem aviso.
-      if (restantes.length > 0) setOutrasAbertas(true)
-    } else if (parcelas.length === 0) setParcelas([parcelaVazia()])
+      return { ...r, comPensao: true, parcelas: restantes, outrasAbertas: r.outrasAbertas || restantes.length > 0 }
+    })
   }
 
   function adicionarParcela() {
-    setParcelas([...parcelas, parcelaVazia()])
-    setOutrasAbertas(true)
+    setRascunho((r) => ({ ...r, parcelas: [...r.parcelas, parcelaVazia()], outrasAbertas: true }))
   }
 
-  async function usarRegimeProprio(proprio: boolean) {
-    setRegimeProprio(proprio)
-    if (!proprio || regras.length > 0) return
-    // Sem as regras, o pedido iria sem regime e o servidor o recusaria: o recálculo espera a busca.
-    setBuscandoRegime(true)
+  /**
+   * Traz as regras do regime padrão para o editor. Sem elas, o pedido iria sem regime: quem chama
+   * marca `buscandoRegime`, e o recálculo espera a busca.
+   */
+  async function buscarRegras() {
     const versao = versaoDoFormulario.current
     let novas: RegraEditavel[]
     try {
@@ -197,10 +202,26 @@ function App() {
     } catch {
       novas = [regraVazia()]
     }
-    // Um "Limpar" ou "Desfazer" durante a busca trocou o formulário inteiro: as regras chegaram tarde.
-    if (versaoDoFormulario.current === versao) setRegras(novas)
+    // Um "Limpar" ou "Desfazer" durante a busca trocou o formulário inteiro: as regras chegaram tarde,
+    // e o aviso de busca em curso já é de outra busca, ou de nenhuma.
+    if (versaoDoFormulario.current !== versao) return
+    alterar('regras', novas)
     setBuscandoRegime(false)
   }
+
+  function usarRegimeProprio(proprio: boolean) {
+    alterar('regimeProprio', proprio)
+    if (proprio && regras.length === 0 && !buscandoRegime) {
+      setBuscandoRegime(true)
+      void buscarRegras()
+    }
+  }
+
+  // O rascunho restaurado pode ter ficado sem as regras, se a aba fechou no meio da busca.
+  const buscarRegrasDoInicio = useEffectEvent(() => {
+    if (faltamRegras(inicio.rascunho)) void buscarRegras()
+  })
+  useEffect(() => buscarRegrasDoInicio(), [])
 
   /**
    * O formulário como pedido de cálculo, sem o processo, que só identifica o PDF. Refeito só quando
@@ -318,11 +339,13 @@ function App() {
     emCurso.current?.abort()
     emCurso.current = null
     setCarregando(false)
-    setBuscandoRegime(false)
     setErro(null)
     setInvalidoEm(null)
-    aplicar(r)
+    setRascunho(r)
     setCalculo(novoCalculo)
+    // O caso desfeito pode ter sido limpo no meio da busca das regras: ela recomeça para ele.
+    setBuscandoRegime(faltamRegras(r))
+    if (faltamRegras(r)) void buscarRegras()
   }
 
   /** Sem confirmação: o "Desfazer" devolve o caso enquanto o formulário não for preenchido de novo. */
@@ -330,7 +353,7 @@ function App() {
     setLimpeza({ rascunho, calculo })
     setRestauradoDe(null)
     trocarCaso(rascunhoVazio(), null)
-    apagarRascunho(armazenamentoDoNavegador())
+    apagarRascunho(armazenamentoDoNavegador(), aba)
   }
 
   function desfazer() {
@@ -379,7 +402,7 @@ function App() {
           type="button"
           className="secundario"
           aria-label={`Remover a parcela ${p.descricao || i + 1}`}
-          onClick={() => setParcelas(parcelas.filter((_, j) => j !== i))}
+          onClick={() => alterar('parcelas', parcelas.filter((_, j) => j !== i))}
         >
           Remover
         </button>
@@ -402,7 +425,7 @@ function App() {
               <input type="checkbox" checked={comPensao} onChange={(e) => usarPensao(e.target.checked)} />
               Alimentos fixados em percentual do salário mínimo
             </label>
-            {comPensao && <EditorPensao pensao={pensao} onPensao={setPensao} />}
+            {comPensao && <EditorPensao pensao={pensao} onPensao={(p) => alterar('pensao', p)} />}
           </section>
 
           <section className="bloco" aria-labelledby="bloco-processo">
@@ -414,7 +437,7 @@ function App() {
                   maxLength={50}
                   placeholder="0000000-00.0000.8.13.0000"
                   value={processo.numero}
-                  onChange={(e) => setProcesso({ ...processo, numero: e.target.value })}
+                  onChange={(e) => alterar('processo', { ...processo, numero: e.target.value })}
                 />
               </label>
               <label>
@@ -422,7 +445,7 @@ function App() {
                 <input
                   maxLength={200}
                   value={processo.juizo}
-                  onChange={(e) => setProcesso({ ...processo, juizo: e.target.value })}
+                  onChange={(e) => alterar('processo', { ...processo, juizo: e.target.value })}
                 />
               </label>
               <label>
@@ -430,7 +453,7 @@ function App() {
                 <input
                   maxLength={200}
                   value={processo.exequente}
-                  onChange={(e) => setProcesso({ ...processo, exequente: e.target.value })}
+                  onChange={(e) => alterar('processo', { ...processo, exequente: e.target.value })}
                 />
               </label>
               <label>
@@ -438,7 +461,7 @@ function App() {
                 <input
                   maxLength={200}
                   value={processo.executado}
-                  onChange={(e) => setProcesso({ ...processo, executado: e.target.value })}
+                  onChange={(e) => alterar('processo', { ...processo, executado: e.target.value })}
                 />
               </label>
             </div>
@@ -451,7 +474,7 @@ function App() {
                   required
                   aria-describedby="dica-data-base"
                   value={dataBase}
-                  onChange={(e) => setDataBase(e.target.value)}
+                  onChange={(e) => alterar('dataBase', e.target.value)}
                 />
               </label>
               {ritosAtivos && (
@@ -461,7 +484,7 @@ function App() {
                     type="date"
                     required
                     value={pensao.ajuizamento}
-                    onChange={(e) => setPensao({ ...pensao, ajuizamento: e.target.value })}
+                    onChange={(e) => alterar('pensao', { ...pensao, ajuizamento: e.target.value })}
                   />
                 </label>
               )}
@@ -475,7 +498,7 @@ function App() {
             {comPensao && (
               <>
                 <label className="checkbox">
-                  <input type="checkbox" checked={separarRitos} onChange={(e) => setSepararRitos(e.target.checked)} />
+                  <input type="checkbox" checked={separarRitos} onChange={(e) => alterar('separarRitos', e.target.checked)} />
                   Separar os ritos da prisão e da penhora (art. 528 do CPC)
                 </label>
                 <p className="dica recuo">
@@ -487,7 +510,7 @@ function App() {
             )}
 
             <label className="checkbox">
-              <input type="checkbox" checked={aplicarArt523} onChange={(e) => setAplicarArt523(e.target.checked)} />
+              <input type="checkbox" checked={aplicarArt523} onChange={(e) => alterar('aplicarArt523', e.target.checked)} />
               {ritosAtivos
                 ? 'Multa e honorários do art. 523, §1º, do CPC (10% + 10%) sobre a penhora'
                 : 'Multa e honorários do art. 523, §1º, do CPC (10% + 10%)'}
@@ -498,7 +521,7 @@ function App() {
             <details
               className="bloco"
               open={outrasAbertas}
-              onToggle={(e) => setOutrasAbertas(e.currentTarget.open)}
+              onToggle={(e) => alterar('outrasAbertas', e.currentTarget.open)}
               // Fechado, o campo inválido não recebe foco e o navegador barra o envio sem mensagem;
               // abre na hora, antes de o navegador procurar o campo para avisar.
               onInvalidCapture={(e) => {
@@ -539,7 +562,7 @@ function App() {
               </label>
             </div>
             {regimeProprio && (
-              <EditorRegime nome={nomeRegime} onNome={setNomeRegime} regras={regras} onRegras={setRegras} />
+              <EditorRegime nome={nomeRegime} onNome={(n) => alterar('nomeRegime', n)} regras={regras} onRegras={(r) => alterar('regras', r)} />
             )}
           </section>
 

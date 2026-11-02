@@ -13,7 +13,7 @@ import { lerColunasOcultas, salvarColunasOcultas, type ColunaOpcional } from './
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
 import { LinhaDoTempo } from './LinhaDoTempo'
 import { paraCampo } from './numero'
-import { armazenamentoDoNavegador } from './rascunho'
+import { armazenamentoDoNavegador } from './armazenamento'
 import { INDICES, descreverPeriodo, mesAnterior } from './regime'
 
 interface Props {

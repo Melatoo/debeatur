@@ -1,4 +1,5 @@
 import type { ParcelaRequest, ProcessoRequest } from './api'
+import { apagar, gravar, ler, type Armazenamento } from './armazenamento'
 import type { PensaoEditavel } from './pensao'
 import type { RegraEditavel } from './regime'
 
@@ -20,65 +21,93 @@ export interface Rascunho {
   regras: RegraEditavel[]
 }
 
-/** Rascunho lido do navegador, com o momento em que foi salvo. */
+/** Rascunho lido do navegador, com o momento em que foi salvo e a aba que o salvou. */
 export interface RascunhoSalvo {
   rascunho: Rascunho
   salvoEm: Date
+  aba: string
 }
 
 /** Muda quando o formato do rascunho muda; um rascunho de outra versão é descartado, e não adaptado. */
 const VERSAO = 1
 export const CHAVE_RASCUNHO = 'debeatur:rascunho'
-
-type Armazenamento = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
-
-/**
- * `localStorage` some em janela anônima com o armazenamento bloqueado, e o próprio acesso à
- * propriedade pode lançar exceção: sem ele, o formulário funciona e só não guarda o rascunho.
- */
-export function armazenamentoDoNavegador(): Armazenamento | null {
-  try {
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
+/** Pausa na digitação antes de gravar: o formulário inteiro vai para o disco, e não a cada tecla. */
+export const ESPERA_RASCUNHO_MS = 400
 
 const ehObjeto = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
+const comTextos = (v: unknown, campos: readonly string[]): v is Record<string, unknown> =>
+  ehObjeto(v) && campos.every((c) => typeof v[c] === 'string')
+
+const listaDe = (v: unknown, item: (x: unknown) => boolean) => Array.isArray(v) && v.every(item)
+
+const ehProcesso = (v: unknown) => comTextos(v, ['numero', 'juizo', 'exequente', 'executado'])
+
+const ehParcela = (v: unknown) =>
+  comTextos(v, ['descricao', 'valor', 'inicioCorrecao']) && (v.inicioJuros === null || typeof v.inicioJuros === 'string')
+
+const ehPensao = (v: unknown) =>
+  comTextos(v, ['percentual', 'diaVencimento', 'primeiroMes', 'ultimoMes', 'inicioJuros', 'citacao', 'ajuizamento']) &&
+  listaDe(v.pagamentos, (p) => comTextos(p, ['mes', 'valor']))
+
+const ehRegra = (v: unknown) => comTextos(v, ['inicio', 'fim', 'correcao', 'juros', 'percentual', 'ultimoDiaTaxaFixa'])
+
 /**
- * Confere a forma do rascunho, campo a campo do primeiro nível: um rascunho corrompido ou editado
- * à mão não pode derrubar a tela na carga. Os campos de texto são validados pelo próprio formulário.
+ * Confere a forma do rascunho inteiro, até os itens das listas: um rascunho corrompido, editado à
+ * mão ou salvo por uma versão anterior do formulário não pode derrubar a tela na carga. O conteúdo
+ * dos campos de texto é validado pelo próprio formulário.
  */
 function ehRascunho(v: unknown): v is Rascunho {
   if (!ehObjeto(v)) return false
   return (
-    ehObjeto(v.processo) &&
+    ehProcesso(v.processo) &&
     typeof v.dataBase === 'string' &&
     typeof v.aplicarArt523 === 'boolean' &&
     typeof v.comPensao === 'boolean' &&
     typeof v.separarRitos === 'boolean' &&
-    ehObjeto(v.pensao) &&
-    Array.isArray(v.pensao.pagamentos) &&
-    Array.isArray(v.parcelas) &&
+    ehPensao(v.pensao) &&
+    listaDe(v.parcelas, ehParcela) &&
     typeof v.outrasAbertas === 'boolean' &&
     typeof v.regimeProprio === 'boolean' &&
     typeof v.nomeRegime === 'string' &&
-    Array.isArray(v.regras)
+    listaDe(v.regras, ehRegra)
   )
 }
 
-export function lerRascunho(armazenamento: Armazenamento | null): RascunhoSalvo | null {
+/** O conteúdo da chave, se for um rascunho que esta versão do formulário sabe abrir. */
+function interpretar(texto: string): RascunhoSalvo | null {
   try {
-    const texto = armazenamento?.getItem(CHAVE_RASCUNHO)
-    if (!texto) return null
     const salvo: unknown = JSON.parse(texto)
     if (!ehObjeto(salvo) || salvo.versao !== VERSAO || !ehRascunho(salvo.rascunho)) return null
     const salvoEm = new Date(typeof salvo.salvoEm === 'string' ? salvo.salvoEm : NaN)
-    return { rascunho: salvo.rascunho, salvoEm: Number.isNaN(salvoEm.getTime()) ? new Date() : salvoEm }
+    return {
+      rascunho: salvo.rascunho,
+      salvoEm: Number.isNaN(salvoEm.getTime()) ? new Date() : salvoEm,
+      aba: typeof salvo.aba === 'string' ? salvo.aba : '',
+    }
   } catch {
     return null
   }
+}
+
+/** O rascunho guardado. Um que não dá para abrir é apagado, para não ser lido de novo a cada carga. */
+export function lerRascunho(armazenamento: Armazenamento | null): RascunhoSalvo | null {
+  const texto = ler(armazenamento, CHAVE_RASCUNHO)
+  if (!texto) return null
+  const salvo = interpretar(texto)
+  if (!salvo) apagar(armazenamento, CHAVE_RASCUNHO)
+  return salvo
+}
+
+/** Igualdade de valores, sem depender da ordem das chaves. */
+function iguais(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => iguais(x, b[i]))
+  }
+  if (!ehObjeto(a) || !ehObjeto(b)) return false
+  const chaves = Object.keys(a)
+  return chaves.length === Object.keys(b).length && chaves.every((k) => Object.hasOwn(b, k) && iguais(a[k], b[k]))
 }
 
 /**
@@ -86,31 +115,21 @@ export function lerRascunho(armazenamento: Armazenamento | null): RascunhoSalvo 
  * mexer só nela não faz um caso que valha guardar.
  */
 export function ehRascunhoVazio(rascunho: Rascunho, vazio: Rascunho): boolean {
-  return JSON.stringify({ ...rascunho, dataBase: '' }) === JSON.stringify({ ...vazio, dataBase: '' })
+  return iguais({ ...rascunho, dataBase: '' }, { ...vazio, dataBase: '' })
+}
+
+/** @param aba quem salvou: só ela apaga o rascunho, para o "Limpar" de uma aba não levar o caso de outra */
+export function salvarRascunho(armazenamento: Armazenamento | null, rascunho: Rascunho, aba: string, agora = new Date()): void {
+  gravar(armazenamento, CHAVE_RASCUNHO, JSON.stringify({ versao: VERSAO, salvoEm: agora.toISOString(), aba, rascunho }))
 }
 
 /**
- * Guarda o rascunho, ou o apaga se for o formulário em branco: assim, abrir a página sem mexer em
- * nada não deixa para trás um rascunho que depois se anunciaria como restaurado.
+ * Apaga o rascunho, se foi esta aba que o salvou por último. Se outra aba gravou o caso dela
+ * depois, ele fica: é o que a próxima visita deve restaurar.
  */
-export function salvarRascunho(
-  armazenamento: Armazenamento | null,
-  rascunho: Rascunho,
-  vazio: Rascunho,
-  agora = new Date(),
-): void {
-  try {
-    if (ehRascunhoVazio(rascunho, vazio)) armazenamento?.removeItem(CHAVE_RASCUNHO)
-    else armazenamento?.setItem(CHAVE_RASCUNHO, JSON.stringify({ versao: VERSAO, salvoEm: agora.toISOString(), rascunho }))
-  } catch {
-    // Cota cheia ou armazenamento bloqueado: o rascunho deixa de ser guardado, e o formulário segue.
-  }
-}
-
-export function apagarRascunho(armazenamento: Armazenamento | null): void {
-  try {
-    armazenamento?.removeItem(CHAVE_RASCUNHO)
-  } catch {
-    // idem
-  }
+export function apagarRascunho(armazenamento: Armazenamento | null, aba: string): void {
+  const texto = ler(armazenamento, CHAVE_RASCUNHO)
+  if (!texto) return
+  const salvo = interpretar(texto)
+  if (!salvo || salvo.aba === aba) apagar(armazenamento, CHAVE_RASCUNHO)
 }
