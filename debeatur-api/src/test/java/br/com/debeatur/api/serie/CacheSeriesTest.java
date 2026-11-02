@@ -113,21 +113,33 @@ class CacheSeriesTest {
     }
 
     @Test
-    void periodoAlemDoConsultadoVaiAoSgsNaHora() {
+    void periodoAlemDoConsultadoVaiAoSgsNaHoraSoPelosMesesNovos() {
         when(sgs.buscar(Indice.IPCA, JAN, FEV)).thenReturn(valores(JAN, "0.42", FEV, "0.83"));
-        when(sgs.buscar(Indice.IPCA, JAN, MAR)).thenReturn(valores(JAN, "0.42", FEV, "0.83", MAR, "0.16"));
+        when(sgs.buscar(Indice.IPCA, MAR, MAR)).thenReturn(valores(MAR, "0.16"));
 
         ipca(JAN, FEV);
         SerieIndicesEmMemoria serie = ipca(FEV, MAR);
 
+        assertThat(serie.variacaoMensal(Indice.IPCA, FEV)).isEqualByComparingTo("0.83");
         assertThat(serie.variacaoMensal(Indice.IPCA, MAR)).isEqualByComparingTo("0.16");
+        verify(sgs).buscar(Indice.IPCA, MAR, MAR);
+    }
+
+    @Test
+    void periodoAlemDoConsultadoComSgsForaDoArFalha() {
+        // o cache nada sabe de março: acusar "índice indisponível" esconderia que o SGS está fora
+        when(sgs.buscar(Indice.IPCA, JAN, FEV)).thenReturn(valores(JAN, "0.42", FEV, "0.83"));
+        when(sgs.buscar(Indice.IPCA, MAR, MAR)).thenThrow(new SgsException("SGS respondeu 503 para IPCA"));
+
+        ipca(JAN, FEV);
+
+        assertThatThrownBy(() -> ipca(FEV, MAR)).isInstanceOf(SgsException.class);
     }
 
     @Test
     void mesAindaNaoPublicadoSoEReconsultadoDepoisDoIntervalo() {
-        when(sgs.buscar(Indice.IPCA, JAN, MAR))
-                .thenReturn(valores(JAN, "0.42", FEV, "0.83"))
-                .thenReturn(valores(JAN, "0.42", FEV, "0.83", MAR, "0.16"));
+        when(sgs.buscar(Indice.IPCA, JAN, MAR)).thenReturn(valores(JAN, "0.42", FEV, "0.83"));
+        when(sgs.buscar(Indice.IPCA, MAR, MAR)).thenReturn(valores(MAR, "0.16"));
 
         ipca(JAN, MAR);
         agora = agora.plus(Duration.ofMinutes(30));
@@ -138,8 +150,26 @@ class CacheSeriesTest {
         agora = agora.plus(Duration.ofMinutes(31));
         SerieIndicesEmMemoria depois = ipca(JAN, MAR);
 
+        assertThat(depois.variacaoMensal(Indice.IPCA, JAN)).isEqualByComparingTo("0.42");
         assertThat(depois.variacaoMensal(Indice.IPCA, MAR)).isEqualByComparingTo("0.16");
-        verify(sgs, times(2)).buscar(Indice.IPCA, JAN, MAR);
+        verify(sgs, times(1)).buscar(Indice.IPCA, JAN, MAR);
+        verify(sgs, times(1)).buscar(Indice.IPCA, MAR, MAR);
+    }
+
+    @Test
+    void reconsultaSemMesNovoEsperaOutroIntervalo() {
+        // o SGS responde 404 "Value(s) not found", que o SgsClient entrega como série vazia
+        when(sgs.buscar(Indice.IPCA, JAN, MAR)).thenReturn(valores(JAN, "0.42", FEV, "0.83"));
+        when(sgs.buscar(Indice.IPCA, MAR, MAR)).thenReturn(valores());
+
+        ipca(JAN, MAR);
+        agora = agora.plus(Duration.ofHours(2));
+        ipca(JAN, MAR);
+        agora = agora.plus(Duration.ofMinutes(30));
+        SerieIndicesEmMemoria serie = ipca(JAN, MAR);
+
+        assertThatThrownBy(() -> serie.variacaoMensal(Indice.IPCA, MAR)).isInstanceOf(IndiceIndisponivelException.class);
+        verify(sgs, times(1)).buscar(Indice.IPCA, MAR, MAR);
     }
 
     @Test
@@ -158,9 +188,8 @@ class CacheSeriesTest {
 
     @Test
     void sgsForaDoArNaReconsultaUsaOQueOCacheJaTem() {
-        when(sgs.buscar(Indice.IPCA, JAN, MAR))
-                .thenReturn(valores(JAN, "0.42", FEV, "0.83"))
-                .thenThrow(new SgsException("SGS respondeu 503 para IPCA"));
+        when(sgs.buscar(Indice.IPCA, JAN, MAR)).thenReturn(valores(JAN, "0.42", FEV, "0.83"));
+        when(sgs.buscar(Indice.IPCA, MAR, MAR)).thenThrow(new SgsException("SGS respondeu 503 para IPCA"));
 
         ipca(JAN, MAR);
         agora = agora.plus(Duration.ofHours(2));
@@ -212,6 +241,20 @@ class CacheSeriesTest {
         cache.carregarSalarioMinimo(JAN, MAR);
 
         when(sgs.buscar(Indice.INPC, JAN, ABR)).thenThrow(new SgsException("SGS respondeu 503 para INPC"));
+        when(sgs.buscarSalarioMinimo(JAN, ABR)).thenReturn(valores(JAN, "1412.00", ABR, "1412.00"));
+        cache.atualizarTodas();
+
+        assertThat(repositorio.ler(CacheSeries.SALARIO_MINIMO, ABR, ABR)).containsKey(ABR);
+    }
+
+    @Test
+    void atualizacaoPeriodicaSegueQuandoUmaSerieFalhaComOutroErro() {
+        when(sgs.buscar(Indice.INPC, JAN, MAR)).thenReturn(valores(JAN, "0.57"));
+        when(sgs.buscarSalarioMinimo(JAN, MAR)).thenReturn(valores(JAN, "1412.00"));
+        cache.carregar(Set.of(Indice.INPC), JAN, MAR);
+        cache.carregarSalarioMinimo(JAN, MAR);
+
+        when(sgs.buscar(Indice.INPC, JAN, ABR)).thenThrow(new IllegalStateException("erro inesperado"));
         when(sgs.buscarSalarioMinimo(JAN, ABR)).thenReturn(valores(JAN, "1412.00", ABR, "1412.00"));
         cache.atualizarTodas();
 
