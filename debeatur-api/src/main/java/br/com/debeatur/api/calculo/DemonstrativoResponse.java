@@ -1,6 +1,5 @@
 package br.com.debeatur.api.calculo;
 
-import br.com.debeatur.core.Dinheiro;
 import br.com.debeatur.core.alimentos.DemonstrativoPorRito;
 import br.com.debeatur.core.alimentos.Rito;
 import br.com.debeatur.core.calculo.Demonstrativo;
