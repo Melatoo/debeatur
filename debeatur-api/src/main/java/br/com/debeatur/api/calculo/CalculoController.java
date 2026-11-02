@@ -44,16 +44,21 @@ public class CalculoController {
     }
 
     /**
-     * O mesmo cálculo de {@link #calcular}, como demonstrativo em PDF para juntar aos autos.
-     * <p>
-     * Recebe o pedido, e não um cálculo salvo, enquanto os cálculos não são persistidos (#4).
+     * O mesmo cálculo de {@link #calcular}, como demonstrativo em PDF para juntar aos autos, com
+     * as séries em uso agora. O de um cálculo salvo, com o snapshot, sai de
+     * {@code GET /api/calculos/salvos/{id}/pdf}.
      */
     @PostMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> pdf(@Valid @RequestBody CalculoRequest request) {
         DemonstrativoResponse resultado = calcular(request);
         byte[] pdf = DemonstrativoPdf.gerar(request, resultado, LocalDateTime.ofInstant(relogio.instant(), FUSO_DA_EMISSAO));
+        return anexo(request, pdf);
+    }
+
+    /** O PDF como anexo, com o nome do {@link DemonstrativoPdf#nomeDoArquivo}. */
+    static ResponseEntity<byte[]> anexo(CalculoRequest pedido, byte[] pdf) {
         ContentDisposition anexo = ContentDisposition.attachment()
-                .filename(DemonstrativoPdf.nomeDoArquivo(request), StandardCharsets.UTF_8)
+                .filename(DemonstrativoPdf.nomeDoArquivo(pedido), StandardCharsets.UTF_8)
                 .build();
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)

@@ -105,21 +105,40 @@ final class DemonstrativoPdf {
     private final CalculoRequest pedido;
     private final DemonstrativoResponse resultado;
     private final LocalDateTime emissao;
+    /** Quando o cálculo foi salvo e as séries guardadas no snapshot; nulo se não foi salvo. */
+    private final LocalDateTime salvoEm;
     private final List<Coluna> colunas;
     private final boolean comAcrescimos;
     private PdfWriter writer;
 
-    private DemonstrativoPdf(CalculoRequest pedido, DemonstrativoResponse resultado, LocalDateTime emissao) {
+    private DemonstrativoPdf(CalculoRequest pedido, DemonstrativoResponse resultado, LocalDateTime emissao,
+                             LocalDateTime salvoEm) {
         this.pedido = pedido;
         this.resultado = resultado;
         this.emissao = emissao;
+        this.salvoEm = salvoEm;
         this.colunas = colunas(resultado.linhas());
         this.comAcrescimos = resultado.multaArt523().signum() > 0 || resultado.honorariosArt523().signum() > 0;
     }
 
-    /** @param emissao data e hora impressas no cabeçalho e no rodapé */
+    /**
+     * Demonstrativo de um cálculo não salvo, com as séries em uso na emissão.
+     *
+     * @param emissao data e hora impressas no cabeçalho e no rodapé
+     */
     static byte[] gerar(CalculoRequest pedido, DemonstrativoResponse resultado, LocalDateTime emissao) {
-        return new DemonstrativoPdf(pedido, resultado, emissao).gerar();
+        return new DemonstrativoPdf(pedido, resultado, emissao, null).gerar();
+    }
+
+    /**
+     * Demonstrativo de um cálculo salvo, refeito com o snapshot das séries.
+     *
+     * @param emissao data e hora impressas no cabeçalho e no rodapé
+     * @param salvoEm quando o cálculo foi salvo, que é a data dos valores do snapshot
+     */
+    static byte[] gerarSalvo(CalculoRequest pedido, DemonstrativoResponse resultado, LocalDateTime emissao,
+                             LocalDateTime salvoEm) {
+        return new DemonstrativoPdf(pedido, resultado, emissao, Objects.requireNonNull(salvoEm)).gerar();
     }
 
     /** Ex.: {@code demonstrativo-5001234-56.2024.8.13.0024-2026-10-31.pdf}. */
@@ -171,6 +190,9 @@ final class DemonstrativoPdf {
             campos.put("Executado", texto(processo.executado()));
         }
         campos.put("Data-base do cálculo", data(resultado.dataBase()));
+        if (salvoEm != null) {
+            campos.put("Calculado em", salvoEm.format(DATA) + " às " + salvoEm.format(HORA));
+        }
         campos.put("Emitido em", emissao.format(DATA) + " às " + emissao.format(HORA));
         campos.values().removeIf(Objects::isNull);
         documento.add(pares(campos));
@@ -525,9 +547,14 @@ final class DemonstrativoPdf {
         for (String item : itens) {
             documento.add(new Paragraph("• " + item, NORMAL));
         }
-        // as séries vêm do cache local, atualizado todo dia a partir do SGS
+        // sem salvar, as séries vêm do cache local, atualizado todo dia a partir do SGS; salvo, do
+        // snapshot, para que o PDF saia igual mesmo depois de o BCB revisar uma série
+        String valores = salvoEm == null
+                ? "com os valores publicados e em uso em " + emissao.format(DATA) + "."
+                : "com os valores em uso em " + salvoEm.format(DATA) + ", quando o cálculo foi salvo, guardados "
+                        + "com ele e reaplicados nesta emissão.";
         Paragraph consulta = new Paragraph("Séries do Sistema Gerenciador de Séries Temporais do Banco Central do "
-                + "Brasil (api.bcb.gov.br), com os valores publicados e em uso em " + emissao.format(DATA) + ".", NOTA);
+                + "Brasil (api.bcb.gov.br), " + valores, NOTA);
         consulta.setSpacingBefore(4);
         documento.add(consulta);
     }

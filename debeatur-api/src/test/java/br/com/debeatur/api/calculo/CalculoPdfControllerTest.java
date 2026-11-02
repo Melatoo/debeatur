@@ -159,7 +159,8 @@ class CalculoPdfControllerTest {
                 .containsIgnoringWhitespaces("Emitido em 02/11/2026 às 23:30")
                 .containsIgnoringWhitespaces("emitido em 02/11/2026 às 23:30")
                 .containsIgnoringWhitespaces("em 02/11/2026.")
-                .doesNotContain("03/11/2026");
+                .doesNotContain("03/11/2026")
+                .doesNotContain("Calculado em");
     }
 
     @Test
