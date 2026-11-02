@@ -42,8 +42,12 @@ function App() {
   function usarPensao(ativa: boolean) {
     setComPensao(ativa)
     // Com a pensão, as parcelas avulsas são opcionais: some a parcela em branco que bloquearia o envio.
-    if (ativa) setParcelas((atuais) => atuais.filter((p) => !estaVazia(p)))
-    else if (parcelas.length === 0) setParcelas([parcelaVazia()])
+    if (ativa) {
+      const restantes = parcelas.filter((p) => !estaVazia(p))
+      setParcelas(restantes)
+      // As que sobraram ficam à vista: um campo obrigatório escondido trava o envio sem aviso.
+      if (restantes.length > 0) setOutrasAbertas(true)
+    } else if (parcelas.length === 0) setParcelas([parcelaVazia()])
   }
 
   function adicionarParcela() {
@@ -197,7 +201,16 @@ function App() {
         </section>
 
         {comPensao ? (
-          <details className="bloco" open={outrasAbertas} onToggle={(e) => setOutrasAbertas(e.currentTarget.open)}>
+          <details
+            className="bloco"
+            open={outrasAbertas}
+            onToggle={(e) => setOutrasAbertas(e.currentTarget.open)}
+            // Fechado, o campo inválido não recebe foco e o navegador barra o envio sem mensagem;
+            // abre na hora, antes de o navegador procurar o campo para avisar.
+            onInvalidCapture={(e) => {
+              e.currentTarget.open = true
+            }}
+          >
             <summary>
               <h2>Outras parcelas{parcelas.length > 0 && ` (${parcelas.length})`}</h2>
             </summary>

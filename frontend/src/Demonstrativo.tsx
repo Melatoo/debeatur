@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { CalculoRequest, Demonstrativo as Resultado, LinhaDemonstrativo, Regra, Rito } from './api'
+import type { CalculoRequest, Demonstrativo as Resultado, LinhaDemonstrativo, Regra, Rito, SubtotalRito } from './api'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
 import { LinhaDoTempo } from './LinhaDoTempo'
 import { INDICES, descreverPeriodo } from './regime'
@@ -22,8 +22,18 @@ const RITOS: Record<Rito, { titulo: string; regra: string }> = {
 }
 
 const porVencimento = (a: LinhaDemonstrativo, b: LinhaDemonstrativo) => a.inicioCorrecao.localeCompare(b.inicioCorrecao)
-const soma = (linhas: LinhaDemonstrativo[], campo: 'valorCorrigido' | 'valorJuros' | 'subtotal') =>
-  linhas.reduce((total, l) => total + l[campo], 0)
+
+/** Totais de um grupo de linhas, sempre os somados no servidor, em `Dinheiro`. */
+type Totais = Pick<SubtotalRito, 'totalCorrigido' | 'totalJuros' | 'debitoAtualizado'>
+
+/** Uma coluna da memória: a mesma definição monta a tabela na tela e a copiada. */
+interface Coluna {
+  titulo: string
+  celula: (l: LinhaDemonstrativo) => ReactNode
+  texto: (l: LinhaDemonstrativo) => string
+  /** Total do rodapé nesta coluna, se houver. */
+  total?: keyof Totais
+}
 
 const nomeDaParcela = (l: LinhaDemonstrativo) => {
   if (!l.pensao) return l.descricao
@@ -31,11 +41,20 @@ const nomeDaParcela = (l: LinhaDemonstrativo) => {
   return `${mes(l.pensao.mes)}${quitada ? ' (quitada)' : ''}`
 }
 
-/** Regras do regime que alcançam o período do cálculo: do primeiro termo inicial ao mês anterior à data-base. */
+/** Mês anterior ao da data, como `AAAA-MM`. */
+function mesAnterior(dataIso: string): string {
+  const [ano, mesDoAno] = dataIso.split('-').map(Number)
+  return mesDoAno === 1 ? `${ano - 1}-12` : `${ano}-${String(mesDoAno - 1).padStart(2, '0')}`
+}
+
+/**
+ * Regras do regime que alcançam o período do cálculo: do primeiro termo inicial ao mês anterior
+ * à data-base, que é o último mês que o motor corrige e sobre o qual conta juros.
+ */
 function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase: string): Regra[] {
   const inicios = linhas.flatMap((l) => [l.inicioCorrecao, l.inicioJuros ?? l.inicioCorrecao]).map((d) => d.slice(0, 7))
   const primeiro = inicios.sort()[0]
-  const ultimo = dataBase.slice(0, 7)
+  const ultimo = mesAnterior(dataBase)
   if (!primeiro) return regras
   return regras.filter((r) => r.inicio <= ultimo && (r.fim == null || r.fim >= primeiro))
 }
@@ -47,7 +66,7 @@ export function Demonstrativo({ pedido, resultado }: Props) {
   const pensao = pedido.pensao
   const comSalarioMinimo = linhas.some((l) => l.pensao)
   const comPagamento = linhas.some((l) => (l.pensao?.valorPago ?? 0) > 0)
-  const acrescimos = resultado.multaArt523 + resultado.honorariosArt523
+  const comAcrescimos = resultado.multaArt523 > 0 || resultado.honorariosArt523 > 0
 
   useEffect(() => {
     // Leva quem calculou até o resultado, que fica abaixo do formulário.
@@ -56,34 +75,69 @@ export function Demonstrativo({ pedido, resultado }: Props) {
     titulo.current?.focus({ preventScroll: true })
   }, [resultado])
 
-  const colunas = [
-    'Parcela',
-    'Vencimento',
-    ...(comSalarioMinimo ? ['Salário mínimo'] : []),
-    'Devido',
-    ...(comPagamento ? ['Pago'] : []),
-    'Fator',
-    'Saldo corrigido',
-    'Juros (%)',
-    'Juros',
-    'Atualizado',
+  const colunas: Coluna[] = [
+    { titulo: 'Parcela', celula: nomeDaParcela, texto: nomeDaParcela },
+    {
+      titulo: 'Vencimento',
+      celula: (l) => (
+        <>
+          {data(l.inicioCorrecao)}
+          {l.inicioJuros == null ? (
+            <span className="nota">sem juros</span>
+          ) : (
+            l.inicioJuros !== l.inicioCorrecao && <span className="nota">juros desde {data(l.inicioJuros)}</span>
+          )}
+        </>
+      ),
+      texto: (l) => data(l.inicioCorrecao),
+    },
+    ...(comSalarioMinimo
+      ? [
+          {
+            titulo: 'Salário mínimo',
+            celula: (l: LinhaDemonstrativo) => (l.pensao ? moeda(l.pensao.salarioMinimo) : '—'),
+            texto: (l: LinhaDemonstrativo) => (l.pensao ? decimal(l.pensao.salarioMinimo) : ''),
+          },
+        ]
+      : []),
+    {
+      titulo: 'Devido',
+      celula: (l) => moeda(l.pensao ? l.pensao.valorDevido : l.valorOriginal),
+      texto: (l) => decimal(l.pensao ? l.pensao.valorDevido : l.valorOriginal),
+    },
+    ...(comPagamento
+      ? [
+          {
+            titulo: 'Pago',
+            celula: (l: LinhaDemonstrativo) => (l.pensao?.valorPago ? moeda(l.pensao.valorPago) : '—'),
+            texto: (l: LinhaDemonstrativo) => (l.pensao?.valorPago ? decimal(l.pensao.valorPago) : ''),
+          },
+        ]
+      : []),
+    { titulo: 'Fator', celula: (l) => fator(l.fatorCorrecao), texto: (l) => fator(l.fatorCorrecao) },
+    {
+      titulo: 'Saldo corrigido',
+      celula: (l) => moeda(l.valorCorrigido),
+      texto: (l) => decimal(l.valorCorrigido),
+      total: 'totalCorrigido',
+    },
+    { titulo: 'Juros (%)', celula: (l) => percentual(l.percentualJuros), texto: (l) => percentual(l.percentualJuros) },
+    { titulo: 'Juros', celula: (l) => moeda(l.valorJuros), texto: (l) => decimal(l.valorJuros), total: 'totalJuros' },
+    {
+      titulo: 'Atualizado',
+      celula: (l) => moeda(l.subtotal),
+      texto: (l) => decimal(l.subtotal),
+      total: 'debitoAtualizado',
+    },
   ]
+  const primeiraComTotal = colunas.findIndex((c) => c.total)
 
   async function copiar() {
-    const cabecalho = [...(ritos ? ['Rito'] : []), ...colunas]
+    const cabecalho = [...(ritos ? ['Rito'] : []), ...colunas.map((c) => c.titulo)]
     const ordenadas = [...linhas].sort(porVencimento)
     const corpo = ordenadas.map((l) => [
-      ...(ritos && l.rito ? [RITOS[l.rito].titulo] : ritos ? [''] : []),
-      nomeDaParcela(l),
-      data(l.inicioCorrecao),
-      ...(comSalarioMinimo ? [l.pensao ? decimal(l.pensao.salarioMinimo) : ''] : []),
-      decimal(l.pensao ? l.pensao.valorDevido : l.valorOriginal),
-      ...(comPagamento ? [l.pensao?.valorPago ? decimal(l.pensao.valorPago) : ''] : []),
-      fator(l.fatorCorrecao),
-      decimal(l.valorCorrigido),
-      percentual(l.percentualJuros),
-      decimal(l.valorJuros),
-      decimal(l.subtotal),
+      ...(ritos ? [l.rito ? RITOS[l.rito].titulo : ''] : []),
+      ...colunas.map((c) => c.texto(l)),
     ])
     const totais = [
       ...(ritos
@@ -93,10 +147,11 @@ export function Demonstrativo({ pedido, resultado }: Props) {
           ]
         : []),
       ['Débito atualizado', decimal(resultado.debitoAtualizado)],
-      ...(acrescimos > 0
+      ...(comAcrescimos
         ? [
             ['Multa (art. 523, §1º)', decimal(resultado.multaArt523)],
             ['Honorários (art. 523, §1º)', decimal(resultado.honorariosArt523)],
+            ...(ritos ? [['Total da penhora', decimal(ritos.totalPenhora)]] : []),
           ]
         : []),
       ['Total da execução', decimal(resultado.total)],
@@ -110,9 +165,15 @@ export function Demonstrativo({ pedido, resultado }: Props) {
     }
   }
 
-  function tabela(id: string, rotulo: ReactNode, descricao: string | null, das: LinhaDemonstrativo[], rodape: ReactNode) {
+  function tabela(
+    id: string,
+    rotulo: ReactNode,
+    descricao: string | null,
+    das: LinhaDemonstrativo[],
+    totais: Totais,
+    rodape: ReactNode,
+  ) {
     const ordenadas = [...das].sort(porVencimento)
-    const antesDosTotais = colunas.length - 4
     return (
       <section className="memoria" aria-labelledby={id}>
         <h3 id={id}>{rotulo}</h3>
@@ -122,8 +183,8 @@ export function Demonstrativo({ pedido, resultado }: Props) {
             <thead>
               <tr>
                 {colunas.map((c) => (
-                  <th key={c} scope="col">
-                    {c}
+                  <th key={c.titulo} scope="col">
+                    {c.titulo}
                   </th>
                 ))}
               </tr>
@@ -131,35 +192,26 @@ export function Demonstrativo({ pedido, resultado }: Props) {
             <tbody>
               {ordenadas.map((l, i) => (
                 <tr key={i}>
-                  <th scope="row">{nomeDaParcela(l)}</th>
-                  <td>
-                    {data(l.inicioCorrecao)}
-                    {l.inicioJuros == null ? (
-                      <span className="nota">sem juros</span>
+                  {colunas.map((c, j) =>
+                    j === 0 ? (
+                      <th key={c.titulo} scope="row">
+                        {c.celula(l)}
+                      </th>
                     ) : (
-                      l.inicioJuros !== l.inicioCorrecao && <span className="nota">juros desde {data(l.inicioJuros)}</span>
-                    )}
-                  </td>
-                  {comSalarioMinimo && <td>{l.pensao ? moeda(l.pensao.salarioMinimo) : '—'}</td>}
-                  <td>{moeda(l.pensao ? l.pensao.valorDevido : l.valorOriginal)}</td>
-                  {comPagamento && <td>{l.pensao?.valorPago ? moeda(l.pensao.valorPago) : '—'}</td>}
-                  <td>{fator(l.fatorCorrecao)}</td>
-                  <td>{moeda(l.valorCorrigido)}</td>
-                  <td>{percentual(l.percentualJuros)}</td>
-                  <td>{moeda(l.valorJuros)}</td>
-                  <td>{moeda(l.subtotal)}</td>
+                      <td key={c.titulo}>{c.celula(l)}</td>
+                    ),
+                  )}
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="subtotal">
-                <th scope="row" colSpan={antesDosTotais}>
+                <th scope="row" colSpan={primeiraComTotal}>
                   Subtotal, {contar(ordenadas.length, 'parcela', 'parcelas')}
                 </th>
-                <td>{moeda(soma(ordenadas, 'valorCorrigido'))}</td>
-                <td />
-                <td>{moeda(soma(ordenadas, 'valorJuros'))}</td>
-                <td>{moeda(soma(ordenadas, 'subtotal'))}</td>
+                {colunas.slice(primeiraComTotal).map((c) => (
+                  <td key={c.titulo}>{c.total && moeda(totais[c.total])}</td>
+                ))}
               </tr>
               {rodape}
             </tfoot>
@@ -242,10 +294,10 @@ export function Demonstrativo({ pedido, resultado }: Props) {
         <div>
           <dt>Art. 523, §1º</dt>
           <dd>
-            {acrescimos > 0
+            {comAcrescimos
               ? `Multa de 10% e honorários de 10% sobre ${ritos ? 'a penhora' : 'o débito'}`
               : pedido.aplicarArt523
-                ? 'Multa e honorários de 10%, sem débito na penhora'
+                ? `Multa e honorários de 10%, sem débito ${ritos ? 'na penhora' : 'a acrescer'}`
                 : 'Não aplicados'}
           </dd>
         </div>
@@ -280,7 +332,7 @@ export function Demonstrativo({ pedido, resultado }: Props) {
           </div>
           <div className="total-rito penhora">
             <h3>Rito da penhora</h3>
-            <p className="valor">{moeda(ritos.penhora.debitoAtualizado + acrescimos)}</p>
+            <p className="valor">{moeda(ritos.totalPenhora)}</p>
             <dl>
               <dt>{contar(ritos.penhora.parcelas, 'parcela', 'parcelas')}, atualizadas</dt>
               <dd>{moeda(ritos.penhora.debitoAtualizado)}</dd>
@@ -298,10 +350,12 @@ export function Demonstrativo({ pedido, resultado }: Props) {
               <dd>{moeda(resultado.totalCorrigido)}</dd>
               <dt>Juros</dt>
               <dd>{moeda(resultado.totalJuros)}</dd>
-              {acrescimos > 0 && (
+              {comAcrescimos && (
                 <>
-                  <dt>Multa e honorários</dt>
-                  <dd>{moeda(acrescimos)}</dd>
+                  <dt>Multa de 10%</dt>
+                  <dd>{moeda(resultado.multaArt523)}</dd>
+                  <dt>Honorários de 10%</dt>
+                  <dd>{moeda(resultado.honorariosArt523)}</dd>
                 </>
               )}
             </dl>
@@ -315,10 +369,14 @@ export function Demonstrativo({ pedido, resultado }: Props) {
             <dl>
               <dt>Débito atualizado</dt>
               <dd>{moeda(resultado.debitoAtualizado)}</dd>
-              <dt>Multa de 10%</dt>
-              <dd>{moeda(resultado.multaArt523)}</dd>
-              <dt>Honorários de 10%</dt>
-              <dd>{moeda(resultado.honorariosArt523)}</dd>
+              {comAcrescimos && (
+                <>
+                  <dt>Multa de 10%</dt>
+                  <dd>{moeda(resultado.multaArt523)}</dd>
+                  <dt>Honorários de 10%</dt>
+                  <dd>{moeda(resultado.honorariosArt523)}</dd>
+                </>
+              )}
             </dl>
           </div>
         </div>
@@ -337,6 +395,7 @@ export function Demonstrativo({ pedido, resultado }: Props) {
             RITOS.PRISAO.titulo,
             RITOS.PRISAO.regra,
             linhas.filter((l) => l.rito === 'PRISAO'),
+            ritos.prisao,
             null,
           )}
           {tabela(
@@ -344,11 +403,12 @@ export function Demonstrativo({ pedido, resultado }: Props) {
             RITOS.PENHORA.titulo,
             RITOS.PENHORA.regra,
             linhas.filter((l) => l.rito === 'PENHORA'),
-            acrescimos > 0 && (
+            ritos.penhora,
+            comAcrescimos && (
               <>
                 {linhaDeTotal('Multa de 10% (art. 523, §1º)', resultado.multaArt523)}
                 {linhaDeTotal('Honorários de 10% (art. 523, §1º)', resultado.honorariosArt523)}
-                {linhaDeTotal('Total da penhora', ritos.penhora.debitoAtualizado + acrescimos, 'total')}
+                {linhaDeTotal('Total da penhora', ritos.totalPenhora, 'total')}
               </>
             ),
           )}
@@ -359,7 +419,8 @@ export function Demonstrativo({ pedido, resultado }: Props) {
           'Parcelas',
           null,
           linhas,
-          acrescimos > 0 && (
+          resultado,
+          comAcrescimos && (
             <>
               {linhaDeTotal('Multa de 10% (art. 523, §1º)', resultado.multaArt523)}
               {linhaDeTotal('Honorários de 10% (art. 523, §1º)', resultado.honorariosArt523)}

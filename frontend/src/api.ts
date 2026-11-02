@@ -96,6 +96,8 @@ export interface Ritos {
   ajuizamento: string
   prisao: SubtotalRito
   penhora: SubtotalRito
+  /** Débito da penhora mais multa e honorários do art. 523, somados no servidor. */
+  totalPenhora: number
 }
 
 export interface Demonstrativo {
