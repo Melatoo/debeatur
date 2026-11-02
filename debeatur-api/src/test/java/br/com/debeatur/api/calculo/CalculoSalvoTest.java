@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.YearMonth;
@@ -215,6 +216,44 @@ class CalculoSalvoTest {
         BigDecimal total = new BigDecimal(JsonPath.read(obter("/api/calculos/salvos"), "$[0].total").toString());
 
         assertThat(total).isEqualByComparingTo(demonstrativo(salvo).total());
+    }
+
+    /**
+     * O {@code PEDIDO} como o formato 1 o grava em {@code calculo.pedido}. Não atualize este
+     * arquivo para um teste passar: os cálculos já salvos estão neste formato.
+     */
+    private static String pedidoV1() throws Exception {
+        try (InputStream arquivo = CalculoSalvoTest.class.getResourceAsStream("/calculos-salvos/pedido-v1.json")) {
+            return new String(arquivo.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    /** Compara pela igualdade do {@code jsonb}: os mesmos campos, e os números como {@code numeric}. */
+    private boolean mesmoJson(String a, String b) {
+        return jdbc.sql("SELECT CAST(? AS JSONB) = CAST(? AS JSONB)").params(a, b).query(Boolean.class).single();
+    }
+
+    @Test
+    void oPedidoEGravadoNoFormatoCongelado() throws Exception {
+        UUID id = UUID.fromString(JsonPath.read(salvar(null, PEDIDO), "$.id"));
+
+        String gravado = jdbc.sql("SELECT pedido::text FROM calculo WHERE id = ?").param(id).query(String.class).single();
+
+        // se o CalculoRequest mudou, os cálculos já salvos precisam de uma migração, e não de um arquivo novo
+        assertThat(mesmoJson(gravado, pedidoV1())).as("pedido gravado: %s", gravado).isTrue();
+    }
+
+    @Test
+    void reabreUmPedidoGravadoNoFormatoCongelado() throws Exception {
+        String salvo = salvar(null, PEDIDO);
+        String id = JsonPath.read(salvo, "$.id");
+        jdbc.sql("UPDATE calculo SET pedido = CAST(? AS JSONB) WHERE id = ?").params(pedidoV1(), UUID.fromString(id)).update();
+
+        String reaberto = obter("/api/calculos/salvos/" + id);
+
+        String calculo = json.writeValueAsString(json.readTree(reaberto).get("calculo"));
+        assertThat(mesmoJson(calculo, pedidoV1())).as("nenhum campo perdido na leitura: %s", calculo).isTrue();
+        assertThat(demonstrativo(reaberto)).isEqualTo(demonstrativo(salvo));
     }
 
     @Test

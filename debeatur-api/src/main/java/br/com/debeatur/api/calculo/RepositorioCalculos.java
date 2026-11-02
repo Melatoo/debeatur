@@ -1,6 +1,7 @@
 package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.api.serie.SnapshotSeries;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,9 +34,12 @@ class RepositorioCalculos {
     private static final String SELECT_RESUMO = "SELECT id, titulo, data_base, regime, total, criado_em FROM calculo";
 
     private final JdbcClient jdbc;
+    /** O {@link JdbcClient} não grava em lote. */
+    private final JdbcTemplate lote;
 
-    RepositorioCalculos(JdbcClient jdbc) {
+    RepositorioCalculos(JdbcClient jdbc, JdbcTemplate lote) {
         this.jdbc = jdbc;
+        this.lote = lote;
     }
 
     @Transactional
@@ -47,10 +51,11 @@ class RepositorioCalculos {
                 .params(resumo.id(), escritorio, resumo.titulo(), resumo.dataBase(), resumo.regime(), resumo.total(),
                         pedidoJson, resumo.criadoEm().atOffset(ZoneOffset.UTC))
                 .update();
-        snapshot.valores().forEach((serie, meses) -> meses.forEach((mes, valor) ->
-                jdbc.sql("INSERT INTO calculo_serie (calculo_id, serie, mes, valor) VALUES (?, ?, ?, ?)")
-                        .params(resumo.id(), serie, mes.atDay(1), valor)
-                        .update()));
+        List<Object[]> linhas = snapshot.valores().entrySet().stream()
+                .flatMap(serie -> serie.getValue().entrySet().stream()
+                        .map(mes -> new Object[] {resumo.id(), serie.getKey(), mes.getKey().atDay(1), mes.getValue()}))
+                .toList();
+        lote.batchUpdate("INSERT INTO calculo_serie (calculo_id, serie, mes, valor) VALUES (?, ?, ?, ?)", linhas);
     }
 
     /** Do mais recente para o mais antigo. */
@@ -68,8 +73,9 @@ class RepositorioCalculos {
                         FROM calculo WHERE escritorio_id = ? AND id = ?
                         """)
                 .params(escritorio, id)
-                .query((rs, linha) -> new Salvo(resumo(rs, linha), rs.getString("pedido"), snapshot(id)))
-                .optional();
+                .query((rs, linha) -> Map.entry(resumo(rs, linha), rs.getString("pedido")))
+                .optional()
+                .map(linha -> new Salvo(linha.getKey(), linha.getValue(), snapshot(id)));
     }
 
     private SnapshotSeries snapshot(UUID calculo) {
