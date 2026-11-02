@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   gerarPdf,
   type CalculoRequest,
@@ -9,9 +9,11 @@ import {
   type Rito,
   type SubtotalRito,
 } from './api'
+import { lerColunasOcultas, salvarColunasOcultas, type ColunaOpcional } from './colunas'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
 import { LinhaDoTempo } from './LinhaDoTempo'
 import { paraCampo } from './numero'
+import { armazenamentoDoNavegador } from './armazenamento'
 import { INDICES, descreverPeriodo, mesAnterior } from './regime'
 
 interface Props {
@@ -51,6 +53,8 @@ type Totais = Pick<SubtotalRito, 'totalCorrigido' | 'totalJuros' | 'debitoAtuali
 
 /** Uma coluna da memória: a mesma definição monta a tabela na tela e a copiada. */
 interface Coluna {
+  /** Nulo nas colunas que não se escondem: a Parcela identifica a linha, e o Atualizado é o resultado dela. */
+  id: ColunaOpcional | null
   titulo: string
   celula: (l: LinhaDemonstrativo) => ReactNode
   texto: (l: LinhaDemonstrativo) => string
@@ -107,19 +111,34 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
   const comAcrescimos = resultado.multaArt523 > 0 || resultado.honorariosArt523 > 0
 
   useEffect(() => {
-    // Leva quem calculou até o resultado, que fica abaixo do formulário. Só ao montar: o clique em
-    // Calcular troca a `key` e remonta; o recálculo automático mantém a tela onde a pessoa está editando.
-    const reduzir = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    titulo.current?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' })
-    titulo.current?.focus({ preventScroll: true })
+    // Leva quem calculou até o resultado, que na tela estreita fica abaixo do formulário. Só ao montar:
+    // o clique em Calcular troca a `key` e remonta; o recálculo automático mantém a tela onde a pessoa
+    // está editando. Em duas colunas, o título costuma já estar à vista, ao lado do formulário.
+    const elemento = titulo.current
+    if (!elemento) return
+    const { top } = elemento.getBoundingClientRect()
+    if (top < 0 || top > window.innerHeight * 0.5) {
+      const reduzir = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      elemento.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' })
+    }
+    elemento.focus({ preventScroll: true })
   }, [])
 
   // Um demonstrativo que não bate com o formulário não sai da tela: nem PDF, nem cópia, nem impressão.
   const travado = situacao !== 'atual'
 
-  const colunas: Coluna[] = [
-    { titulo: 'Parcela', celula: nomeDaParcela, texto: nomeDaParcela },
+  /** Preferência do navegador, e não do cálculo: sobrevive ao clique em Calcular, que remonta o demonstrativo. */
+  const [ocultas, setOcultas] = useState<ColunaOpcional[]>(() => lerColunasOcultas(armazenamentoDoNavegador()))
+  function mostrarColuna(id: ColunaOpcional, mostrar: boolean) {
+    const novas = mostrar ? ocultas.filter((c) => c !== id) : [...ocultas, id]
+    setOcultas(novas)
+    salvarColunasOcultas(armazenamentoDoNavegador(), novas)
+  }
+
+  const todas: Coluna[] = [
+    { id: null, titulo: 'Parcela', celula: nomeDaParcela, texto: nomeDaParcela },
     {
+      id: 'vencimento',
       titulo: 'Vencimento',
       celula: (l) => {
         const nota = notaDosJuros(l)
@@ -138,6 +157,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
     ...(comSalarioMinimo
       ? [
           {
+            id: 'salarioMinimo' as const,
             titulo: 'Salário mínimo',
             celula: (l: LinhaDemonstrativo) => (l.pensao ? moeda(l.pensao.salarioMinimo) : '—'),
             texto: (l: LinhaDemonstrativo) => (l.pensao ? decimal(l.pensao.salarioMinimo) : ''),
@@ -145,6 +165,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         ]
       : []),
     {
+      id: 'devido',
       titulo: 'Devido',
       celula: (l) => moeda(l.pensao ? l.pensao.valorDevido : l.valorOriginal),
       texto: (l) => decimal(l.pensao ? l.pensao.valorDevido : l.valorOriginal),
@@ -152,28 +173,46 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
     ...(comPagamento
       ? [
           {
+            id: 'pago' as const,
             titulo: 'Pago',
             celula: (l: LinhaDemonstrativo) => (l.pensao?.valorPago ? moeda(l.pensao.valorPago) : '—'),
             texto: (l: LinhaDemonstrativo) => (l.pensao?.valorPago ? decimal(l.pensao.valorPago) : ''),
           },
         ]
       : []),
-    { titulo: 'Fator', celula: (l) => fator(l.fatorCorrecao), texto: (l) => fator(l.fatorCorrecao) },
+    { id: 'fator', titulo: 'Fator', celula: (l) => fator(l.fatorCorrecao), texto: (l) => fator(l.fatorCorrecao) },
     {
+      id: 'corrigido',
       titulo: 'Saldo corrigido',
       celula: (l) => moeda(l.valorCorrigido),
       texto: (l) => decimal(l.valorCorrigido),
       total: 'totalCorrigido',
     },
-    { titulo: 'Juros (%)', celula: (l) => percentual(l.percentualJuros), texto: (l) => percentual(l.percentualJuros) },
-    { titulo: 'Juros', celula: (l) => moeda(l.valorJuros), texto: (l) => decimal(l.valorJuros), total: 'totalJuros' },
     {
+      id: 'percentualJuros',
+      titulo: 'Juros (%)',
+      celula: (l) => percentual(l.percentualJuros),
+      texto: (l) => percentual(l.percentualJuros),
+    },
+    {
+      id: 'juros',
+      titulo: 'Juros',
+      celula: (l) => moeda(l.valorJuros),
+      texto: (l) => decimal(l.valorJuros),
+      total: 'totalJuros',
+    },
+    {
+      id: null,
       titulo: 'Atualizado',
       celula: (l) => moeda(l.subtotal),
       texto: (l) => decimal(l.subtotal),
       total: 'debitoAtualizado',
     },
   ]
+  const visivel = (c: Coluna) => c.id === null || !ocultas.includes(c.id)
+  /** As colunas na tela, que são também as da cópia e da impressão; o PDF sai sempre com todas. */
+  const colunas = todas.filter(visivel)
+  // O Atualizado nunca se esconde, então sempre há uma coluna com total, e o rótulo do subtotal cabe antes dela.
   const primeiraComTotal = colunas.findIndex((c) => c.total)
 
   async function copiar() {
@@ -252,7 +291,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         <h3 id={id}>{rotulo}</h3>
         {descricao && <p className="regra-rito">{descricao}</p>}
         <div className="rolagem" tabIndex={0} role="region" aria-labelledby={id}>
-          <table>
+          <table style={{ '--colunas': colunas.length } as CSSProperties}>
             <thead>
               <tr>
                 {colunas.map((c) => (
@@ -479,7 +518,34 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         </div>
       )}
 
-      <h3 className="titulo-memoria">Memória de cálculo</h3>
+      <div className="cabecalho-memoria">
+        <h3 className="titulo-memoria">Memória de cálculo</h3>
+        <details className="seletor-colunas">
+          <summary>
+            Colunas ({colunas.length} de {todas.length})
+          </summary>
+          <fieldset>
+            <legend className="sr-only">Colunas exibidas na memória de cálculo</legend>
+            <div className="opcoes-colunas">
+              {todas.map((c) => (
+                <label key={c.titulo} className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={visivel(c)}
+                    disabled={c.id === null}
+                    onChange={(e) => c.id && mostrarColuna(c.id, e.target.checked)}
+                  />
+                  {c.titulo}
+                </label>
+              ))}
+            </div>
+            <p className="dica">
+              Vale também para a cópia e a impressão. O PDF sai sempre com todas as colunas. Parcela e Atualizado não
+              se escondem.
+            </p>
+          </fieldset>
+        </details>
+      </div>
       <p className="explica-colunas">
         O devido é o percentual do salário mínimo do mês; o pago é abatido antes da correção. O fator acumula a
         correção do vencimento até a data-base, e os juros incidem sobre o saldo corrigido.
