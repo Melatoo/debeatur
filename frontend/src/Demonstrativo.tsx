@@ -23,7 +23,15 @@ interface Props {
    * então quem o preenche depois de calcular não precisa calcular de novo.
    */
   processo?: ProcessoRequest
+  /** Se o demonstrativo bate com o formulário, está sendo recalculado ou ficou para trás. */
+  situacao: Situacao
+  /** Por que ficou desatualizado, quando não dá para recalcular. */
+  motivo: string | null
+  /** Refaz o cálculo que falhou; sem ele, a faixa não oferece nova tentativa. */
+  aoTentarDeNovo?: () => void
 }
+
+export type Situacao = 'atual' | 'atualizando' | 'desatualizado'
 
 const RITOS: Record<Rito, { titulo: string; regra: string }> = {
   PRISAO: {
@@ -74,9 +82,19 @@ function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase
 const notaDosJuros = (l: LinhaDemonstrativo) =>
   l.inicioJuros == null ? 'sem juros' : l.inicioJuros !== l.inicioCorrecao ? `juros desde ${data(l.inicioJuros)}` : null
 
-export function Demonstrativo({ pedido, resultado, processo }: Props) {
+export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, aoTentarDeNovo }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
-  const [aviso, setAviso] = useState('')
+  /**
+   * Aviso de PDF ou cópia, preso ao pedido de que fala: o recálculo automático troca os números sem
+   * remontar, e "PDF baixado" não pode ficar ao lado de números que não estão nele.
+   */
+  const [aviso, setAviso] = useState<{ de: CalculoRequest; texto: string } | null>(null)
+  const avisar = (texto: string) => setAviso({ de: pedido, texto })
+  /** O pedido na tela agora, para um PDF que fica pronto depois de um recálculo não baixar o antigo. */
+  const pedidoNaTela = useRef(pedido)
+  useEffect(() => {
+    pedidoNaTela.current = pedido
+  }, [pedido])
   const [gerandoPdf, setGerandoPdf] = useState(false)
   const { linhas, ritos } = resultado
   const pensao = pedido.pensao
@@ -89,11 +107,15 @@ export function Demonstrativo({ pedido, resultado, processo }: Props) {
   const comAcrescimos = resultado.multaArt523 > 0 || resultado.honorariosArt523 > 0
 
   useEffect(() => {
-    // Leva quem calculou até o resultado, que fica abaixo do formulário.
+    // Leva quem calculou até o resultado, que fica abaixo do formulário. Só ao montar: o clique em
+    // Calcular troca a `key` e remonta; o recálculo automático mantém a tela onde a pessoa está editando.
     const reduzir = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     titulo.current?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' })
     titulo.current?.focus({ preventScroll: true })
-  }, [resultado])
+  }, [])
+
+  // Um demonstrativo que não bate com o formulário não sai da tela: nem PDF, nem cópia, nem impressão.
+  const travado = situacao !== 'atual'
 
   const colunas: Coluna[] = [
     { titulo: 'Parcela', celula: nomeDaParcela, texto: nomeDaParcela },
@@ -181,9 +203,9 @@ export function Demonstrativo({ pedido, resultado, processo }: Props) {
     const texto = [cabecalho, ...corpo, [], ...totais].map((linha) => linha.join('\t')).join('\n')
     try {
       await navigator.clipboard.writeText(texto)
-      setAviso('Tabela copiada. Cole no Word ou numa planilha.')
+      avisar('Tabela copiada. Cole no Word ou numa planilha.')
     } catch {
-      setAviso('O navegador não deixou copiar. Use Imprimir ou selecione a tabela com o mouse.')
+      avisar('O navegador não deixou copiar. Use Imprimir ou selecione a tabela com o mouse.')
     }
   }
 
@@ -193,9 +215,13 @@ export function Demonstrativo({ pedido, resultado, processo }: Props) {
    */
   async function baixarPdf() {
     setGerandoPdf(true)
-    setAviso('Gerando o PDF…')
+    avisar('Gerando o PDF…')
     try {
       const { conteudo, nome } = await gerarPdf({ ...pedido, processo })
+      if (pedidoNaTela.current !== pedido) {
+        setAviso({ de: pedidoNaTela.current, texto: 'O demonstrativo mudou enquanto o PDF era gerado. Baixe de novo.' })
+        return
+      }
       const url = URL.createObjectURL(conteudo)
       const link = document.createElement('a')
       link.href = url
@@ -203,9 +229,9 @@ export function Demonstrativo({ pedido, resultado, processo }: Props) {
       link.click()
       // o navegador já copiou o arquivo ao iniciar o download; liberar na hora cancela no Firefox
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
-      setAviso(`PDF baixado: ${nome}`)
+      avisar(`PDF baixado: ${nome}`)
     } catch (e) {
-      setAviso(`Não foi possível gerar o PDF. ${e instanceof Error ? e.message : String(e)}`)
+      avisar(`Não foi possível gerar o PDF. ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setGerandoPdf(false)
     }
@@ -280,24 +306,45 @@ export function Demonstrativo({ pedido, resultado, processo }: Props) {
   const avulsas = pedido.parcelas.length
 
   return (
-    <section className="demonstrativo" aria-labelledby="titulo-demonstrativo">
+    <section
+      className="demonstrativo"
+      data-situacao={situacao}
+      aria-labelledby="titulo-demonstrativo"
+    >
+      {/* Sem aria-busy na seção: dentro de uma região ocupada, o leitor de tela cala esta faixa. */}
+      <p className="situacao" role="status">
+        {situacao === 'atualizando' && 'Atualizando o demonstrativo…'}
+        {situacao === 'desatualizado' && (
+          <>
+            <strong>Demonstrativo desatualizado.</strong> {motivo}
+            {aoTentarDeNovo && (
+              <>
+                {' '}
+                <button type="button" className="secundario" onClick={aoTentarDeNovo}>
+                  Tentar de novo
+                </button>
+              </>
+            )}
+          </>
+        )}
+      </p>
       <div className="cabecalho-resultado">
         <h2 id="titulo-demonstrativo" ref={titulo} tabIndex={-1}>
           Demonstrativo atualizado até {data(resultado.dataBase)}
         </h2>
         <div className="acoes-resultado">
-          <button type="button" onClick={baixarPdf} disabled={gerandoPdf}>
+          <button type="button" onClick={baixarPdf} disabled={gerandoPdf || travado}>
             {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
           </button>
-          <button type="button" className="secundario" onClick={copiar}>
+          <button type="button" className="secundario" onClick={copiar} disabled={travado}>
             Copiar tabela
           </button>
-          <button type="button" className="secundario" onClick={() => window.print()}>
+          <button type="button" className="secundario" onClick={() => window.print()} disabled={travado}>
             Imprimir
           </button>
         </div>
         <p className="status" role="status">
-          {aviso}
+          {aviso?.de === pedido && aviso.texto}
         </p>
       </div>
 

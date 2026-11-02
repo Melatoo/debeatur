@@ -130,11 +130,13 @@ async function lerResposta<T>(resposta: Response, acao: string): Promise<T> {
   return resposta.json()
 }
 
-export async function calcular(request: CalculoRequest): Promise<Demonstrativo> {
+/** @param sinal cancela o pedido quando o formulário muda antes da resposta */
+export async function calcular(request: CalculoRequest, sinal?: AbortSignal): Promise<Demonstrativo> {
   const resposta = await fetch('/api/calculos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
+    signal: sinal,
   })
   return lerResposta(resposta, 'calcular')
 }

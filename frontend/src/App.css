@@ -234,7 +234,11 @@ button:disabled {
 
 .enviar {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px 16px;
   padding-top: 20px;
   border-top: 1px solid var(--borda);
   margin-top: 16px;
@@ -243,6 +247,10 @@ button:disabled {
 .enviar button {
   padding: 11px 32px;
   font-size: 1.05rem;
+}
+
+.enviar .dica {
+  margin: 0;
 }
 
 .erro {
@@ -259,6 +267,59 @@ button:disabled {
   padding-top: 28px;
   border-top: 2px solid var(--texto);
   scroll-margin-top: 16px;
+}
+
+/*
+ * Situação do demonstrativo frente ao formulário. A faixa acompanha a rolagem, para quem está lá
+ * embaixo na memória de cálculo ver que os números mudaram ou ficaram para trás. Vazia, a região
+ * continua no DOM, para o leitor de tela anunciar quando ela mudar.
+ */
+.situacao {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: var(--superficie);
+  border: 1px solid var(--borda-forte);
+  color: var(--texto-suave);
+}
+
+.situacao button {
+  margin-left: 4px;
+  padding: 4px 12px;
+  font-size: 0.9rem;
+}
+
+.situacao:empty {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.demonstrativo[data-situacao='desatualizado'] .situacao {
+  border-color: var(--aviso);
+  color: var(--texto);
+  background: color-mix(in srgb, var(--aviso) 10%, var(--superficie));
+}
+
+/* Os números ficam à vista para comparar, mas apagados, para ninguém copiá-los como se valessem. */
+.demonstrativo > :not(.situacao, .cabecalho-resultado) {
+  transition: opacity 0.2s ease 0.15s;
+}
+
+.demonstrativo[data-situacao='atualizando'] > :not(.situacao, .cabecalho-resultado) {
+  opacity: 0.6;
+}
+
+.demonstrativo[data-situacao='desatualizado'] > :not(.situacao, .cabecalho-resultado) {
+  opacity: 0.4;
+}
+
+.demonstrativo:not([data-situacao='atual']) .acoes-resultado button:disabled {
+  cursor: not-allowed;
 }
 
 .cabecalho-resultado {
@@ -793,6 +854,15 @@ tfoot .total td {
   .demonstrativo {
     margin-top: 8px;
     padding-top: 12px;
+  }
+
+  /* Com Ctrl+P, um demonstrativo desatualizado sai com o aviso, e não como se valesse. */
+  .demonstrativo[data-situacao='atual'] .situacao {
+    display: none;
+  }
+
+  .situacao {
+    position: static;
   }
 
   .barra,
