@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { buscarRegimePadrao, calcular, type CalculoRequest, type Demonstrativo as Resultado, type ParcelaRequest } from './api'
 import { Demonstrativo } from './Demonstrativo'
+import { mes } from './formato'
 import { EditorPensao } from './EditorPensao'
 import { CampoDecimal } from './CampoDecimal'
-import { lerDecimal } from './numero'
+import { exigirDecimal } from './numero'
 import { paraPensao, pensaoVazia, type PensaoEditavel } from './pensao'
 import { EditorRegime } from './EditorRegime'
 import { paraEditavel, paraRegime, regraVazia, type RegraEditavel } from './regime'
@@ -11,7 +12,8 @@ import './App.css'
 
 /**
  * Último dia do mês anterior. O cálculo usa os índices até o mês anterior ao da data-base, e o
- * índice do mês que acabou de fechar só sai lá pelo dia 10; com a data de hoje, o cálculo falharia.
+ * índice do mês que acabou de fechar só sai lá pelo dia 10; antes disso, com a data de hoje, o
+ * cálculo falharia. Depois, o padrão fica para trás e a dica do campo pede para avançá-lo.
  */
 const fimDoMesAnterior = () => {
   const hoje = new Date()
@@ -30,6 +32,7 @@ interface Calculo {
 
 function App() {
   const [dataBase, setDataBase] = useState(fimDoMesAnterior)
+  const [mesFechado] = useState(() => mes(fimDoMesAnterior().slice(0, 7)))
   const [aplicarArt523, setAplicarArt523] = useState(true)
   const [comPensao, setComPensao] = useState(true)
   const [separarRitos, setSepararRitos] = useState(true)
@@ -82,7 +85,7 @@ function App() {
       const pedido: CalculoRequest = {
         dataBase,
         aplicarArt523,
-        parcelas: parcelas.map((p) => ({ ...p, valor: lerDecimal(p.valor) ?? p.valor, inicioJuros: p.inicioJuros || null })),
+        parcelas: parcelas.map((p) => ({ ...p, valor: exigirDecimal(p.valor, 'Valor da parcela'), inicioJuros: p.inicioJuros || null })),
         pensao: comPensao ? paraPensao(pensao, separarRitos) : undefined,
         regime: regimeProprio ? paraRegime(nomeRegime, regras) : undefined,
       }
@@ -176,8 +179,9 @@ function App() {
             )}
           </div>
           <p className="dica" id="dica-data-base">
-            O débito é atualizado até a data-base. Ela começa no fim do mês anterior: no mês corrente, o cálculo
-            precisaria do índice do mês passado, que só sai por volta do dia 10.
+            O débito é atualizado até a data-base. Ela começa no fim do mês anterior porque o índice de {mesFechado} só
+            sai por volta do dia 10. Depois que ele sair, avance a data-base: parada no fim do mês anterior, ela deixa de
+            fora a correção e os juros do mês corrente.
           </p>
 
           {comPensao && (

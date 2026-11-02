@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CalculoRequest, Demonstrativo as Resultado, LinhaDemonstrativo, Regra, Rito, SubtotalRito } from './api'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
 import { LinhaDoTempo } from './LinhaDoTempo'
+import { paraCampo } from './numero'
 import { INDICES, descreverPeriodo, mesAnterior } from './regime'
 
 interface Props {
@@ -264,7 +265,7 @@ export function Demonstrativo({ pedido, resultado }: Props) {
             <div>
               <dt>Pensão</dt>
               <dd>
-                {pensao.percentual.replace('.', ',')}% do salário mínimo vigente em cada mês, com vencimento no dia{' '}
+                {paraCampo(pensao.percentual)}% do salário mínimo vigente em cada mês, com vencimento no dia{' '}
                 {pensao.diaVencimento}
               </dd>
             </div>

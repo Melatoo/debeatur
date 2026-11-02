@@ -1,5 +1,5 @@
 import { useEffect, useRef, type InputHTMLAttributes } from 'react'
-import { casasDecimais, lerDecimal } from './numero'
+import { casasDecimais, lerDecimal, pontoAmbiguo } from './numero'
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> & {
   value: string
@@ -39,6 +39,9 @@ function mensagemDeErro(texto: string, casas: number, milhar: boolean): string {
   if (!texto.trim()) return ''
   const lido = lerDecimal(texto, milhar)
   if (lido === null) {
+    if (milhar && pontoAmbiguo(texto)) {
+      return 'O ponto é ambíguo: para milhar, escreva sem o ponto ou com os centavos (ex.: 1500 ou 1.500,00); para decimais, use vírgula (ex.: 1,5).'
+    }
     return milhar
       ? 'Informe só números, com vírgula antes dos centavos (ex.: 1.234,56).'
       : 'Informe só números, com vírgula decimal (ex.: 0,5).'
