@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -234,25 +235,51 @@ final class DemonstrativoPdf {
     }
 
     /**
-     * Regras que alcançam o período do cálculo: do primeiro termo inicial ao mês anterior à
-     * data-base, o último que o motor corrige e sobre o qual conta juros. Se tudo vence no
-     * mês da data-base, fica a regra vigente nesse mês.
+     * Regras que alcançam o período do cálculo: do primeiro termo inicial, de correção ou de
+     * juros, ao mês anterior à data-base, o último que o motor percorre. Se tudo vence no mês
+     * da data-base, fica a regra vigente nesse mês.
      */
     private List<RegraDto> regrasDoPeriodo() {
-        List<RegraDto> regras = resultado.regime().regras();
-        YearMonth primeiro = resultado.linhas().stream()
-                .flatMap(l -> Stream.of(l.inicioCorrecao(),
-                        l.inicioJuros() == null ? l.inicioCorrecao() : l.inicioJuros()))
-                .map(YearMonth::from)
+        YearMonth primeiro = Stream.of(primeiroMes(Linha::inicioCorrecao), primeiroMes(Linha::inicioJuros))
+                .flatMap(Optional::stream)
                 .min(Comparator.naturalOrder())
                 .orElse(null);
         if (primeiro == null) {
-            return regras;
+            return resultado.regime().regras();
         }
-        YearMonth anteriorABase = YearMonth.from(resultado.dataBase()).minusMonths(1);
-        YearMonth ultimo = primeiro.isAfter(anteriorABase) ? primeiro : anteriorABase;
-        return regras.stream()
-                .filter(r -> !r.inicio().isAfter(ultimo) && (r.fim() == null || !r.fim().isBefore(primeiro)))
+        YearMonth ultimo = ultimoMesPercorrido();
+        return regrasEntre(primeiro, primeiro.isAfter(ultimo) ? primeiro : ultimo);
+    }
+
+    /**
+     * Regras dos meses em que o motor aplicou o termo: do mais antigo deles (inclusive) ao mês
+     * da data-base (exclusive). Vazio se nenhuma linha percorre mês algum com esse termo.
+     */
+    private List<RegraDto> regrasAplicadas(Function<Linha, LocalDate> termo) {
+        YearMonth ultimo = ultimoMesPercorrido();
+        return primeiroMes(termo)
+                .filter(primeiro -> !primeiro.isAfter(ultimo))
+                .map(primeiro -> regrasEntre(primeiro, ultimo))
+                .orElse(List.of());
+    }
+
+    /** O termo inicial mais antigo entre as linhas, sem as que não o têm (ex.: sem juros). */
+    private Optional<YearMonth> primeiroMes(Function<Linha, LocalDate> termo) {
+        return resultado.linhas().stream()
+                .map(termo)
+                .filter(Objects::nonNull)
+                .map(YearMonth::from)
+                .min(Comparator.naturalOrder());
+    }
+
+    /** O mês anterior ao da data-base: o motor corrige e conta juros até ele. */
+    private YearMonth ultimoMesPercorrido() {
+        return YearMonth.from(resultado.dataBase()).minusMonths(1);
+    }
+
+    private List<RegraDto> regrasEntre(YearMonth de, YearMonth ate) {
+        return resultado.regime().regras().stream()
+                .filter(r -> !r.inicio().isAfter(ate) && (r.fim() == null || !r.fim().isBefore(de)))
                 .toList();
     }
 
@@ -332,16 +359,20 @@ final class DemonstrativoPdf {
     }
 
     /**
-     * A memória de um grupo de linhas: as parcelas numa tabela que se divide entre páginas, com
-     * o cabeçalho repetido, e o fechamento (subtotal e art. 523) noutra, que não se divide. Se
-     * o fechamento não cabe no resto da página, vai para a seguinte com o cabeçalho das colunas,
-     * para que os totais não fiquem sem rótulo.
+     * A memória de um grupo de linhas: as parcelas e o fechamento (subtotal e art. 523) numa só
+     * tabela, que se divide entre páginas com o cabeçalho das colunas repetido. Assim, um total
+     * que caia no alto da página seguinte nunca fica sem rótulo.
+     * <p>
+     * O fechamento não vai numa tabela à parte, que não se dividisse: medir se ela cabe no resto
+     * da página não bate com a regra do OpenPDF, e ela chegava a abrir a página seguinte sem o
+     * cabeçalho.
      *
      * @param comArt523 se a multa e os honorários do art. 523 entram no fechamento desta tabela
      */
     private void tabela(Document documento, List<Linha> linhas, Totais totais, boolean comArt523) {
         PdfPTable parcelas = novaTabela();
         parcelas.setHeaderRows(1);
+        parcelas.setSpacingAfter(8);
         cabecalhoDasColunas(parcelas);
         List<Linha> ordenadas = linhas.stream().sorted(Comparator.comparing(Linha::inicioCorrecao)).toList();
         for (Linha linha : ordenadas) {
@@ -354,15 +385,8 @@ final class DemonstrativoPdf {
             vazia.setColspan(colunas.size());
             parcelas.addCell(vazia);
         }
+        fechamento(parcelas, totais, ordenadas.size(), comArt523);
         documento.add(parcelas);
-
-        PdfPTable fechamento = fechamento(totais, ordenadas.size(), comArt523, false);
-        fechamento.setTotalWidth(documento.right() - documento.left());
-        fechamento.setLockedWidth(true);
-        if (fechamento.getTotalHeight() > writer.getVerticalPosition(true) - documento.bottom()) {
-            fechamento = fechamento(totais, ordenadas.size(), comArt523, true);
-        }
-        documento.add(fechamento);
     }
 
     private PdfPTable novaTabela() {
@@ -383,14 +407,8 @@ final class DemonstrativoPdf {
         }
     }
 
-    /** @param comCabecalho se repete o cabeçalho das colunas, para o fechamento que abre uma página */
-    private PdfPTable fechamento(Totais totais, int parcelas, boolean comArt523, boolean comCabecalho) {
-        PdfPTable tabela = novaTabela();
-        tabela.setKeepTogether(true);
-        tabela.setSpacingAfter(8);
-        if (comCabecalho) {
-            cabecalhoDasColunas(tabela);
-        }
+    /** Acrescenta à tabela o subtotal e, se for o caso, a multa e os honorários do art. 523. */
+    private void fechamento(PdfPTable tabela, Totais totais, int parcelas, boolean comArt523) {
         int primeiraComTotal = 0;
         while (colunas.get(primeiraComTotal).total() == null) {
             primeiraComTotal++;
@@ -412,7 +430,6 @@ final class DemonstrativoPdf {
                 linhaDeTotal(tabela, "Total da penhora", resultado.ritos().totalPenhora(), true);
             }
         }
-        return tabela;
     }
 
     /** Começa outra página se sobrar menos que {@code altura} na atual. */
@@ -476,22 +493,26 @@ final class DemonstrativoPdf {
 
     private void fontes(Document documento) {
         documento.add(secao("Fontes dos índices"));
-        List<RegraDto> regras = regrasDoPeriodo();
+        // só os índices que o motor de fato aplicou: a correção nos meses corrigidos e a taxa
+        // legal nos meses com juros, e não tudo o que a regra prevê
+        List<RegraDto> deCorrecao = regrasAplicadas(Linha::inicioCorrecao);
         Set<Indice> indices = EnumSet.noneOf(Indice.class);
-        for (RegraDto regra : regras) {
-            indices.add(regra.correcao());
-            if (regra.juros() == TipoJuros.TAXA_LEGAL || regra.juros() == TipoJuros.TRANSICAO_TAXA_LEGAL) {
-                indices.add(Indice.TAXA_LEGAL);
-            }
+        deCorrecao.forEach(r -> indices.add(r.correcao()));
+        if (regrasAplicadas(Linha::inicioJuros).stream()
+                .anyMatch(r -> r.juros() == TipoJuros.TAXA_LEGAL || r.juros() == TipoJuros.TRANSICAO_TAXA_LEGAL)) {
+            indices.add(Indice.TAXA_LEGAL);
         }
         List<String> itens = new ArrayList<>();
         for (Indice indice : indices) {
             String valores = indice.corrigeMoeda() ? "variações mensais" : "taxas mensais";
             itens.add(indice.descricao() + ": " + valores + " da série " + SgsClient.codigo(indice) + " do SGS/BCB.");
         }
+        if (indices.isEmpty()) {
+            itens.add("Nenhuma série de índice incidiu na correção ou nos juros deste cálculo.");
+        }
         if (regimePadrao()) {
             // o período da tabela é o da regra do INPC no próprio regime, e não uma data fixa aqui
-            regras.stream().filter(r -> r.correcao() == Indice.INPC).findFirst().ifPresent(r -> itens.add(
+            deCorrecao.stream().filter(r -> r.correcao() == Indice.INPC).findFirst().ifPresent(r -> itens.add(
                     (r.fim() == null ? "O" : "Até " + r.fim().format(MES) + ", o")
                             + " regime padrão segue a tabela de fatores de atualização monetária da "
                             + "Corregedoria-Geral de Justiça do TJMG, de base INPC; o fator é composto das variações "

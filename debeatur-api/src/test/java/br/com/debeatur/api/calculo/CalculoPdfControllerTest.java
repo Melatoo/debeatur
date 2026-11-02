@@ -6,6 +6,9 @@ import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 import br.com.debeatur.indices.SgsClient;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
+import org.openpdf.text.pdf.PRStream;
+import org.openpdf.text.pdf.PdfDictionary;
+import org.openpdf.text.pdf.PdfName;
 import org.openpdf.text.pdf.PdfReader;
 import org.openpdf.text.pdf.parser.PdfTextExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +29,13 @@ import java.text.DecimalFormatSymbols;
 import java.time.Instant;
 import java.time.InstantSource;
 import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -57,13 +66,36 @@ class CalculoPdfControllerTest {
     }
 
     private static String texto(byte[] pdf) throws IOException {
+        return String.join("\n", paginas(pdf));
+    }
+
+    /** O texto de cada página, na ordem. */
+    private static List<String> paginas(byte[] pdf) throws IOException {
         PdfReader leitor = new PdfReader(pdf);
         PdfTextExtractor extrator = new PdfTextExtractor(leitor);
-        StringBuilder texto = new StringBuilder();
+        List<String> paginas = new ArrayList<>();
         for (int pagina = 1; pagina <= leitor.getNumberOfPages(); pagina++) {
-            texto.append(extrator.getTextFromPage(pagina)).append('\n');
+            paginas.add(extrator.getTextFromPage(pagina));
         }
-        return texto.toString();
+        return paginas;
+    }
+
+    /**
+     * O "Y" de "Página X de Y": o rodapé o escreve num template preenchido só ao fechar o
+     * documento, que o extrator de texto não lê; aqui ele vem do conteúdo do próprio template.
+     */
+    private static int totalDePaginasDoRodape(byte[] pdf) throws IOException {
+        PdfReader leitor = new PdfReader(pdf);
+        PdfDictionary xobjetos = leitor.getPageN(1).getAsDict(PdfName.RESOURCES).getAsDict(PdfName.XOBJECT);
+        for (PdfName nome : xobjetos.getKeys()) {
+            PRStream template = (PRStream) PdfReader.getPdfObject(xobjetos.get(nome));
+            Matcher total = Pattern.compile("\\((\\d+)\\)\\s*Tj")
+                    .matcher(new String(PdfReader.getStreamBytes(template), StandardCharsets.ISO_8859_1));
+            if (total.find()) {
+                return Integer.parseInt(total.group(1));
+            }
+        }
+        throw new AssertionError("o rodapé não tem o total de páginas");
     }
 
     private static BigDecimal numero(MvcTestResult json, String caminho) {
@@ -242,5 +274,86 @@ class CalculoPdfControllerTest {
                 """.formatted("1".repeat(51));
 
         assertThat(post("/api/calculos/pdf", pedido)).hasStatus(400);
+    }
+
+    @Test
+    void fontesTrazemSoOIndiceDosMesesCorrigidos() throws IOException {
+        // juros desde 11/2023, sob o IPCA-E, mas correção só desde 02/2024, já sob o INPC
+        when(sgs.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+                .com(Indice.INPC, YearMonth.of(2024, 2), "0.50")
+                .com(Indice.INPC, YearMonth.of(2024, 3), "0.50"));
+        String pedido = """
+                {"dataBase": "2024-04-15", "aplicarArt523": false,
+                 "regime": {"nome": "Sentença", "regras": [
+                   {"inicio": "2023-01", "fim": "2023-12", "correcao": "IPCA_E", "juros": "TAXA_FIXA", "percentualJurosMensal": 1},
+                   {"inicio": "2024-01", "correcao": "INPC", "juros": "TAXA_FIXA", "percentualJurosMensal": 1}]},
+                 "parcelas": [{"descricao": "Aluguel", "valor": 1000.00, "inicioCorrecao": "2024-02-10",
+                               "inicioJuros": "2023-11-10"}]}
+                """;
+
+        String pdf = texto(post("/api/calculos/pdf", pedido).getResponse().getContentAsByteArray());
+
+        // os critérios mostram as duas regras, porque os juros passam pelas duas
+        assertThat(pdf)
+                .containsIgnoringWhitespaces("01/2023 a 12/2023: IPCA-E + 1% a.m.")
+                .containsIgnoringWhitespaces("série 188 do SGS/BCB")
+                .doesNotContain("10764");
+    }
+
+    @Test
+    void fontesNaoTrazemATaxaLegalSemJuros() throws IOException {
+        when(sgs.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+                .com(Indice.IPCA, YearMonth.of(2024, 10), "0.56")
+                .com(Indice.IPCA, YearMonth.of(2024, 11), "0.39"));
+        String pedido = """
+                {"dataBase": "2024-12-15", "aplicarArt523": false,
+                 "regime": {"nome": "Sentença", "regras": [{"inicio": "2024-09", "correcao": "IPCA", "juros": "TAXA_LEGAL"}]},
+                 "parcelas": [{"descricao": "Reembolso", "valor": 1000.00, "inicioCorrecao": "2024-10-01"}]}
+                """;
+
+        String pdf = texto(post("/api/calculos/pdf", pedido).getResponse().getContentAsByteArray());
+
+        assertThat(pdf).containsIgnoringWhitespaces("série 433 do SGS/BCB").doesNotContain("29543");
+    }
+
+    /**
+     * Com cada quantidade de parcelas, a quebra cai num ponto diferente da tabela: o fechamento
+     * nunca fica sem o cabeçalho das colunas, toda página diz "Página X de Y" e o arquivo fica
+     * bem abaixo do limite de upload do PJe do TJMG (1,5 MB).
+     */
+    @Test
+    void paginacaoNaoDeixaOFechamentoSemCabecalho() throws IOException {
+        when(sgs.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+                .com(Indice.INPC, YearMonth.of(2024, 3), "0.16"));
+        int fechamentosQueMudaramDePagina = 0;
+        for (int n = 20; n <= 80; n++) {
+            String parcelas = IntStream.rangeClosed(1, n)
+                    .mapToObj(i -> """
+                            {"descricao": "Aluguel %d", "valor": 1000.00, "inicioCorrecao": "2024-03-10", "inicioJuros": "2024-03-10"}"""
+                            .formatted(i))
+                    .collect(Collectors.joining(","));
+            String pedido = """
+                    {"dataBase": "2024-04-15", "aplicarArt523": true,
+                     "regime": {"nome": "Sentença", "regras": [{"inicio": "2024-01", "correcao": "INPC", "juros": "TAXA_FIXA", "percentualJurosMensal": 1}]},
+                     "parcelas": [%s]}
+                    """.formatted(parcelas);
+
+            byte[] pdf = post("/api/calculos/pdf", pedido).getResponse().getContentAsByteArray();
+            List<String> paginas = paginas(pdf);
+
+            assertThat(pdf.length).as("%d parcelas", n).isLessThan(300_000);
+            for (int p = 1; p <= paginas.size(); p++) {
+                assertThat(paginas.get(p - 1)).as("%d parcelas, página %d", n, p)
+                        .containsIgnoringWhitespaces("Página " + p + " de");
+            }
+            assertThat(totalDePaginasDoRodape(pdf)).as("%d parcelas", n).isEqualTo(paginas.size());
+            String comFechamento = paginas.stream().filter(t -> t.contains("Subtotal,")).findFirst().orElseThrow();
+            assertThat(comFechamento).as("%d parcelas", n).contains("Correção desde");
+            if (!comFechamento.contains("Aluguel")) {
+                fechamentosQueMudaramDePagina++;
+            }
+        }
+        // o intervalo cobre o caso em que o fechamento abre a página seguinte sozinho
+        assertThat(fechamentosQueMudaramDePagina).isPositive();
     }
 }
