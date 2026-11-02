@@ -23,7 +23,13 @@ interface Props {
    * então quem o preenche depois de calcular não precisa calcular de novo.
    */
   processo?: ProcessoRequest
+  /** Se o demonstrativo bate com o formulário, está sendo recalculado ou ficou para trás. */
+  situacao: Situacao
+  /** Por que ficou desatualizado, quando não dá para recalcular. */
+  motivo: string | null
 }
+
+export type Situacao = 'atual' | 'atualizando' | 'desatualizado'
 
 const RITOS: Record<Rito, { titulo: string; regra: string }> = {
   PRISAO: {
@@ -74,7 +80,7 @@ function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase
 const notaDosJuros = (l: LinhaDemonstrativo) =>
   l.inicioJuros == null ? 'sem juros' : l.inicioJuros !== l.inicioCorrecao ? `juros desde ${data(l.inicioJuros)}` : null
 
-export function Demonstrativo({ pedido, resultado, processo }: Props) {
+export function Demonstrativo({ pedido, resultado, processo, situacao, motivo }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
   const [aviso, setAviso] = useState('')
   const [gerandoPdf, setGerandoPdf] = useState(false)
@@ -89,11 +95,15 @@ export function Demonstrativo({ pedido, resultado, processo }: Props) {
   const comAcrescimos = resultado.multaArt523 > 0 || resultado.honorariosArt523 > 0
 
   useEffect(() => {
-    // Leva quem calculou até o resultado, que fica abaixo do formulário.
+    // Leva quem calculou até o resultado, que fica abaixo do formulário. Só ao montar: o clique em
+    // Calcular troca a `key` e remonta; o recálculo automático mantém a tela onde a pessoa está editando.
     const reduzir = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     titulo.current?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' })
     titulo.current?.focus({ preventScroll: true })
-  }, [resultado])
+  }, [])
+
+  // Um demonstrativo que não bate com o formulário não sai da tela: nem PDF, nem cópia, nem impressão.
+  const travado = situacao !== 'atual'
 
   const colunas: Coluna[] = [
     { titulo: 'Parcela', celula: nomeDaParcela, texto: nomeDaParcela },
@@ -280,19 +290,32 @@ export function Demonstrativo({ pedido, resultado, processo }: Props) {
   const avulsas = pedido.parcelas.length
 
   return (
-    <section className="demonstrativo" aria-labelledby="titulo-demonstrativo">
+    <section
+      className="demonstrativo"
+      data-situacao={situacao}
+      aria-labelledby="titulo-demonstrativo"
+      aria-busy={situacao === 'atualizando'}
+    >
+      <p className="situacao" role="status">
+        {situacao === 'atualizando' && 'Atualizando o demonstrativo…'}
+        {situacao === 'desatualizado' && (
+          <>
+            <strong>Demonstrativo desatualizado.</strong> {motivo}
+          </>
+        )}
+      </p>
       <div className="cabecalho-resultado">
         <h2 id="titulo-demonstrativo" ref={titulo} tabIndex={-1}>
           Demonstrativo atualizado até {data(resultado.dataBase)}
         </h2>
         <div className="acoes-resultado">
-          <button type="button" onClick={baixarPdf} disabled={gerandoPdf}>
+          <button type="button" onClick={baixarPdf} disabled={gerandoPdf || travado}>
             {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
           </button>
-          <button type="button" className="secundario" onClick={copiar}>
+          <button type="button" className="secundario" onClick={copiar} disabled={travado}>
             Copiar tabela
           </button>
-          <button type="button" className="secundario" onClick={() => window.print()}>
+          <button type="button" className="secundario" onClick={() => window.print()} disabled={travado}>
             Imprimir
           </button>
         </div>
