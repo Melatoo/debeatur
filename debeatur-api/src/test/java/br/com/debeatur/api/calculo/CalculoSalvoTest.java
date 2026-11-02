@@ -8,6 +8,8 @@ import br.com.debeatur.indices.SgsException;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.openpdf.text.pdf.PdfReader;
+import org.openpdf.text.pdf.parser.PdfTextExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -23,6 +25,9 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
 import java.nio.charset.StandardCharsets;
 import java.time.YearMonth;
 import java.util.EnumMap;
@@ -254,6 +259,49 @@ class CalculoSalvoTest {
         String calculo = json.writeValueAsString(json.readTree(reaberto).get("calculo"));
         assertThat(mesmoJson(calculo, pedidoV1())).as("nenhum campo perdido na leitura: %s", calculo).isTrue();
         assertThat(demonstrativo(reaberto)).isEqualTo(demonstrativo(salvo));
+    }
+
+    private static String textoDoPdf(byte[] pdf) throws Exception {
+        PdfReader leitor = new PdfReader(pdf);
+        PdfTextExtractor extrator = new PdfTextExtractor(leitor);
+        StringBuilder texto = new StringBuilder();
+        for (int pagina = 1; pagina <= leitor.getNumberOfPages(); pagina++) {
+            texto.append(extrator.getTextFromPage(pagina)).append('\n');
+        }
+        return texto.toString();
+    }
+
+    private static String reais(BigDecimal valor) {
+        return new DecimalFormat("#,##0.00", DecimalFormatSymbols.getInstance(Locale.forLanguageTag("pt-BR")))
+                .format(valor);
+    }
+
+    @Test
+    void oPdfDoCalculoSalvoUsaOSnapshotMesmoDepoisDeOBcbRevisarASerie() throws Exception {
+        String salvo = salvar(null, PEDIDO);
+        String id = JsonPath.read(salvo, "$.id");
+        BigDecimal totalSalvo = demonstrativo(salvo).total();
+
+        publicado.get(Indice.IPCA).put(YearMonth.of(2024, 9), new BigDecimal("0.54"));
+        cache.atualizarTodas();
+        when(sgs.buscar(any(), any(), any())).thenThrow(new SgsException("SGS respondeu 503"));
+        when(sgs.buscarSalarioMinimo(any(), any())).thenThrow(new SgsException("SGS respondeu 503"));
+        MvcTestResult pdf = mvc.get().uri("/api/calculos/salvos/" + id + "/pdf").accept(MediaType.APPLICATION_PDF).exchange();
+
+        assertThat(pdf).hasStatusOk().hasContentType(MediaType.APPLICATION_PDF);
+        assertThat(pdf.getResponse().getHeader("Content-Disposition"))
+                .contains("attachment").contains("demonstrativo-5001234-56.2024.8.13.0024-2024-10-15.pdf");
+        String texto = textoDoPdf(pdf.getResponse().getContentAsByteArray());
+        assertThat(texto).containsIgnoringWhitespaces("Total da execução")
+                .containsIgnoringWhitespaces(reais(totalSalvo))
+                .containsIgnoringWhitespaces("Calculado em")
+                .containsIgnoringWhitespaces("quando o cálculo foi salvo");
+    }
+
+    @Test
+    void pdfDeCalculoInexistenteDevolve404() {
+        assertThat(mvc.get().uri("/api/calculos/salvos/" + UUID.randomUUID() + "/pdf")
+                .accept(MediaType.APPLICATION_PDF, MediaType.APPLICATION_PROBLEM_JSON)).hasStatus(404);
     }
 
     @Test

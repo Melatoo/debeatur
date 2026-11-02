@@ -211,7 +211,8 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
 
   /**
    * Refaz o cálculo do pedido no servidor, que monta o PDF com os mesmos critérios e índices da
-   * tela (salvo revisão de alguma série no SGS entre um e outro, até o snapshot da #4).
+   * tela, com as séries do cache (salvo revisão de alguma série no SGS entre um e outro). O PDF de
+   * um cálculo salvo, com o snapshot, vem de `GET /api/calculos/salvos/{id}/pdf`.
    */
   async function baixarPdf() {
     setGerandoPdf(true)
