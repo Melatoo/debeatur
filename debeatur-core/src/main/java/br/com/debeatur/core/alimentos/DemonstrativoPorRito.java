@@ -120,6 +120,11 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
         return new DemonstrativoPorRito(ajuizamento, ritos, subtotalPrisao, subtotalPenhora, multa, honorarios, total);
     }
 
+    /** Débito da penhora mais multa e honorários do art. 523: o que se cobra nesse rito. */
+    public Dinheiro totalPenhora() {
+        return penhora.debitoAtualizado().mais(multaArt523).mais(honorariosArt523);
+    }
+
     public Subtotal subtotal(Rito rito) {
         return switch (rito) {
             case PRISAO -> prisao;

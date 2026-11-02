@@ -149,6 +149,9 @@ class DemonstrativoPorRitoTest {
         assertThat(porRito.multaArt523()).isEqualTo(Dinheiro.de("94.41"));
         assertThat(porRito.honorariosArt523()).isEqualTo(Dinheiro.de("94.41"));
         assertThat(porRito.total()).isEqualTo(demonstrativo.debitoAtualizado().mais(Dinheiro.de("188.82")));
+        // 944.14 + 94.41 + 94.41
+        assertThat(porRito.totalPenhora()).isEqualTo(Dinheiro.de("1132.96"));
+        assertThat(porRito.prisao().debitoAtualizado().mais(porRito.totalPenhora())).isEqualTo(porRito.total());
     }
 
     @Test
