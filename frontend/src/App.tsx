@@ -78,14 +78,14 @@ function App() {
     evento.preventDefault()
     setErro(null)
     setCarregando(true)
-    const pedido: CalculoRequest = {
-      dataBase,
-      aplicarArt523,
-      parcelas: parcelas.map((p) => ({ ...p, valor: lerDecimal(p.valor) ?? p.valor, inicioJuros: p.inicioJuros || null })),
-      pensao: comPensao ? paraPensao(pensao, separarRitos) : undefined,
-      regime: regimeProprio ? paraRegime(nomeRegime, regras) : undefined,
-    }
     try {
+      const pedido: CalculoRequest = {
+        dataBase,
+        aplicarArt523,
+        parcelas: parcelas.map((p) => ({ ...p, valor: lerDecimal(p.valor) ?? p.valor, inicioJuros: p.inicioJuros || null })),
+        pensao: comPensao ? paraPensao(pensao, separarRitos) : undefined,
+        regime: regimeProprio ? paraRegime(nomeRegime, regras) : undefined,
+      }
       const resultado = await calcular(pedido)
       setCalculo((anterior) => ({ numero: (anterior?.numero ?? 0) + 1, pedido, resultado }))
     } catch (e) {

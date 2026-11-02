@@ -49,6 +49,13 @@ export const paraEditavel = (regras: Regra[]): RegraEditavel[] =>
     ultimoDiaTaxaFixa: r.ultimoDiaTaxaFixa ?? '',
   }))
 
+/** O formulário já barra o percentual inválido; se ainda assim chegar um, o pedido não sai. */
+function lerPercentual(texto: string): number {
+  const lido = lerDecimal(texto, false)
+  if (lido === null) throw new Error(`Percentual de juros inválido: ${texto}`)
+  return Number(lido)
+}
+
 export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
   nome: nome.trim() || null,
   regras: regras.map((r) => ({
@@ -56,7 +63,7 @@ export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
     fim: r.fim || null,
     correcao: r.correcao,
     juros: r.juros,
-    percentualJurosMensal: usaPercentual(r.juros) && r.percentual ? Number(lerDecimal(r.percentual, false) ?? NaN) : null,
+    percentualJurosMensal: usaPercentual(r.juros) && r.percentual ? lerPercentual(r.percentual) : null,
     ultimoDiaTaxaFixa: r.juros === 'TRANSICAO_TAXA_LEGAL' && r.ultimoDiaTaxaFixa ? r.ultimoDiaTaxaFixa : null,
   })),
 })

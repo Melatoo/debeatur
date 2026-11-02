@@ -5,7 +5,7 @@ Cálculo de cumprimento de sentença (art. 524 do CPC). Escopo do MVP em `docs/r
 ## Build
 
 - Backend: `./mvnw verify` (exige JDK 25; o enforcer falha com versões anteriores)
-- Frontend: `cd frontend && npm ci && npm run lint && npm run build`
+- Frontend: `cd frontend && npm ci && npm run lint && npm test && npm run build`
 - Tudo junto: `docker compose up -d --build` (http://localhost:3000)
 
 ## Regras do domínio

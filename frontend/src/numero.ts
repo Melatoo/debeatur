@@ -8,8 +8,9 @@
 export function lerDecimal(texto: string, milhar = true): string | null {
   const limpo = texto.replace(/R\$|\s/g, '')
   if (/^\d+(,\d+)?$/.test(limpo)) return limpo.replace(',', '.')
-  // Ponto seguido de grupos de três dígitos é de milhar: "1.500" são mil e quinhentos.
-  if (milhar && /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(limpo)) return limpo.replace(/\./g, '').replace(',', '.')
+  // Ponto seguido de grupos de três dígitos é de milhar: "1.500" são mil e quinhentos. O primeiro
+  // grupo não começa com zero, senão "0.500" viraria quinhentos reais.
+  if (milhar && /^[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/.test(limpo)) return limpo.replace(/\./g, '').replace(',', '.')
   if (/^\d+\.\d+$/.test(limpo)) return limpo
   return null
 }
