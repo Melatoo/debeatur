@@ -1,5 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { buscarRegimePadrao, calcular, type CalculoRequest, type Demonstrativo as Resultado, type ParcelaRequest } from './api'
+import {
+  buscarRegimePadrao,
+  calcular,
+  type CalculoRequest,
+  type Demonstrativo as Resultado,
+  type ParcelaRequest,
+  type ProcessoRequest,
+} from './api'
 import { Demonstrativo } from './Demonstrativo'
 import { mes } from './formato'
 import { EditorPensao } from './EditorPensao'
@@ -23,6 +30,19 @@ const fimDoMesAnterior = () => {
 const parcelaVazia = (): ParcelaRequest => ({ descricao: '', valor: '', inicioCorrecao: '', inicioJuros: '' })
 const estaVazia = (p: ParcelaRequest) => !p.descricao && !p.valor && !p.inicioCorrecao && !p.inicioJuros
 
+const processoVazio = (): ProcessoRequest => ({ numero: '', juizo: '', exequente: '', executado: '' })
+
+/** Os campos sem espaços nas pontas; sem nenhum preenchido, o processo nem vai no pedido. */
+function paraProcesso(processo: ProcessoRequest): ProcessoRequest | undefined {
+  const limpo: ProcessoRequest = {
+    numero: processo.numero.trim(),
+    juizo: processo.juizo.trim(),
+    exequente: processo.exequente.trim(),
+    executado: processo.executado.trim(),
+  }
+  return Object.values(limpo).some(Boolean) ? limpo : undefined
+}
+
 interface Calculo {
   /** Muda a cada cálculo, para o demonstrativo recomeçar do topo. */
   numero: number
@@ -31,6 +51,7 @@ interface Calculo {
 }
 
 function App() {
+  const [processo, setProcesso] = useState<ProcessoRequest>(processoVazio)
   const [dataBase, setDataBase] = useState(fimDoMesAnterior)
   const [mesFechado] = useState(() => mes(fimDoMesAnterior().slice(0, 7)))
   const [aplicarArt523, setAplicarArt523] = useState(true)
@@ -88,6 +109,7 @@ function App() {
         parcelas: parcelas.map((p) => ({ ...p, valor: exigirDecimal(p.valor, 'Valor da parcela'), inicioJuros: p.inicioJuros || null })),
         pensao: comPensao ? paraPensao(pensao, separarRitos) : undefined,
         regime: regimeProprio ? paraRegime(nomeRegime, regras) : undefined,
+        processo: paraProcesso(processo),
       }
       const resultado = await calcular(pedido)
       setCalculo((anterior) => ({ numero: (anterior?.numero ?? 0) + 1, pedido, resultado }))
@@ -155,6 +177,42 @@ function App() {
 
         <section className="bloco" aria-labelledby="bloco-processo">
           <h2 id="bloco-processo">Processo</h2>
+          <div className="campos quatro">
+            <label>
+              Número do processo
+              <input
+                maxLength={50}
+                placeholder="0000000-00.0000.8.13.0000"
+                value={processo.numero}
+                onChange={(e) => setProcesso({ ...processo, numero: e.target.value })}
+              />
+            </label>
+            <label>
+              Juízo
+              <input
+                maxLength={200}
+                value={processo.juizo}
+                onChange={(e) => setProcesso({ ...processo, juizo: e.target.value })}
+              />
+            </label>
+            <label>
+              Exequente
+              <input
+                maxLength={200}
+                value={processo.exequente}
+                onChange={(e) => setProcesso({ ...processo, exequente: e.target.value })}
+              />
+            </label>
+            <label>
+              Executado
+              <input
+                maxLength={200}
+                value={processo.executado}
+                onChange={(e) => setProcesso({ ...processo, executado: e.target.value })}
+              />
+            </label>
+          </div>
+          <p className="dica">Opcionais: só identificam o processo no cabeçalho do PDF.</p>
           <div className="campos quatro">
             <label>
               Data-base do cálculo
@@ -268,7 +326,14 @@ function App() {
         </p>
       )}
 
-      {calculo && <Demonstrativo key={calculo.numero} pedido={calculo.pedido} resultado={calculo.resultado} />}
+      {calculo && (
+        <Demonstrativo
+          key={calculo.numero}
+          pedido={calculo.pedido}
+          resultado={calculo.resultado}
+          processo={paraProcesso(processo)}
+        />
+      )}
     </main>
   )
 }

@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { CalculoRequest, Demonstrativo as Resultado, LinhaDemonstrativo, Regra, Rito, SubtotalRito } from './api'
+import {
+  gerarPdf,
+  type CalculoRequest,
+  type Demonstrativo as Resultado,
+  type LinhaDemonstrativo,
+  type ProcessoRequest,
+  type Regra,
+  type Rito,
+  type SubtotalRito,
+} from './api'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
 import { LinhaDoTempo } from './LinhaDoTempo'
 import { paraCampo } from './numero'
@@ -9,6 +18,11 @@ interface Props {
   /** O pedido que gerou o resultado: o demonstrativo descreve o que foi calculado, não o formulário atual. */
   pedido: CalculoRequest
   resultado: Resultado
+  /**
+   * O processo como está no formulário agora, e não no último cálculo: ele só identifica o PDF,
+   * então quem o preenche depois de calcular não precisa calcular de novo.
+   */
+  processo?: ProcessoRequest
 }
 
 const RITOS: Record<Rito, { titulo: string; regra: string }> = {
@@ -60,9 +74,10 @@ function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase
 const notaDosJuros = (l: LinhaDemonstrativo) =>
   l.inicioJuros == null ? 'sem juros' : l.inicioJuros !== l.inicioCorrecao ? `juros desde ${data(l.inicioJuros)}` : null
 
-export function Demonstrativo({ pedido, resultado }: Props) {
+export function Demonstrativo({ pedido, resultado, processo }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
   const [aviso, setAviso] = useState('')
+  const [gerandoPdf, setGerandoPdf] = useState(false)
   const { linhas, ritos } = resultado
   const pensao = pedido.pensao
   const comSalarioMinimo = linhas.some((l) => l.pensao)
@@ -172,6 +187,30 @@ export function Demonstrativo({ pedido, resultado }: Props) {
     }
   }
 
+  /**
+   * Refaz o cálculo do pedido no servidor, que monta o PDF com os mesmos critérios e índices da
+   * tela (salvo revisão de alguma série no SGS entre um e outro, até o snapshot da #4).
+   */
+  async function baixarPdf() {
+    setGerandoPdf(true)
+    setAviso('Gerando o PDF…')
+    try {
+      const { conteudo, nome } = await gerarPdf({ ...pedido, processo })
+      const url = URL.createObjectURL(conteudo)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = nome
+      link.click()
+      // o navegador já copiou o arquivo ao iniciar o download; liberar na hora cancela no Firefox
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      setAviso(`PDF baixado: ${nome}`)
+    } catch (e) {
+      setAviso(`Não foi possível gerar o PDF. ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setGerandoPdf(false)
+    }
+  }
+
   function tabela(
     id: string,
     rotulo: ReactNode,
@@ -247,6 +286,9 @@ export function Demonstrativo({ pedido, resultado }: Props) {
           Demonstrativo atualizado até {data(resultado.dataBase)}
         </h2>
         <div className="acoes-resultado">
+          <button type="button" onClick={baixarPdf} disabled={gerandoPdf}>
+            {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
+          </button>
           <button type="button" className="secundario" onClick={copiar}>
             Copiar tabela
           </button>

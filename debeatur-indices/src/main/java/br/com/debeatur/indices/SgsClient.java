@@ -38,7 +38,7 @@ public class SgsClient {
             Indice.SELIC, 4390,
             Indice.TAXA_LEGAL, 29543);
     /** Série 1619: salário mínimo nacional, valor vigente em cada mês. */
-    private static final int CODIGO_SALARIO_MINIMO = 1619;
+    public static final int CODIGO_SALARIO_MINIMO = 1619;
 
     private final HttpClient http;
     private final URI baseUrl;
@@ -51,6 +51,11 @@ public class SgsClient {
     public SgsClient(HttpClient http, URI baseUrl) {
         this.http = http;
         this.baseUrl = baseUrl;
+    }
+
+    /** Código da série do SGS de onde vêm as variações mensais do índice. */
+    public static int codigo(Indice indice) {
+        return CODIGOS.get(indice);
     }
 
     /** Variações mensais do índice entre os meses informados (inclusive). */
