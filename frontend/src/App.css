@@ -24,8 +24,23 @@ main {
 
 /* ---------- Formulário ---------- */
 
+/*
+ * Os grids do formulário e do demonstrativo respondem à largura da própria coluna, e não à da
+ * tela: em duas colunas, o formulário é estreito mesmo num monitor largo.
+ */
 form {
   max-width: 880px;
+  container: formulario / inline-size;
+}
+
+.resultado {
+  min-width: 0;
+  container: resultado / inline-size;
+}
+
+/* Só faz sentido ao lado do formulário; empilhado, o espaço vazio embaixo dele não diz nada. */
+.resultado-vazio {
+  display: none;
 }
 
 .bloco {
@@ -233,24 +248,35 @@ button:disabled {
 }
 
 .enviar {
-  display: flex;
-  flex-direction: row-reverse;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 8px 16px;
-  padding-top: 20px;
+  padding: 20px 0 4px;
   border-top: 1px solid var(--borda);
   margin-top: 16px;
 }
 
-.enviar button {
+.enviar .botoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.enviar button[type='submit'] {
   padding: 11px 32px;
   font-size: 1.05rem;
 }
 
 .enviar .dica {
+  margin: 10px 0 0;
+}
+
+.enviar .rascunho:empty {
   margin: 0;
+}
+
+.rascunho button {
+  margin-left: 4px;
+  padding: 3px 12px;
+  font-size: 0.875rem;
 }
 
 .erro {
@@ -607,9 +633,63 @@ button:disabled {
 
 /* Memória de cálculo */
 
+.cabecalho-memoria {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin: 40px 0 4px;
+}
+
 .titulo-memoria {
   font-size: 1.2rem;
-  margin: 40px 0 4px;
+  margin: 0;
+}
+
+.seletor-colunas {
+  font-size: 0.9rem;
+}
+
+.seletor-colunas > summary {
+  cursor: pointer;
+  color: var(--texto-suave);
+}
+
+.seletor-colunas > summary:hover {
+  color: var(--texto);
+}
+
+/* Aberto, ocupa a linha inteira embaixo do título, em vez de espremer as opções ao lado dele. */
+.seletor-colunas[open] {
+  flex-basis: 100%;
+}
+
+.seletor-colunas fieldset {
+  margin-top: 8px;
+  padding: 6px 16px 2px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--superficie);
+}
+
+.opcoes-colunas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 22px;
+}
+
+.opcoes-colunas label.checkbox {
+  margin: 6px 0;
+  font-size: 0.9rem;
+}
+
+.opcoes-colunas label:has(input:disabled) {
+  color: var(--texto-suave);
+}
+
+.seletor-colunas .dica {
+  margin: 4px 0 8px;
 }
 
 .explica-colunas {
@@ -657,7 +737,8 @@ table {
   width: 100%;
   /* Layout fixo: as tabelas da prisão e da penhora alinham coluna com coluna. */
   table-layout: fixed;
-  min-width: 960px;
+  /* Cerca de 96px por coluna: com colunas escondidas, a tabela cabe sem rolagem lateral. */
+  min-width: calc(var(--colunas, 10) * 96px);
   border-collapse: collapse;
   font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
@@ -740,9 +821,84 @@ tfoot .total td {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Telas estreitas ---------- */
+/* ---------- Duas colunas ---------- */
 
-@media (max-width: 760px) {
+/*
+ * Em tela larga, o formulário fica à esquerda, parado enquanto o demonstrativo rola à direita, e
+ * tem rolagem própria, com o Calcular sempre à vista no pé. Cada edição aparece ao lado, sem
+ * precisar descer a página até o resultado e subir de volta.
+ */
+@media (min-width: 1200px) {
+  main {
+    max-width: 1760px;
+    display: grid;
+    grid-template-columns: minmax(380px, 460px) minmax(0, 1fr);
+    column-gap: 48px;
+    align-items: start;
+    padding-bottom: 0;
+  }
+
+  /* A coluna inteira, com o cabeçalho, cabe na altura da tela: o pé do formulário nunca fica abaixo dela. */
+  .coluna-parametros {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    margin-top: -32px;
+    padding-top: 32px;
+  }
+
+  .topo {
+    flex: none;
+  }
+
+  form {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    /* Folga para o contorno de foco dos campos não ser cortado pela rolagem. */
+    margin-left: -4px;
+    padding: 0 12px 0 4px;
+  }
+
+  form .enviar {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    padding-bottom: 20px;
+    background: var(--fundo);
+  }
+
+  .resultado {
+    padding-bottom: 80px;
+  }
+
+  .erro {
+    margin-top: 16px;
+  }
+
+  .demonstrativo {
+    margin-top: 16px;
+  }
+
+  .resultado-vazio {
+    display: block;
+    margin: 16px 0 0;
+    padding: 56px 32px;
+    border: 1px dashed var(--borda-forte);
+    border-radius: 8px;
+    color: var(--texto-suave);
+    text-align: center;
+  }
+}
+
+/* ---------- Colunas estreitas ---------- */
+
+@container formulario (max-width: 720px) {
   .campos.quatro,
   .parcela,
   .regra {
@@ -763,7 +919,23 @@ tfoot .total td {
   .parcela label:first-of-type {
     grid-column: 1 / -1;
   }
+}
 
+@container formulario (max-width: 380px) {
+  .campos.quatro {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .campos .duplo {
+    grid-column: auto;
+  }
+
+  .dia-corte {
+    grid-column: 1 / -1;
+  }
+}
+
+@container resultado (max-width: 760px) {
   .parametros {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -795,18 +967,9 @@ tfoot .total td {
   }
 }
 
-@media (max-width: 440px) {
-  .campos.quatro,
+@container resultado (max-width: 440px) {
   .parametros {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .campos .duplo {
-    grid-column: auto;
-  }
-
-  .dia-corte {
-    grid-column: 1 / -1;
   }
 }
 
@@ -839,11 +1002,14 @@ tfoot .total td {
   }
 
   main {
+    display: block;
     max-width: none;
     padding: 0;
   }
 
   form,
+  .resultado-vazio,
+  .seletor-colunas,
   .erro,
   .topo p,
   .acoes-resultado,
