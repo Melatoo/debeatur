@@ -10,7 +10,7 @@ import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.indice.SalarioMinimo;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 import br.com.debeatur.core.regime.RegraPeriodo;
-import br.com.debeatur.indices.SgsClient;
+import br.com.debeatur.api.serie.FonteSeries;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -27,10 +27,10 @@ import java.util.stream.Stream;
 @Service
 public class CalculoService {
 
-    private final SgsClient sgs;
+    private final FonteSeries series;
 
-    public CalculoService(SgsClient sgs) {
-        this.sgs = sgs;
+    public CalculoService(FonteSeries series) {
+        this.series = series;
     }
 
     /**
@@ -53,7 +53,7 @@ public class CalculoService {
     }
 
     /**
-     * Parcelas da pensão, com o salário mínimo do SGS e os pagamentos já abatidos.
+     * Parcelas da pensão, com o salário mínimo do cache do SGS e os pagamentos já abatidos.
      *
      * @throws IllegalArgumentException se a última parcela vencer depois da data-base
      */
@@ -63,7 +63,7 @@ public class CalculoService {
             throw new IllegalArgumentException("A última parcela da pensão vence em " + dominio.ultimoVencimento()
                     + ", depois da data-base (" + dataBase + ")");
         }
-        SalarioMinimo salarioMinimo = sgs.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes());
+        SalarioMinimo salarioMinimo = series.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes());
         List<PensaoEmSalarioMinimo.ParcelaDoMes> devidas = dominio.parcelasPorMes(salarioMinimo);
         List<Parcela> saldos = pensao.pagamentosParaDominio()
                 .abater(devidas.stream().map(PensaoEmSalarioMinimo.ParcelaDoMes::parcela).toList());
@@ -81,7 +81,7 @@ public class CalculoService {
         return new ParcelasDaPensao(saldos, memoria);
     }
 
-    // TODO: persistir séries e snapshot dos índices usados, em vez de consultar o SGS a cada cálculo
+    // TODO: guardar o snapshot dos índices usados junto com o cálculo salvo (#4)
     public Demonstrativo calcular(ParametrosCalculo parametros) {
         YearMonth ultimoMes = YearMonth.from(parametros.dataBase()).minusMonths(1);
         YearMonth primeiroMes = parametros.parcelas().stream()
@@ -93,7 +93,7 @@ public class CalculoService {
 
         SerieIndicesEmMemoria serie = primeiroMes.isAfter(ultimoMes)
                 ? new SerieIndicesEmMemoria()
-                : sgs.carregar(indicesNecessarios(parametros), primeiroMes, ultimoMes);
+                : series.carregar(indicesNecessarios(parametros), primeiroMes, ultimoMes);
 
         return new MotorCalculo(serie).calcular(parametros);
     }

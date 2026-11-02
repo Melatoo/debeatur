@@ -525,8 +525,9 @@ final class DemonstrativoPdf {
         for (String item : itens) {
             documento.add(new Paragraph("• " + item, NORMAL));
         }
-        Paragraph consulta = new Paragraph("Séries consultadas no Sistema Gerenciador de Séries Temporais do Banco "
-                + "Central do Brasil (api.bcb.gov.br) em " + emissao.format(DATA) + ".", NOTA);
+        // as séries vêm do cache local, atualizado todo dia a partir do SGS
+        Paragraph consulta = new Paragraph("Séries do Sistema Gerenciador de Séries Temporais do Banco Central do "
+                + "Brasil (api.bcb.gov.br), com os valores publicados e em uso em " + emissao.format(DATA) + ".", NOTA);
         consulta.setSpacingBefore(4);
         documento.add(consulta);
     }

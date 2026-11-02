@@ -2,7 +2,7 @@ package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
-import br.com.debeatur.indices.SgsClient;
+import br.com.debeatur.api.serie.FonteSeries;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +35,7 @@ class CalculoControllerTest {
     private MockMvcTester mvc;
 
     @MockitoBean
-    private SgsClient sgs;
+    private FonteSeries series;
 
     private MockMvcTester.MockMvcRequestBuilder calcular(String json) {
         return mvc.post().uri("/api/calculos").contentType(MediaType.APPLICATION_JSON).content(json);
@@ -55,7 +55,7 @@ class CalculoControllerTest {
 
     @Test
     void calculaComORegimeInformado() {
-        when(sgs.carregar(EnumSet.of(Indice.IPCA_E), YearMonth.of(2024, 1), YearMonth.of(2024, 3)))
+        when(series.carregar(EnumSet.of(Indice.IPCA_E), YearMonth.of(2024, 1), YearMonth.of(2024, 3)))
                 .thenReturn(new SerieIndicesEmMemoria()
                         .com(Indice.IPCA_E, YearMonth.of(2024, 1), "1.00")
                         .com(Indice.IPCA_E, YearMonth.of(2024, 2), "0.50")
@@ -79,7 +79,7 @@ class CalculoControllerTest {
 
     @Test
     void regimeSemNomeRecebeONomePadrao() {
-        when(sgs.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+        when(series.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
                 .com(Indice.INPC, YearMonth.of(2024, 1), "0")
                 .com(Indice.INPC, YearMonth.of(2024, 2), "0")
                 .com(Indice.INPC, YearMonth.of(2024, 3), "0"));
@@ -103,7 +103,7 @@ class CalculoControllerTest {
         assertThat(calcular(mesmoMes)).hasStatusOk().bodyJson()
                 .hasPathSatisfying("$.regime.nome", v -> v.assertThat().asString().startsWith("Cível padrão TJMG"))
                 .hasPathSatisfying("$.regime.regras", v -> v.assertThat().asArray().hasSize(3));
-        verify(sgs, never()).carregar(any(), any(), any());
+        verify(series, never()).carregar(any(), any(), any());
     }
 
     @Test
@@ -172,7 +172,7 @@ class CalculoControllerTest {
 
     @Test
     void regimePadraoReenviadoSemAlteracaoDaOMesmoCalculo() throws Exception {
-        when(sgs.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+        when(series.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
                 .com(Indice.INPC, YearMonth.of(2024, 7), "0.26")
                 .com(Indice.IPCA, YearMonth.of(2024, 8), "-0.02")
                 .com(Indice.IPCA, YearMonth.of(2024, 9), "0.44")

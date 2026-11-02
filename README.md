@@ -11,13 +11,14 @@ monetária, juros de mora e acréscimos do art. 523, §1º, com memória de cál
 |---|---|
 | `debeatur-core` | Motor de cálculo puro (sem framework): `Dinheiro`, índices, regimes, `MotorCalculo` |
 | `debeatur-indices` | Cliente do SGS/Banco Central (IPCA 433, INPC 188, IPCA-E 10764, SELIC 4390) |
-| `debeatur-api` | API REST Spring Boot 4 |
+| `debeatur-api` | API REST Spring Boot 4, com PostgreSQL + Flyway e o cache local das séries do SGS |
 | `frontend` | React + TypeScript (Vite) |
 
 ## Requisitos
 
 - JDK 25
 - Node.js 24
+- Docker, para o PostgreSQL e para os testes que usam o banco (sem Docker, esses testes são pulados)
 
 O Maven vem pelo wrapper (`./mvnw`), fixado na versão usada pelo CI.
 
@@ -31,11 +32,15 @@ docker compose down
 ```
 
 O nginx do frontend serve o build do React e encaminha `/api` para a API, que não é exposta
-diretamente.
+diretamente. O PostgreSQL fica em `127.0.0.1:5432` (`DEBEATUR_DB_PORTA` muda a porta), com os
+dados no volume `dados`.
 
 ### Localmente
 
 ```bash
+# banco (PostgreSQL 18; a API aplica as migrações da Flyway ao subir)
+docker compose up -d db
+
 # backend (porta 8080)
 ./mvnw verify
 java -jar debeatur-api/target/debeatur-api-0.1.0-SNAPSHOT.jar
@@ -57,6 +62,18 @@ curl -X POST http://localhost:8080/api/calculos -H "Content-Type: application/js
   ]
 }'
 ```
+
+A conexão vem de `DEBEATUR_DB_URL`, `DEBEATUR_DB_USUARIO` e `DEBEATUR_DB_SENHA`, com padrão
+`jdbc:postgresql://localhost:5432/debeatur`, usuário e senha `debeatur`.
+
+### Cache das séries
+
+O cálculo lê os índices e o salário mínimo do banco, e não do SGS a cada pedido. O SGS só é
+consultado quando o cache não cobre o período pedido, ou quando falta um mês recente e a última
+consulta tem mais de uma hora (`debeatur.series.reconsulta`). Todo dia às 6h (horário de
+Brasília, `debeatur.series.atualizacao`) os últimos 24 meses de cada série são relidos
+(`debeatur.series.meses-revisao`), para acompanhar as revisões do BCB. Se o SGS estiver fora do
+ar, valem os meses que o cache já tem.
 
 ## Regras de cálculo
 
@@ -87,6 +104,7 @@ O escopo do MVP está em `docs/requisitos-mvp.md`, inclusive o que fica de fora.
 - [ ] Testes de gabarito com cálculos reais homologados
 - [ ] Pro rata die na correção e nos juros
 - [ ] Regime configurável por cálculo (critérios fixados na sentença)
-- [ ] Persistência (PostgreSQL + Flyway), cache das séries e snapshot dos índices por cálculo
+- [x] PostgreSQL + Flyway e cache das séries do SGS
+- [ ] Cálculos salvos, com snapshot dos índices usados
 - [ ] Exportação do demonstrativo em PDF
 - [ ] Autenticação mínima (um usuário por escritório)

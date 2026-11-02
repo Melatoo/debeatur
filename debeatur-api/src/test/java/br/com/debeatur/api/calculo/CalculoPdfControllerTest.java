@@ -3,7 +3,7 @@ package br.com.debeatur.api.calculo;
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.indice.SalarioMinimoEmMemoria;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
-import br.com.debeatur.indices.SgsClient;
+import br.com.debeatur.api.serie.FonteSeries;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.openpdf.text.pdf.PRStream;
@@ -59,7 +59,7 @@ class CalculoPdfControllerTest {
     private CalculoService service;
 
     @MockitoBean
-    private SgsClient sgs;
+    private FonteSeries series;
 
     private MvcTestResult post(String uri, String json) {
         return mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
@@ -126,8 +126,8 @@ class CalculoPdfControllerTest {
             serie.com(Indice.INPC, mes, "0.50");
             salario.com(mes, mes.getYear() == 2023 ? "1320.00" : "1412.00");
         }
-        when(sgs.carregar(any(), any(), any())).thenReturn(serie);
-        when(sgs.carregarSalarioMinimo(any(), any())).thenReturn(salario);
+        when(series.carregar(any(), any(), any())).thenReturn(serie);
+        when(series.carregarSalarioMinimo(any(), any())).thenReturn(salario);
     }
 
     @Test
@@ -240,7 +240,7 @@ class CalculoPdfControllerTest {
                 .com(Indice.IPCA, YearMonth.of(2024, 9), "0.44")
                 .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 8), "0.605306")
                 .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 9), "0.5");
-        when(sgs.carregar(any(), any(), any())).thenReturn(serie);
+        when(series.carregar(any(), any(), any())).thenReturn(serie);
         String avulsa = """
                 {"dataBase": "2024-10-15", "aplicarArt523": false,
                  "parcelas": [{"descricao": "Danos materiais", "valor": 1000.00, "inicioCorrecao": "2024-07-10",
@@ -279,7 +279,7 @@ class CalculoPdfControllerTest {
     @Test
     void fontesTrazemSoOIndiceDosMesesCorrigidos() throws IOException {
         // juros desde 11/2023, sob o IPCA-E, mas correção só desde 02/2024, já sob o INPC
-        when(sgs.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+        when(series.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
                 .com(Indice.INPC, YearMonth.of(2024, 2), "0.50")
                 .com(Indice.INPC, YearMonth.of(2024, 3), "0.50"));
         String pedido = """
@@ -302,7 +302,7 @@ class CalculoPdfControllerTest {
 
     @Test
     void fontesNaoTrazemATaxaLegalSemJuros() throws IOException {
-        when(sgs.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+        when(series.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
                 .com(Indice.IPCA, YearMonth.of(2024, 10), "0.56")
                 .com(Indice.IPCA, YearMonth.of(2024, 11), "0.39"));
         String pedido = """
@@ -323,7 +323,7 @@ class CalculoPdfControllerTest {
      */
     @Test
     void paginacaoNaoDeixaOFechamentoSemCabecalho() throws IOException {
-        when(sgs.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+        when(series.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
                 .com(Indice.INPC, YearMonth.of(2024, 3), "0.16"));
         int fechamentosQueMudaramDePagina = 0;
         for (int n = 20; n <= 80; n++) {

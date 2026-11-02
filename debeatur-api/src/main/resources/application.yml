@@ -1,6 +1,19 @@
 spring:
   application:
     name: debeatur-api
+  datasource:
+    url: ${DEBEATUR_DB_URL:jdbc:postgresql://localhost:5432/debeatur}
+    username: ${DEBEATUR_DB_USUARIO:debeatur}
+    password: ${DEBEATUR_DB_SENHA:debeatur}
 
 server:
   port: 8080
+
+debeatur:
+  series:
+    # intervalo mínimo entre consultas ao SGS em busca de um mês ainda não publicado
+    reconsulta: PT1H
+    # meses relidos pela atualização periódica, para pegar as revisões do BCB
+    meses-revisao: 24
+    # cron da atualização periódica, no fuso de São Paulo ("-" desliga)
+    atualizacao: "0 0 6 * * *"
