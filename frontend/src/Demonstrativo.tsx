@@ -4,6 +4,7 @@ import {
   type CalculoRequest,
   type Demonstrativo as Resultado,
   type LinhaDemonstrativo,
+  type ProcessoRequest,
   type Regra,
   type Rito,
   type SubtotalRito,
@@ -17,6 +18,11 @@ interface Props {
   /** O pedido que gerou o resultado: o demonstrativo descreve o que foi calculado, não o formulário atual. */
   pedido: CalculoRequest
   resultado: Resultado
+  /**
+   * O processo como está no formulário agora, e não no último cálculo: ele só identifica o PDF,
+   * então quem o preenche depois de calcular não precisa calcular de novo.
+   */
+  processo?: ProcessoRequest
 }
 
 const RITOS: Record<Rito, { titulo: string; regra: string }> = {
@@ -68,7 +74,7 @@ function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase
 const notaDosJuros = (l: LinhaDemonstrativo) =>
   l.inicioJuros == null ? 'sem juros' : l.inicioJuros !== l.inicioCorrecao ? `juros desde ${data(l.inicioJuros)}` : null
 
-export function Demonstrativo({ pedido, resultado }: Props) {
+export function Demonstrativo({ pedido, resultado, processo }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
   const [aviso, setAviso] = useState('')
   const [gerandoPdf, setGerandoPdf] = useState(false)
@@ -181,12 +187,15 @@ export function Demonstrativo({ pedido, resultado }: Props) {
     }
   }
 
-  /** Refaz o cálculo do pedido no servidor, que monta o PDF; os valores são os mesmos da tela. */
+  /**
+   * Refaz o cálculo do pedido no servidor, que monta o PDF com os mesmos critérios e índices da
+   * tela (salvo revisão de alguma série no SGS entre um e outro, até o snapshot da #4).
+   */
   async function baixarPdf() {
     setGerandoPdf(true)
     setAviso('Gerando o PDF…')
     try {
-      const { conteudo, nome } = await gerarPdf(pedido)
+      const { conteudo, nome } = await gerarPdf({ ...pedido, processo })
       const url = URL.createObjectURL(conteudo)
       const link = document.createElement('a')
       link.href = url

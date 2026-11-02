@@ -6,8 +6,10 @@ import jakarta.validation.constraints.Size;
  * Identificação do processo no cabeçalho do demonstrativo em PDF. Nenhum campo entra no
  * cálculo, e todos são opcionais.
  *
- * @param numero número do processo, de preferência no padrão CNJ
- * @param juizo  vara ou juízo onde corre a execução
+ * @param numero    número do processo, de preferência no padrão CNJ
+ * @param juizo     vara ou juízo onde corre a execução
+ * @param exequente quem promove a execução, como deve constar no cabeçalho
+ * @param executado contra quem corre a execução
  */
 public record ProcessoRequest(
         @Size(max = 50) String numero,

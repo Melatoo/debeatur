@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
+import java.time.InstantSource;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
@@ -24,17 +24,19 @@ import java.time.ZoneId;
 @RequestMapping("/api/calculos")
 public class CalculoController {
 
+    /** Fuso da emissão do PDF: o do servidor (UTC no contêiner) poria a emissão da noite no dia seguinte. */
+    static final ZoneId FUSO_DA_EMISSAO = ZoneId.of("America/Sao_Paulo");
+
     private final CalculoService service;
-    private final Clock relogio;
+    private final InstantSource relogio;
 
     @Autowired
     public CalculoController(CalculoService service) {
-        // o fuso do servidor (UTC no contêiner) poria a emissão da noite no dia seguinte
-        this(service, Clock.system(ZoneId.of("America/Sao_Paulo")));
+        this(service, InstantSource.system());
     }
 
-    /** @param relogio data e hora de emissão do PDF */
-    CalculoController(CalculoService service, Clock relogio) {
+    /** @param relogio instante de emissão do PDF, impresso sempre em {@link #FUSO_DA_EMISSAO} */
+    CalculoController(CalculoService service, InstantSource relogio) {
         this.service = service;
         this.relogio = relogio;
     }
@@ -62,7 +64,7 @@ public class CalculoController {
     @PostMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> pdf(@Valid @RequestBody CalculoRequest request) {
         DemonstrativoResponse resultado = calcular(request);
-        byte[] pdf = DemonstrativoPdf.gerar(request, resultado, LocalDateTime.now(relogio));
+        byte[] pdf = DemonstrativoPdf.gerar(request, resultado, LocalDateTime.ofInstant(relogio.instant(), FUSO_DA_EMISSAO));
         ContentDisposition anexo = ContentDisposition.attachment()
                 .filename(DemonstrativoPdf.nomeDoArquivo(request), StandardCharsets.UTF_8)
                 .build();

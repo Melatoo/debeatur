@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 /**
  * Demonstrativo em PDF para juntar aos autos: identificação do processo, critérios do
@@ -240,7 +241,7 @@ final class DemonstrativoPdf {
     private List<RegraDto> regrasDoPeriodo() {
         List<RegraDto> regras = resultado.regime().regras();
         YearMonth primeiro = resultado.linhas().stream()
-                .flatMap(l -> java.util.stream.Stream.of(l.inicioCorrecao(),
+                .flatMap(l -> Stream.of(l.inicioCorrecao(),
                         l.inicioJuros() == null ? l.inicioCorrecao() : l.inicioJuros()))
                 .map(YearMonth::from)
                 .min(Comparator.naturalOrder())
@@ -488,10 +489,13 @@ final class DemonstrativoPdf {
             String valores = indice.corrigeMoeda() ? "variações mensais" : "taxas mensais";
             itens.add(indice.descricao() + ": " + valores + " da série " + SgsClient.codigo(indice) + " do SGS/BCB.");
         }
-        if (indices.contains(Indice.INPC) && regimePadrao()) {
-            itens.add("Até 07/2024, o regime padrão segue a tabela de fatores de atualização monetária da "
-                    + "Corregedoria-Geral de Justiça do TJMG, de base INPC; o fator é composto das variações mensais "
-                    + "do INPC.");
+        if (regimePadrao()) {
+            // o período da tabela é o da regra do INPC no próprio regime, e não uma data fixa aqui
+            regras.stream().filter(r -> r.correcao() == Indice.INPC).findFirst().ifPresent(r -> itens.add(
+                    (r.fim() == null ? "O" : "Até " + r.fim().format(MES) + ", o")
+                            + " regime padrão segue a tabela de fatores de atualização monetária da "
+                            + "Corregedoria-Geral de Justiça do TJMG, de base INPC; o fator é composto das variações "
+                            + "mensais do INPC."));
         }
         if (resultado.linhas().stream().anyMatch(l -> l.pensao() != null)) {
             itens.add("Salário mínimo nacional: valor vigente em cada mês, da série " + SgsClient.CODIGO_SALARIO_MINIMO

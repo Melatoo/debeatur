@@ -326,7 +326,14 @@ function App() {
         </p>
       )}
 
-      {calculo && <Demonstrativo key={calculo.numero} pedido={calculo.pedido} resultado={calculo.resultado} />}
+      {calculo && (
+        <Demonstrativo
+          key={calculo.numero}
+          pedido={calculo.pedido}
+          resultado={calculo.resultado}
+          processo={paraProcesso(processo)}
+        />
+      )}
     </main>
   )
 }

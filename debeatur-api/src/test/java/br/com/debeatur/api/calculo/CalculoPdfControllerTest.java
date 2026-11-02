@@ -23,6 +23,8 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.time.Instant;
+import java.time.InstantSource;
 import java.time.YearMonth;
 import java.util.Locale;
 
@@ -43,6 +45,9 @@ class CalculoPdfControllerTest {
 
     @Autowired
     private MockMvcTester mvc;
+
+    @Autowired
+    private CalculoService service;
 
     @MockitoBean
     private SgsClient sgs;
@@ -105,6 +110,24 @@ class CalculoPdfControllerTest {
                 .containsIgnoringWhitespaces("demonstrativo-5001234-56.2024.8.13.0024-2024-05-15.pdf");
         assertThat(new String(resposta.getResponse().getContentAsByteArray(), 0, 5, StandardCharsets.US_ASCII))
                 .isEqualTo("%PDF-");
+    }
+
+    @Test
+    void emissaoSaiNoHorarioDeBrasiliaMesmoComOServidorEmUtc() throws IOException {
+        indicesDaPensao();
+        // 02:30 UTC de 03/11/2026 ainda é 23:30 de 02/11/2026 em Brasília
+        InstantSource relogio = InstantSource.fixed(Instant.parse("2026-11-03T02:30:00Z"));
+        MockMvcTester comRelogio = MockMvcTester.of(new CalculoController(service, relogio));
+
+        MvcTestResult resposta = comRelogio.post().uri("/api/calculos/pdf")
+                .contentType(MediaType.APPLICATION_JSON).content(PENSAO_COM_RITOS).exchange();
+        String pdf = texto(resposta.getResponse().getContentAsByteArray());
+
+        assertThat(pdf)
+                .containsIgnoringWhitespaces("Emitido em 02/11/2026 às 23:30")
+                .containsIgnoringWhitespaces("emitido em 02/11/2026 às 23:30")
+                .containsIgnoringWhitespaces("em 02/11/2026.")
+                .doesNotContain("03/11/2026");
     }
 
     @Test
@@ -205,6 +228,7 @@ class CalculoPdfControllerTest {
                 .containsIgnoringWhitespaces("série 188 do SGS/BCB")
                 .containsIgnoringWhitespaces("série 433 do SGS/BCB")
                 .containsIgnoringWhitespaces("série 29543 do SGS/BCB")
+                .containsIgnoringWhitespaces("Até 07/2024, o regime padrão segue a tabela")
                 .containsIgnoringWhitespaces("Corregedoria-Geral de Justiça do TJMG")
                 .doesNotContain("Salário mínimo")
                 .containsIgnoringWhitespaces("08/2024: IPCA + 1% a.m. até 29/08/2024 e taxa legal pro rata nos dias seguintes");
