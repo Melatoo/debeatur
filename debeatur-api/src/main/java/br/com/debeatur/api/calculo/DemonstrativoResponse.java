@@ -67,10 +67,8 @@ public record DemonstrativoResponse(
     public record Ritos(LocalDate ajuizamento, Subtotal prisao, Subtotal penhora, BigDecimal totalPenhora) {
 
         static Ritos de(DemonstrativoPorRito porRito) {
-            Dinheiro totalPenhora = porRito.penhora().debitoAtualizado()
-                    .mais(porRito.multaArt523()).mais(porRito.honorariosArt523());
             return new Ritos(porRito.ajuizamento(), Subtotal.de(porRito.prisao()), Subtotal.de(porRito.penhora()),
-                    totalPenhora.valor());
+                    porRito.totalPenhora().valor());
         }
     }
 

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -33,19 +34,29 @@ public class CalculoService {
     }
 
     /**
-     * Parcelas da pensão, com o salário mínimo do SGS e os pagamentos já abatidos.
+     * Saldos da pensão e a memória de cada um.
      *
      * @param parcelas saldos que vão ao motor, na ordem dos meses
      * @param memoria  de onde veio cada saldo, indexada pela própria {@link Parcela} (por
-     *                 identidade), que o motor repassa às linhas do demonstrativo
+     *                 identidade), que o motor repassa às linhas do demonstrativo; só leitura
      */
     public record ParcelasDaPensao(List<Parcela> parcelas, Map<Parcela, DemonstrativoResponse.MesPensao> memoria) {
+
+        public ParcelasDaPensao {
+            parcelas = List.copyOf(parcelas);
+            memoria = Collections.unmodifiableMap(memoria);
+        }
 
         static ParcelasDaPensao vazia() {
             return new ParcelasDaPensao(List.of(), Map.of());
         }
     }
 
+    /**
+     * Parcelas da pensão, com o salário mínimo do SGS e os pagamentos já abatidos.
+     *
+     * @throws IllegalArgumentException se a última parcela vencer depois da data-base
+     */
     public ParcelasDaPensao parcelas(PensaoRequest pensao, LocalDate dataBase) {
         PensaoEmSalarioMinimo dominio = pensao.paraDominio();
         if (dominio.ultimoVencimento().isAfter(dataBase)) {

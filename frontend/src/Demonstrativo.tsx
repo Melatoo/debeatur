@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CalculoRequest, Demonstrativo as Resultado, LinhaDemonstrativo, Regra, Rito, SubtotalRito } from './api'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
 import { LinhaDoTempo } from './LinhaDoTempo'
-import { INDICES, descreverPeriodo } from './regime'
+import { INDICES, descreverPeriodo, mesAnterior } from './regime'
 
 interface Props {
   /** O pedido que gerou o resultado: o demonstrativo descreve o que foi calculado, não o formulário atual. */
@@ -41,23 +41,23 @@ const nomeDaParcela = (l: LinhaDemonstrativo) => {
   return `${mes(l.pensao.mes)}${quitada ? ' (quitada)' : ''}`
 }
 
-/** Mês anterior ao da data, como `AAAA-MM`. */
-function mesAnterior(dataIso: string): string {
-  const [ano, mesDoAno] = dataIso.split('-').map(Number)
-  return mesDoAno === 1 ? `${ano - 1}-12` : `${ano}-${String(mesDoAno - 1).padStart(2, '0')}`
-}
-
 /**
  * Regras do regime que alcançam o período do cálculo: do primeiro termo inicial ao mês anterior
- * à data-base, que é o último mês que o motor corrige e sobre o qual conta juros.
+ * à data-base, que é o último mês que o motor corrige e sobre o qual conta juros. Se tudo vence
+ * no mês da data-base, mostra a regra vigente nesse mês, em vez de uma lista vazia.
  */
 function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase: string): Regra[] {
   const inicios = linhas.flatMap((l) => [l.inicioCorrecao, l.inicioJuros ?? l.inicioCorrecao]).map((d) => d.slice(0, 7))
   const primeiro = inicios.sort()[0]
-  const ultimo = mesAnterior(dataBase)
   if (!primeiro) return regras
+  const anteriorABase = mesAnterior(dataBase.slice(0, 7))
+  const ultimo = primeiro > anteriorABase ? primeiro : anteriorABase
   return regras.filter((r) => r.inicio <= ultimo && (r.fim == null || r.fim >= primeiro))
 }
+
+/** Anotação dos juros no vencimento, igual na tela e no texto copiado. */
+const notaDosJuros = (l: LinhaDemonstrativo) =>
+  l.inicioJuros == null ? 'sem juros' : l.inicioJuros !== l.inicioCorrecao ? `juros desde ${data(l.inicioJuros)}` : null
 
 export function Demonstrativo({ pedido, resultado }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
@@ -65,7 +65,11 @@ export function Demonstrativo({ pedido, resultado }: Props) {
   const { linhas, ritos } = resultado
   const pensao = pedido.pensao
   const comSalarioMinimo = linhas.some((l) => l.pensao)
-  const comPagamento = linhas.some((l) => (l.pensao?.valorPago ?? 0) > 0)
+  // o valor abatido pelo servidor, o mesmo da coluna "Pago", e não o digitado no pedido
+  const pagos = linhas
+    .flatMap((l) => (l.pensao && l.pensao.valorPago > 0 ? [l.pensao] : []))
+    .sort((a, b) => a.mes.localeCompare(b.mes))
+  const comPagamento = pagos.length > 0
   const comAcrescimos = resultado.multaArt523 > 0 || resultado.honorariosArt523 > 0
 
   useEffect(() => {
@@ -79,17 +83,19 @@ export function Demonstrativo({ pedido, resultado }: Props) {
     { titulo: 'Parcela', celula: nomeDaParcela, texto: nomeDaParcela },
     {
       titulo: 'Vencimento',
-      celula: (l) => (
-        <>
-          {data(l.inicioCorrecao)}
-          {l.inicioJuros == null ? (
-            <span className="nota">sem juros</span>
-          ) : (
-            l.inicioJuros !== l.inicioCorrecao && <span className="nota">juros desde {data(l.inicioJuros)}</span>
-          )}
-        </>
-      ),
-      texto: (l) => data(l.inicioCorrecao),
+      celula: (l) => {
+        const nota = notaDosJuros(l)
+        return (
+          <>
+            {data(l.inicioCorrecao)}
+            {nota && <span className="nota">{nota}</span>}
+          </>
+        )
+      },
+      texto: (l) => {
+        const nota = notaDosJuros(l)
+        return nota ? `${data(l.inicioCorrecao)} (${nota})` : data(l.inicioCorrecao)
+      },
     },
     ...(comSalarioMinimo
       ? [
@@ -280,9 +286,9 @@ export function Demonstrativo({ pedido, resultado }: Props) {
             <div>
               <dt>Pagamentos parciais</dt>
               <dd>
-                {pensao.pagamentos.length === 0
+                {pagos.length === 0
                   ? 'Nenhum'
-                  : pensao.pagamentos.map((p) => `${mes(p.mes)}: ${moeda(Number(p.valor))}`).join('; ')}
+                  : pagos.map((p) => `${mes(p.mes)}: ${moeda(p.valorPago)}`).join('; ')}
               </dd>
             </div>
             <div>
