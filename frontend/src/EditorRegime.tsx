@@ -1,4 +1,5 @@
 import type { IndiceCorrecao, TipoJuros } from './api'
+import { CampoDecimal } from './CampoDecimal'
 import {
   INDICES,
   TIPOS_JUROS,
@@ -77,14 +78,13 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
           </label>
           <label>
             % ao mês
-            <input
-              type="number"
-              step="0.0001"
-              min="0.0001"
+            <CampoDecimal
+              casas={4}
+              milhar={false}
               disabled={!usaPercentual(r.juros)}
               required={usaPercentual(r.juros)}
               value={usaPercentual(r.juros) ? r.percentual : ''}
-              onChange={(e) => alterar(i, { percentual: e.target.value })}
+              onValor={(v) => alterar(i, { percentual: v })}
             />
           </label>
           {regras.length > 1 ? (

@@ -1,5 +1,6 @@
 import type { IndiceCorrecao, Regime, Regra, TipoJuros } from './api'
 import { mes } from './formato'
+import { exigirDecimal, paraCampo } from './numero'
 
 export const INDICES: Record<IndiceCorrecao, string> = {
   INPC: 'INPC',
@@ -44,7 +45,7 @@ export const paraEditavel = (regras: Regra[]): RegraEditavel[] =>
     fim: r.fim ?? '',
     correcao: r.correcao,
     juros: r.juros,
-    percentual: r.percentualJurosMensal == null ? '' : String(r.percentualJurosMensal),
+    percentual: r.percentualJurosMensal == null ? '' : paraCampo(r.percentualJurosMensal),
     ultimoDiaTaxaFixa: r.ultimoDiaTaxaFixa ?? '',
   }))
 
@@ -55,7 +56,7 @@ export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
     fim: r.fim || null,
     correcao: r.correcao,
     juros: r.juros,
-    percentualJurosMensal: usaPercentual(r.juros) && r.percentual ? Number(r.percentual) : null,
+    percentualJurosMensal: usaPercentual(r.juros) && r.percentual ? Number(exigirDecimal(r.percentual, 'Percentual de juros', false)) : null,
     ultimoDiaTaxaFixa: r.juros === 'TRANSICAO_TAXA_LEGAL' && r.ultimoDiaTaxaFixa ? r.ultimoDiaTaxaFixa : null,
   })),
 })
