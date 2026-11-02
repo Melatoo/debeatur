@@ -70,6 +70,17 @@ export interface LinhaDemonstrativo {
   subtotal: number
   /** Nulo se o cálculo não separa os ritos. */
   rito: Rito | null
+  /** De onde veio a parcela da pensão; nulo nas parcelas avulsas. */
+  pensao: MesPensao | null
+}
+
+/** O devido é o percentual do salário mínimo vigente no mês; o valor original da linha, o devido menos o pago. */
+export interface MesPensao {
+  /** AAAA-MM */
+  mes: string
+  salarioMinimo: number
+  valorDevido: number
+  valorPago: number
 }
 
 export type Rito = 'PRISAO' | 'PENHORA'
@@ -85,6 +96,8 @@ export interface Ritos {
   ajuizamento: string
   prisao: SubtotalRito
   penhora: SubtotalRito
+  /** Débito da penhora mais multa e honorários do art. 523, somados no servidor. */
+  totalPenhora: number
 }
 
 export interface Demonstrativo {

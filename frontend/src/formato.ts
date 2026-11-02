@@ -1,0 +1,26 @@
+const moedaBr = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+const numeroBr = (casas: number) =>
+  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })
+const duasCasas = numeroBr(2)
+const quatroCasas = numeroBr(4)
+const seteCasas = numeroBr(7)
+
+export const moeda = (valor: number) => moedaBr.format(valor)
+/** Valor com duas casas e sem o símbolo, para colar em planilha. */
+export const decimal = (valor: number) => duasCasas.format(valor)
+export const percentual = (valor: number) => `${quatroCasas.format(valor)}%`
+export const fator = (valor: number) => seteCasas.format(valor)
+
+/** Data AAAA-MM-DD em dd/mm/aaaa. */
+export const data = (iso: string | null) => (iso ? iso.split('-').reverse().join('/') : '—')
+
+/** Mês AAAA-MM em mm/aaaa. */
+export const mes = (iso: string) => iso.split('-').reverse().join('/')
+
+/** Mês AAAA-MM em mm/aa, para eixos estreitos. */
+export const mesCurto = (iso: string) => {
+  const [ano, m] = iso.split('-')
+  return `${m}/${ano.slice(2)}`
+}
+
+export const contar = (n: number, singular: string, plural: string) => `${n} ${n === 1 ? singular : plural}`

@@ -23,7 +23,8 @@ export const pensaoVazia = (): PensaoEditavel => ({
   ajuizamento: '',
 })
 
-export function paraPensao(p: PensaoEditavel): PensaoRequest {
+/** @param separarRitos sem a separação, o ajuizamento não vai para a API */
+export function paraPensao(p: PensaoEditavel, separarRitos: boolean): PensaoRequest {
   return {
     percentual: p.percentual,
     diaVencimento: Number(p.diaVencimento),
@@ -32,6 +33,6 @@ export function paraPensao(p: PensaoEditavel): PensaoRequest {
     inicioJuros: p.inicioJuros,
     citacao: p.inicioJuros === 'CITACAO' ? p.citacao : null,
     pagamentos: p.pagamentos,
-    ajuizamento: p.ajuizamento || null,
+    ajuizamento: separarRitos && p.ajuizamento ? p.ajuizamento : null,
   }
 }

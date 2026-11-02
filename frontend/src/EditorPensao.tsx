@@ -1,4 +1,5 @@
 import type { InicioJuros, PagamentoRequest } from './api'
+import { mes } from './formato'
 import type { PensaoEditavel } from './pensao'
 
 interface Props {
@@ -13,7 +14,7 @@ export function EditorPensao({ pensao, onPensao }: Props) {
 
   return (
     <div className="editor-pensao">
-      <fieldset className="pensao">
+      <div className="campos quatro">
         <label>
           % do salário mínimo
           <input
@@ -21,6 +22,7 @@ export function EditorPensao({ pensao, onPensao }: Props) {
             step="0.01"
             min="0.01"
             required
+            inputMode="decimal"
             value={pensao.percentual}
             onChange={(e) => alterar({ percentual: e.target.value })}
           />
@@ -32,8 +34,8 @@ export function EditorPensao({ pensao, onPensao }: Props) {
             min="1"
             max="31"
             required
+            aria-describedby="dica-vencimento"
             value={pensao.diaVencimento}
-            title="Em mês sem esse dia (ex.: 31 em fevereiro), a parcela vence no último dia"
             onChange={(e) => alterar({ diaVencimento: e.target.value })}
           />
         </label>
@@ -56,45 +58,38 @@ export function EditorPensao({ pensao, onPensao }: Props) {
             onChange={(e) => alterar({ ultimoMes: e.target.value })}
           />
         </label>
-        <label>
+      </div>
+      <p className="dica" id="dica-vencimento">
+        Cada parcela vale o percentual do salário mínimo vigente no mês do vencimento. Em mês sem o dia escolhido (31
+        em fevereiro, por exemplo), a parcela vence no último dia.
+      </p>
+
+      <div className="campos quatro">
+        <label className="duplo">
           Juros desde
           <select value={pensao.inicioJuros} onChange={(e) => alterar({ inicioJuros: e.target.value as InicioJuros })}>
             <option value="VENCIMENTO">o vencimento de cada parcela</option>
             <option value="CITACAO">a citação</option>
           </select>
         </label>
-        <label>
-          Data da citação
-          <input
-            type="date"
-            disabled={pensao.inicioJuros !== 'CITACAO'}
-            required={pensao.inicioJuros === 'CITACAO'}
-            value={pensao.inicioJuros === 'CITACAO' ? pensao.citacao : ''}
-            onChange={(e) => alterar({ citacao: e.target.value })}
-          />
-        </label>
-        <label>
-          Ajuizamento da execução
-          <input
-            type="date"
-            value={pensao.ajuizamento}
-            onChange={(e) => alterar({ ajuizamento: e.target.value })}
-          />
-        </label>
-      </fieldset>
-      <p className="dica">
-        Cada parcela vale o percentual do salário mínimo vigente no mês do vencimento. Com juros desde a citação, as
-        parcelas vencidas antes dela contam juros da citação; as seguintes, do próprio vencimento.
-      </p>
-      <p className="dica">
-        Com a data do ajuizamento, o demonstrativo separa os ritos (art. 528 do CPC): vão para a prisão as três parcelas
-        vencidas até o ajuizamento e as que vencem depois dele; as demais, para a penhora. Multa e honorários do art. 523
-        incidem só sobre a penhora.
-      </p>
+        {pensao.inicioJuros === 'CITACAO' && (
+          <label>
+            Data da citação
+            <input type="date" required value={pensao.citacao} onChange={(e) => alterar({ citacao: e.target.value })} />
+          </label>
+        )}
+      </div>
+      {pensao.inicioJuros === 'CITACAO' && (
+        <p className="dica">
+          As parcelas vencidas antes da citação contam juros a partir dela; as seguintes, do próprio vencimento.
+        </p>
+      )}
 
       <h3>Pagamentos parciais</h3>
+      {pensao.pagamentos.length === 0 && <p className="dica">Nenhum pagamento informado.</p>}
       {pensao.pagamentos.map((p, i) => (
         <fieldset key={i} className="pagamento">
+          <legend className="sr-only">Pagamento {i + 1}</legend>
           <label>
             Mês da parcela
             <input
@@ -113,6 +108,7 @@ export function EditorPensao({ pensao, onPensao }: Props) {
               step="0.01"
               min="0.01"
               required
+              inputMode="decimal"
               value={p.valor}
               onChange={(e) => alterarPagamento(i, { valor: e.target.value })}
             />
@@ -120,16 +116,13 @@ export function EditorPensao({ pensao, onPensao }: Props) {
           <button
             type="button"
             className="secundario"
+            aria-label={`Remover o pagamento ${p.mes ? `de ${mes(p.mes)}` : i + 1}`}
             onClick={() => alterar({ pagamentos: pensao.pagamentos.filter((_, j) => j !== i) })}
           >
             Remover
           </button>
         </fieldset>
       ))}
-      <p className="dica">
-        O valor pago é abatido da parcela do mesmo mês antes da correção. Um pagamento maior que a parcela não é
-        compensado com as outras.
-      </p>
       <button
         type="button"
         className="secundario"
@@ -137,6 +130,10 @@ export function EditorPensao({ pensao, onPensao }: Props) {
       >
         Adicionar pagamento
       </button>
+      <p className="dica">
+        O valor pago é abatido da parcela do mesmo mês antes da correção. Um pagamento maior que a parcela não é
+        compensado com as outras.
+      </p>
     </div>
   )
 }

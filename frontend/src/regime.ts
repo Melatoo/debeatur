@@ -1,4 +1,5 @@
 import type { IndiceCorrecao, Regime, Regra, TipoJuros } from './api'
+import { mes } from './formato'
 
 export const INDICES: Record<IndiceCorrecao, string> = {
   INPC: 'INPC',
@@ -72,8 +73,12 @@ export function mesSeguinte(mes: string): string {
   return m === 12 ? `${ano + 1}-01` : `${ano}-${String(m + 1).padStart(2, '0')}`
 }
 
-export const mesBr = (mes: string) => mes.split('-').reverse().join('/')
+/** Mês anterior a um mês AAAA-MM. */
+export function mesAnterior(mes: string): string {
+  const [ano, m] = mes.split('-').map(Number)
+  return m === 1 ? `${ano - 1}-12` : `${ano}-${String(m - 1).padStart(2, '0')}`
+}
 
 export function descreverPeriodo(regra: Regra): string {
-  return regra.fim ? `${mesBr(regra.inicio)} a ${mesBr(regra.fim)}` : `desde ${mesBr(regra.inicio)}`
+  return regra.fim ? `${mes(regra.inicio)} a ${mes(regra.fim)}` : `desde ${mes(regra.inicio)}`
 }
