@@ -1,10 +1,36 @@
 services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: debeatur
+      POSTGRES_USER: debeatur
+      POSTGRES_PASSWORD: ${DEBEATUR_DB_SENHA:-debeatur}
+    ports:
+      # só no localhost, para rodar a API fora do Docker
+      - "127.0.0.1:${DEBEATUR_DB_PORTA:-5432}:5432"
+    volumes:
+      # a partir do Postgres 18 os dados ficam em /var/lib/postgresql/<versão>/docker
+      - dados:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U debeatur -d debeatur"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build:
       context: .
       dockerfile: debeatur-api/Dockerfile
     image: debeatur-api
     restart: unless-stopped
+    environment:
+      DEBEATUR_DB_URL: jdbc:postgresql://db:5432/debeatur
+      DEBEATUR_DB_USUARIO: debeatur
+      DEBEATUR_DB_SENHA: ${DEBEATUR_DB_SENHA:-debeatur}
+    depends_on:
+      db:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
@@ -15,3 +41,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+volumes:
+  dados:

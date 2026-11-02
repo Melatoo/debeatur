@@ -3,7 +3,7 @@ package br.com.debeatur.api.calculo;
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.indice.SalarioMinimoEmMemoria;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
-import br.com.debeatur.indices.SgsClient;
+import br.com.debeatur.api.serie.FonteSeries;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +37,7 @@ class CalculoPensaoControllerTest {
     private MockMvcTester mvc;
 
     @MockitoBean
-    private SgsClient sgs;
+    private FonteSeries series;
 
     @BeforeEach
     void indicesZerados() {
@@ -45,7 +45,7 @@ class CalculoPensaoControllerTest {
         for (YearMonth mes = YearMonth.of(2023, 12); mes.isBefore(YearMonth.of(2024, 4)); mes = mes.plusMonths(1)) {
             serie.com(Indice.INPC, mes, "0");
         }
-        when(sgs.carregar(any(), any(), any())).thenReturn(serie);
+        when(series.carregar(any(), any(), any())).thenReturn(serie);
     }
 
     private MockMvcTester.MockMvcRequestBuilder calcular(String json) {
@@ -61,7 +61,7 @@ class CalculoPensaoControllerTest {
 
     @Test
     void geraAsParcelasDaPensaoEAbateOsPagamentos() {
-        when(sgs.carregarSalarioMinimo(YearMonth.of(2023, 12), YearMonth.of(2024, 2)))
+        when(series.carregarSalarioMinimo(YearMonth.of(2023, 12), YearMonth.of(2024, 2)))
                 .thenReturn(new SalarioMinimoEmMemoria()
                         .com(YearMonth.of(2023, 12), "1320.00")
                         .com(YearMonth.of(2024, 1), "1412.00")
@@ -85,7 +85,7 @@ class CalculoPensaoControllerTest {
 
     @Test
     void informaDeOndeVeioCadaParcelaDaPensao() {
-        when(sgs.carregarSalarioMinimo(YearMonth.of(2023, 12), YearMonth.of(2024, 2)))
+        when(series.carregarSalarioMinimo(YearMonth.of(2023, 12), YearMonth.of(2024, 2)))
                 .thenReturn(new SalarioMinimoEmMemoria()
                         .com(YearMonth.of(2023, 12), "1320.00")
                         .com(YearMonth.of(2024, 1), "1412.00")
@@ -113,7 +113,7 @@ class CalculoPensaoControllerTest {
 
     @Test
     void oPagoDaMemoriaEOValorAbatidoArredondado() {
-        when(sgs.carregarSalarioMinimo(YearMonth.of(2024, 2), YearMonth.of(2024, 2)))
+        when(series.carregarSalarioMinimo(YearMonth.of(2024, 2), YearMonth.of(2024, 2)))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 2), "1412.00"));
         String pensao = """
                 {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-02", "ultimoMes": "2024-02",
@@ -128,7 +128,7 @@ class CalculoPensaoControllerTest {
 
     @Test
     void parcelasAvulsasVemDepoisDasDaPensao() {
-        when(sgs.carregarSalarioMinimo(any(), any()))
+        when(series.carregarSalarioMinimo(any(), any()))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
         String pensao = """
                 {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
@@ -151,8 +151,8 @@ class CalculoPensaoControllerTest {
         for (YearMonth mes = YearMonth.of(2023, 10); mes.isBefore(YearMonth.of(2024, 3)); mes = mes.plusMonths(1)) {
             serie.com(Indice.INPC, mes, "0");
         }
-        when(sgs.carregar(any(), any(), any())).thenReturn(serie);
-        when(sgs.carregarSalarioMinimo(any(), any())).thenReturn(new SalarioMinimoEmMemoria()
+        when(series.carregar(any(), any(), any())).thenReturn(serie);
+        when(series.carregarSalarioMinimo(any(), any())).thenReturn(new SalarioMinimoEmMemoria()
                 .com(YearMonth.of(2023, 10), "1320.00")
                 .com(YearMonth.of(2023, 11), "1320.00")
                 .com(YearMonth.of(2023, 12), "1320.00")
@@ -185,7 +185,7 @@ class CalculoPensaoControllerTest {
 
     @Test
     void comAjuizamentoRecusaDuasParcelasNoMesmoMes() {
-        when(sgs.carregarSalarioMinimo(any(), any()))
+        when(series.carregarSalarioMinimo(any(), any()))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
         String pensao = """
                 {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
@@ -202,7 +202,7 @@ class CalculoPensaoControllerTest {
 
     @Test
     void semAjuizamentoAceitaDuasParcelasNoMesmoMes() {
-        when(sgs.carregarSalarioMinimo(any(), any()))
+        when(series.carregarSalarioMinimo(any(), any()))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
         String pensao = """
                 {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
@@ -218,7 +218,7 @@ class CalculoPensaoControllerTest {
 
     @Test
     void semAjuizamentoNaoSeparaOsRitos() {
-        when(sgs.carregarSalarioMinimo(any(), any()))
+        when(series.carregarSalarioMinimo(any(), any()))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
         String json = """
                 {"dataBase": "2024-03-15", "aplicarArt523": true, "regime": %s,
@@ -241,7 +241,7 @@ class CalculoPensaoControllerTest {
 
         assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
                 .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("vence em 2024-04-10, depois da data-base (2024-03-15)"));
-        verify(sgs, never()).carregarSalarioMinimo(any(), any());
+        verify(series, never()).carregarSalarioMinimo(any(), any());
     }
 
     @Test
@@ -254,12 +254,12 @@ class CalculoPensaoControllerTest {
         assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
                 .hasPathSatisfying("$.detail",
                         v -> v.assertThat().asString().contains("vence em 2024-03-20, depois da data-base (2024-03-15)"));
-        verify(sgs, never()).carregarSalarioMinimo(any(), any());
+        verify(series, never()).carregarSalarioMinimo(any(), any());
     }
 
     @Test
     void aceitaPensaoNoMesDaDataBaseQueVenceAteEla() {
-        when(sgs.carregarSalarioMinimo(any(), any()))
+        when(series.carregarSalarioMinimo(any(), any()))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 3), "1412.00"));
         String pensao = """
                 {"percentual": 30, "diaVencimento": 15, "primeiroMes": "2024-03", "ultimoMes": "2024-03",
@@ -284,7 +284,7 @@ class CalculoPensaoControllerTest {
 
     @Test
     void recusaPagamentoMaiorQueAParcela() {
-        when(sgs.carregarSalarioMinimo(any(), any()))
+        when(series.carregarSalarioMinimo(any(), any()))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
         String pensao = """
                 {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
@@ -297,7 +297,7 @@ class CalculoPensaoControllerTest {
 
     @Test
     void salarioMinimoIndisponivelDevolve422() {
-        when(sgs.carregarSalarioMinimo(any(), any())).thenReturn(new SalarioMinimoEmMemoria());
+        when(series.carregarSalarioMinimo(any(), any())).thenReturn(new SalarioMinimoEmMemoria());
         String pensao = """
                 {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
                  "inicioJuros": "VENCIMENTO"}
