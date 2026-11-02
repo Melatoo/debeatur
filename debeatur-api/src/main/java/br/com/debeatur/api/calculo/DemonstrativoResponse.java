@@ -1,9 +1,11 @@
 package br.com.debeatur.api.calculo;
 
+import br.com.debeatur.core.Dinheiro;
 import br.com.debeatur.core.alimentos.DemonstrativoPorRito;
 import br.com.debeatur.core.alimentos.Rito;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.LinhaDemonstrativo;
+import br.com.debeatur.core.calculo.Parcela;
 import br.com.debeatur.core.regime.RegimeAtualizacao;
 
 import java.math.BigDecimal;
@@ -11,6 +13,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @param ritos nulo se o cálculo não separa os ritos; se separa, multa, honorários e total
@@ -60,7 +63,15 @@ public record DemonstrativoResponse(
     public record MesPensao(YearMonth mes, BigDecimal salarioMinimo, BigDecimal valorDevido, BigDecimal valorPago) {
     }
 
-    public record Ritos(LocalDate ajuizamento, Subtotal prisao, Subtotal penhora) {
+    /** @param totalPenhora débito da penhora mais multa e honorários do art. 523 */
+    public record Ritos(LocalDate ajuizamento, Subtotal prisao, Subtotal penhora, BigDecimal totalPenhora) {
+
+        static Ritos de(DemonstrativoPorRito porRito) {
+            Dinheiro totalPenhora = porRito.penhora().debitoAtualizado()
+                    .mais(porRito.multaArt523()).mais(porRito.honorariosArt523());
+            return new Ritos(porRito.ajuizamento(), Subtotal.de(porRito.prisao()), Subtotal.de(porRito.penhora()),
+                    totalPenhora.valor());
+        }
     }
 
     public record Subtotal(int parcelas, BigDecimal totalCorrigido, BigDecimal totalJuros, BigDecimal debitoAtualizado) {
@@ -71,25 +82,28 @@ public record DemonstrativoResponse(
         }
     }
 
-    /** @param memoria uma por parcela da pensão, que são as primeiras linhas do demonstrativo */
-    static DemonstrativoResponse de(Demonstrativo d, RegimeAtualizacao regime, List<MesPensao> memoria) {
+    /**
+     * @param memoria memória de cada parcela da pensão, indexada pela parcela que o motor
+     *                repassa à linha; as parcelas avulsas não estão nela
+     */
+    static DemonstrativoResponse de(Demonstrativo d, RegimeAtualizacao regime, Map<Parcela, MesPensao> memoria) {
         List<Linha> linhas = new ArrayList<>();
-        for (int i = 0; i < d.linhas().size(); i++) {
-            linhas.add(Linha.de(d.linhas().get(i), null, i < memoria.size() ? memoria.get(i) : null));
+        for (LinhaDemonstrativo linha : d.linhas()) {
+            linhas.add(Linha.de(linha, null, memoria.get(linha.parcela())));
         }
         return new DemonstrativoResponse(d.dataBase(), RegimeDto.de(regime), linhas,
                 d.totalCorrigido().valor(), d.totalJuros().valor(), d.debitoAtualizado().valor(),
                 d.multaArt523().valor(), d.honorariosArt523().valor(), d.total().valor(), null);
     }
 
-    static DemonstrativoResponse de(Demonstrativo d, RegimeAtualizacao regime, List<MesPensao> memoria,
+    static DemonstrativoResponse de(Demonstrativo d, RegimeAtualizacao regime, Map<Parcela, MesPensao> memoria,
                                     DemonstrativoPorRito porRito) {
         List<Linha> linhas = new ArrayList<>();
         for (int i = 0; i < d.linhas().size(); i++) {
-            linhas.add(Linha.de(d.linhas().get(i), porRito.ritoDasLinhas().get(i),
-                    i < memoria.size() ? memoria.get(i) : null));
+            LinhaDemonstrativo linha = d.linhas().get(i);
+            linhas.add(Linha.de(linha, porRito.ritoDasLinhas().get(i), memoria.get(linha.parcela())));
         }
-        Ritos ritos = new Ritos(porRito.ajuizamento(), Subtotal.de(porRito.prisao()), Subtotal.de(porRito.penhora()));
+        Ritos ritos = Ritos.de(porRito);
         return new DemonstrativoResponse(d.dataBase(), RegimeDto.de(regime), linhas,
                 d.totalCorrigido().valor(), d.totalJuros().valor(), d.debitoAtualizado().valor(),
                 porRito.multaArt523().valor(), porRito.honorariosArt523().valor(), porRito.total().valor(), ritos);

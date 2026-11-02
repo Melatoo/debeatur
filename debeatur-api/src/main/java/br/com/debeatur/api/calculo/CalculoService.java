@@ -1,6 +1,6 @@
 package br.com.debeatur.api.calculo;
 
-import br.com.debeatur.core.alimentos.PagamentosParciais;
+import br.com.debeatur.core.Dinheiro;
 import br.com.debeatur.core.alimentos.PensaoEmSalarioMinimo;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.MotorCalculo;
@@ -16,7 +16,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.EnumSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -34,9 +36,14 @@ public class CalculoService {
      * Parcelas da pensão, com o salário mínimo do SGS e os pagamentos já abatidos.
      *
      * @param parcelas saldos que vão ao motor, na ordem dos meses
-     * @param memoria  de onde veio cada saldo, na mesma ordem
+     * @param memoria  de onde veio cada saldo, indexada pela própria {@link Parcela} (por
+     *                 identidade), que o motor repassa às linhas do demonstrativo
      */
-    public record ParcelasDaPensao(List<Parcela> parcelas, List<DemonstrativoResponse.MesPensao> memoria) {
+    public record ParcelasDaPensao(List<Parcela> parcelas, Map<Parcela, DemonstrativoResponse.MesPensao> memoria) {
+
+        static ParcelasDaPensao vazia() {
+            return new ParcelasDaPensao(List.of(), Map.of());
+        }
     }
 
     public ParcelasDaPensao parcelas(PensaoRequest pensao, LocalDate dataBase) {
@@ -45,15 +52,22 @@ public class CalculoService {
             throw new IllegalArgumentException("A última parcela da pensão vence em " + dominio.ultimoVencimento()
                     + ", depois da data-base (" + dataBase + ")");
         }
-        PagamentosParciais pagamentos = pensao.pagamentosParaDominio();
         SalarioMinimo salarioMinimo = sgs.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes());
-        List<Parcela> devidas = dominio.parcelas(salarioMinimo);
-        List<DemonstrativoResponse.MesPensao> memoria = devidas.stream().map(parcela -> {
-            YearMonth mes = YearMonth.from(parcela.inicioCorrecao());
-            return new DemonstrativoResponse.MesPensao(mes, salarioMinimo.vigente(mes).valor(),
-                    parcela.valor().valor(), pensao.pagoEm(mes));
-        }).toList();
-        return new ParcelasDaPensao(pagamentos.abater(devidas), memoria);
+        List<PensaoEmSalarioMinimo.ParcelaDoMes> devidas = dominio.parcelasPorMes(salarioMinimo);
+        List<Parcela> saldos = pensao.pagamentosParaDominio()
+                .abater(devidas.stream().map(PensaoEmSalarioMinimo.ParcelaDoMes::parcela).toList());
+        if (saldos.size() != devidas.size()) {
+            throw new IllegalStateException("O abatimento dos pagamentos deve manter uma parcela por mês");
+        }
+        Map<Parcela, DemonstrativoResponse.MesPensao> memoria = new IdentityHashMap<>();
+        for (int i = 0; i < devidas.size(); i++) {
+            PensaoEmSalarioMinimo.ParcelaDoMes devida = devidas.get(i);
+            Dinheiro devido = devida.parcela().valor();
+            Parcela saldo = saldos.get(i);
+            memoria.put(saldo, new DemonstrativoResponse.MesPensao(devida.mes(), devida.salarioMinimo().valor(),
+                    devido.valor(), devido.menos(saldo.valor()).valor()));
+        }
+        return new ParcelasDaPensao(saldos, memoria);
     }
 
     // TODO: persistir séries e snapshot dos índices usados, em vez de consultar o SGS a cada cálculo

@@ -44,15 +44,6 @@ public record PensaoRequest(
         return new PensaoEmSalarioMinimo(percentual, diaVencimento, primeiroMes, ultimoMes, inicioJuros, citacao);
     }
 
-    /** Valor pago na parcela do mês, ou zero. */
-    BigDecimal pagoEm(YearMonth mes) {
-        if (pagamentos == null) {
-            return BigDecimal.ZERO;
-        }
-        return pagamentos.stream().filter(p -> p.mes().equals(mes)).map(PagamentoRequest::valor)
-                .findFirst().orElse(BigDecimal.ZERO);
-    }
-
     PagamentosParciais pagamentosParaDominio() {
         PagamentosParciais pagos = new PagamentosParciais();
         if (pagamentos != null) {

@@ -39,6 +39,20 @@ class PensaoEmSalarioMinimoTest {
     }
 
     @Test
+    void informaOSalarioMinimoDeCadaParcela() {
+        PensaoEmSalarioMinimo pensao = pensao("30", 10, YearMonth.of(2023, 12), YearMonth.of(2024, 1));
+
+        List<PensaoEmSalarioMinimo.ParcelaDoMes> meses = pensao.parcelasPorMes(SALARIO_MINIMO);
+
+        assertThat(meses).extracting(PensaoEmSalarioMinimo.ParcelaDoMes::mes)
+                .containsExactly(YearMonth.of(2023, 12), YearMonth.of(2024, 1));
+        assertThat(meses).extracting(PensaoEmSalarioMinimo.ParcelaDoMes::salarioMinimo)
+                .containsExactly(Dinheiro.de("1320.00"), Dinheiro.de("1412.00"));
+        assertThat(meses).extracting(PensaoEmSalarioMinimo.ParcelaDoMes::parcela)
+                .containsExactlyElementsOf(pensao.parcelas(SALARIO_MINIMO));
+    }
+
+    @Test
     void arredondaOValorDaParcelaEmDuasCasas() {
         // 33,33% de R$ 1.412,00 = R$ 470,6196
         List<Parcela> parcelas = pensao("33.33", 1, YearMonth.of(2024, 1), YearMonth.of(2024, 1))

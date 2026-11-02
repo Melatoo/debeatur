@@ -102,13 +102,28 @@ class CalculoPensaoControllerTest {
                 .hasPathSatisfying("$.linhas[0].pensao.mes", v -> v.assertThat().isEqualTo("2023-12"))
                 .hasPathSatisfying("$.linhas[0].pensao.salarioMinimo", v -> v.assertThat().asNumber().isEqualTo(1320.0))
                 .hasPathSatisfying("$.linhas[0].pensao.valorDevido", v -> v.assertThat().asNumber().isEqualTo(396.0))
-                .hasPathSatisfying("$.linhas[0].pensao.valorPago", v -> v.assertThat().asNumber().isEqualTo(0))
+                .hasPathSatisfying("$.linhas[0].pensao.valorPago", v -> v.assertThat().asNumber().isEqualTo(0.0))
                 .hasPathSatisfying("$.linhas[2].pensao.mes", v -> v.assertThat().isEqualTo("2024-02"))
                 .hasPathSatisfying("$.linhas[2].pensao.salarioMinimo", v -> v.assertThat().asNumber().isEqualTo(1412.0))
                 .hasPathSatisfying("$.linhas[2].pensao.valorDevido", v -> v.assertThat().asNumber().isEqualTo(423.6))
                 .hasPathSatisfying("$.linhas[2].pensao.valorPago", v -> v.assertThat().asNumber().isEqualTo(200.0))
                 .hasPathSatisfying("$.linhas[2].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(223.6))
                 .hasPathSatisfying("$.linhas[3].pensao", v -> v.assertThat().isNull());
+    }
+
+    @Test
+    void oPagoDaMemoriaEOValorAbatidoArredondado() {
+        when(sgs.carregarSalarioMinimo(YearMonth.of(2024, 2), YearMonth.of(2024, 2)))
+                .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 2), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-02", "ultimoMes": "2024-02",
+                 "inicioJuros": "VENCIMENTO", "pagamentos": [{"mes": "2024-02", "valor": 200.005}]}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].pensao.valorDevido", v -> v.assertThat().asNumber().isEqualTo(423.6))
+                .hasPathSatisfying("$.linhas[0].pensao.valorPago", v -> v.assertThat().asNumber().isEqualTo(200.01))
+                .hasPathSatisfying("$.linhas[0].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(223.59));
     }
 
     @Test
@@ -161,6 +176,7 @@ class CalculoPensaoControllerTest {
                 .hasPathSatisfying("$.ritos.prisao.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(1639.2))
                 .hasPathSatisfying("$.ritos.penhora.parcelas", v -> v.assertThat().asNumber().isEqualTo(1))
                 .hasPathSatisfying("$.ritos.penhora.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(396.0))
+                .hasPathSatisfying("$.ritos.totalPenhora", v -> v.assertThat().asNumber().isEqualTo(475.2))
                 .hasPathSatisfying("$.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(2035.2))
                 .hasPathSatisfying("$.multaArt523", v -> v.assertThat().asNumber().isEqualTo(39.6))
                 .hasPathSatisfying("$.honorariosArt523", v -> v.assertThat().asNumber().isEqualTo(39.6))
