@@ -244,6 +244,11 @@ button.secundario:hover {
 
 button:disabled {
   opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Só o botão que espera uma resposta do servidor (Calcular, Baixar PDF) mostra o andamento. */
+button:disabled.esperando {
   cursor: progress;
 }
 
@@ -342,10 +347,6 @@ button:disabled {
 
 .demonstrativo[data-situacao='desatualizado'] > :not(.situacao, .cabecalho-resultado) {
   opacity: 0.4;
-}
-
-.demonstrativo:not([data-situacao='atual']) .acoes-resultado button:disabled {
-  cursor: not-allowed;
 }
 
 .cabecalho-resultado {

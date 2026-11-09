@@ -566,7 +566,7 @@ function App() {
           <div className="enviar">
             <div className="botoes">
               {/* Depois do primeiro cálculo, o andamento aparece no demonstrativo, e o botão não pisca a cada edição. */}
-              <button type="submit" disabled={carregando && !calculo}>
+              <button type="submit" className="esperando" disabled={carregando && !calculo}>
                 {carregando && !calculo ? 'Calculando…' : 'Calcular'}
               </button>
               <button type="button" className="secundario" onClick={limpar} disabled={emBranco && !calculo}>

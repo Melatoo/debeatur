@@ -373,7 +373,12 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           Demonstrativo atualizado até {data(resultado.dataBase)}
         </h2>
         <div className="acoes-resultado">
-          <button type="button" onClick={baixarPdf} disabled={gerandoPdf || travado}>
+          <button
+            type="button"
+            className={gerandoPdf ? 'esperando' : undefined}
+            onClick={baixarPdf}
+            disabled={gerandoPdf || travado}
+          >
             {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
           </button>
           <button type="button" className="secundario" onClick={copiar} disabled={travado}>
