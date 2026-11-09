@@ -24,6 +24,12 @@ Cálculo de cumprimento de sentença (art. 524 do CPC). Escopo do MVP em `docs/r
 - **Tribunal de referência:** TJMG. Fazenda Pública e trabalhista estão fora do escopo.
 - O `debeatur-core` não depende de framework; Spring fica só no `debeatur-api`.
 
+## Design system
+
+- A fonte de verdade é `docs/design-system.md` (regras) com `frontend/src/estilo/tokens.css`
+  (valores). Cor nova vira token ali, nunca valor solto no CSS de componente.
+- O artifact do design system no claude.ai é vitrine gerada do repo; não se edita lá.
+
 ## Fluxo de trabalho
 
 - Nada de push direto na `main`: tudo passa por PR com o CI verde.

@@ -1,19 +1,5 @@
+/* Os tokens (--fundo, --texto, …) estão em estilo/tokens.css. */
 :root {
-  --fundo: #f3f5f8;
-  --superficie: #ffffff;
-  --texto: #1a2238;
-  --texto-suave: #535c70;
-  --borda: #d8dee7;
-  --borda-forte: #b3bccb;
-  --destaque: #1a2238;
-  --destaque-texto: #ffffff;
-  --prisao: #b4233c;
-  --penhora: #2f6f7e;
-  --sem-rito: #4c5d80;
-  --erro: #a1260d;
-  --aviso: #7a4b00;
-  --foco: #2f6f7e;
-
   font-family: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
   font-size: 100%;
   line-height: 1.5;
@@ -21,28 +7,6 @@
   background: var(--fundo);
   accent-color: var(--destaque);
   caret-color: var(--texto);
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fundo: #12151c;
-    --superficie: #1a1f29;
-    --texto: #e7eaf0;
-    --texto-suave: #a3abbb;
-    --borda: #2c3341;
-    --borda-forte: #465063;
-    --destaque: #e7eaf0;
-    --destaque-texto: #12151c;
-    --prisao: #f07a8c;
-    --penhora: #6fbac8;
-    --sem-rito: #9fb0d6;
-    --erro: #f08a72;
-    --aviso: #f0c36b;
-    --foco: #6fbac8;
-
-    color-scheme: dark;
-  }
 }
 
 * {
