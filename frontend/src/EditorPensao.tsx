@@ -1,7 +1,8 @@
+import { useEffect, useRef } from 'react'
 import type { InicioJuros, PagamentoRequest } from './api'
 import { CampoDecimal } from './CampoDecimal'
 import { mes } from './formato'
-import type { PensaoEditavel } from './pensao'
+import { erroDoDiaVencimento, type PensaoEditavel } from './pensao'
 
 interface Props {
   pensao: PensaoEditavel
@@ -10,6 +11,11 @@ interface Props {
 
 export function EditorPensao({ pensao, onPensao }: Props) {
   const alterar = (campos: Partial<PensaoEditavel>) => onPensao({ ...pensao, ...campos })
+  // Campo de texto, como os outros números do formulário; a faixa de 1 a 31 vem daqui, e não de min e max.
+  const campoDia = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    campoDia.current?.setCustomValidity(erroDoDiaVencimento(pensao.diaVencimento))
+  }, [pensao.diaVencimento])
   const alterarPagamento = (indice: number, campos: Partial<PagamentoRequest>) =>
     alterar({ pagamentos: pensao.pagamentos.map((p, i) => (i === indice ? { ...p, ...campos } : p)) })
 
@@ -29,9 +35,11 @@ export function EditorPensao({ pensao, onPensao }: Props) {
         <label>
           Dia do vencimento
           <input
-            type="number"
-            min="1"
-            max="31"
+            ref={campoDia}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={2}
             required
             aria-describedby="dica-vencimento"
             value={pensao.diaVencimento}
