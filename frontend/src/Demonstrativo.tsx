@@ -12,6 +12,7 @@ import {
 import { lerColunasOcultas, salvarColunasOcultas, type ColunaOpcional } from './colunas'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
 import { LinhaDoTempo } from './LinhaDoTempo'
+import { useAlturaFixa } from './alturaFixa'
 import { paraCampo } from './numero'
 import { armazenamentoDoNavegador } from './armazenamento'
 import { INDICES, descreverPeriodo, mesAnterior } from './regime'
@@ -88,6 +89,8 @@ const notaDosJuros = (l: LinhaDemonstrativo) =>
 
 export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, aoTentarDeNovo }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
+  const faixa = useRef<HTMLParagraphElement>(null)
+  useAlturaFixa(faixa, '--altura-situacao')
   /**
    * Aviso de PDF ou cópia, preso ao pedido de que fala: o recálculo automático troca os números sem
    * remontar, e "PDF baixado" não pode ficar ao lado de números que não estão nele.
@@ -356,7 +359,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
       aria-labelledby="titulo-demonstrativo"
     >
       {/* Sem aria-busy na seção: dentro de uma região ocupada, o leitor de tela cala esta faixa. */}
-      <p className="situacao" role="status">
+      <p ref={faixa} className="situacao" role="status">
         {situacao === 'atualizando' && 'Atualizando o demonstrativo…'}
         {situacao === 'desatualizado' && (
           <>

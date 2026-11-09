@@ -1,3 +1,11 @@
+/*
+ * A faixa de situação fica parada no topo da página enquanto ela rola; o scroll-padding reserva a
+ * altura dela (medida em useAlturaFixa) para o foco nunca parar por baixo da faixa.
+ */
+html {
+  scroll-padding-top: var(--altura-situacao, 0px);
+}
+
 main {
   max-width: 1180px;
   margin: 0 auto;
@@ -869,6 +877,8 @@ tfoot .total td {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
+    /* O pé com o Calcular fica parado embaixo; o campo que recebe o foco para acima dele. */
+    scroll-padding-bottom: var(--altura-pe, 0px);
     /* Folga para o contorno de foco dos campos não ser cortado pela rolagem. */
     margin-left: -4px;
     padding: 0 12px 0 4px;

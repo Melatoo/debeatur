@@ -7,6 +7,7 @@ import {
   type ParcelaRequest,
   type ProcessoRequest,
 } from './api'
+import { useAlturaFixa } from './alturaFixa'
 import { Demonstrativo } from './Demonstrativo'
 import { dataHora, mes } from './formato'
 import { EditorPensao } from './EditorPensao'
@@ -126,6 +127,8 @@ function App() {
   /** Chave do formulário que, depois do primeiro cálculo, ficou com campo inválido e não pôde ser recalculado. */
   const [invalidoEm, setInvalidoEm] = useState<string | null>(null)
   const formulario = useRef<HTMLFormElement>(null)
+  const pe = useRef<HTMLDivElement>(null)
+  useAlturaFixa(pe, '--altura-pe', formulario)
   /** O cálculo que está no servidor; um mais novo cancela o anterior, que chegaria fora de ordem. */
   const emCurso = useRef<AbortController | null>(null)
   const espera = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -563,7 +566,7 @@ function App() {
             )}
           </section>
 
-          <div className="enviar">
+          <div ref={pe} className="enviar">
             <div className="botoes">
               {/* Depois do primeiro cálculo, o andamento aparece no demonstrativo, e o botão não pisca a cada edição. */}
               <button type="submit" className="esperando" disabled={carregando && !calculo}>
