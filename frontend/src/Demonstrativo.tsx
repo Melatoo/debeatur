@@ -255,7 +255,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
    */
   async function baixarPdf() {
     setGerandoPdf(true)
-    avisar('Gerando o PDF…')
+    avisar('Gerando PDF…')
     try {
       const { conteudo, nome } = await gerarPdf({ ...pedido, processo })
       if (pedidoNaTela.current !== pedido) {
