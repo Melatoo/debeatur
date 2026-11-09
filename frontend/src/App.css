@@ -746,6 +746,14 @@ table {
   background: var(--superficie);
 }
 
+caption {
+  caption-side: top;
+  padding: 0 0 4px;
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+}
+
 th,
 td {
   padding: 7px 10px;
