@@ -976,18 +976,8 @@ tfoot .total td {
 /* ---------- Impressão ---------- */
 
 @media print {
+  /* As cores do tema impressao estão em estilo/tokens.css. */
   :root {
-    --fundo: #ffffff;
-    --superficie: #ffffff;
-    --texto: #000000;
-    --texto-suave: #444b59;
-    --borda: #c9ced8;
-    --borda-forte: #8f98a8;
-    --prisao: #b4233c;
-    --penhora: #2f6f7e;
-    --sem-rito: #4c5d80;
-
-    color-scheme: light;
     font-size: 10pt;
   }
 
