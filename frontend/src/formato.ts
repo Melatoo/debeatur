@@ -14,6 +14,17 @@ export const fator = (valor: number) => seteCasas.format(valor)
 /** Data AAAA-MM-DD em dd/mm/aaaa. */
 export const data = (iso: string | null) => (iso ? iso.split('-').reverse().join('/') : '—')
 
+const dataHoraBr = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+/** Data e hora locais em dd/mm/aaaa, hh:mm. */
+export const dataHora = (d: Date) => dataHoraBr.format(d)
+
 /** Mês AAAA-MM em mm/aaaa. */
 export const mes = (iso: string) => iso.split('-').reverse().join('/')
 
