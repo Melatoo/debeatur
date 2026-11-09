@@ -172,3 +172,11 @@ que atualiza este documento junto.
 - **Ritos por luminosidade e `borda-forte` com 3:1:** os valores atuais ainda não foram
   conferidos contra essas metas.
 - **PDF do `debeatur-api`:** usa Helvetica e uma paleta própria, em vez dos tokens e da Atkinson.
+- **Dia do vencimento:** o campo do `EditorPensao` é `type="number"`, e não de texto.
+- **Mensagem de status das ações do resultado:** o `.status` está em `penhora`, e não em
+  `texto-suave`. Cor de rito usada como cor de texto.
+- **`<caption>` nas tabelas:** a memória de cálculo não tem `<caption>` com o rito e a unidade
+  ("Valores em R$"); o nome vem só do título ligado à `.rolagem` por `aria-labelledby`.
+- **Data e hora do cálculo:** o `App.tsx` formata com `toLocaleString` direto, fora do
+  `formato.ts`.
+- **Rótulo durante a geração do PDF:** o aviso diz "Gerando o PDF…", e não "Gerando PDF…".
