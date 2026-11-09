@@ -45,7 +45,10 @@
   }
 }
 
-/* Tema impressao: só redefine fundos, texto, bordas e as cores dos ritos. */
+/*
+ * Tema impressao: redefine todas as cores, e não só as do papel. Um token que ficasse de fora
+ * herdaria o valor escuro quando o sistema está em modo escuro, e sairia claro sobre papel branco.
+ */
 @media print {
   :root {
     --fundo: #ffffff;
@@ -54,9 +57,14 @@
     --texto-suave: #444b59;
     --borda: #c9ced8;
     --borda-forte: #8f98a8;
+    --destaque: #000000;
+    --destaque-texto: #ffffff;
     --prisao: #b4233c;
     --penhora: #2f6f7e;
     --sem-rito: #4c5d80;
+    --erro: #a1260d;
+    --aviso: #7a4b00;
+    --foco: #2f6f7e;
 
     color-scheme: light;
   }

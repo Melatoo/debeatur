@@ -76,7 +76,7 @@ Siga `frontend/src/formato.ts`; é a única fonte desses formatos.
 - `erro` é para falha do cálculo e campo inválido; `aviso` para dado que pede atenção e para o demonstrativo desatualizado, com `aviso-fundo` na faixa.
 - `foco` (azul) desenha o contorno de 2px de qualquer controle. É a única cor que não é de rito nem de estado, para o foco não ser lido como penhora; tem 5:1 ou mais sobre `fundo`, `superficie` e `aviso-fundo` nos dois temas.
 - `borda-forte` contorna campos e botões secundários com 3:1 ou mais sobre todo fundo em que eles aparecem. `borda` é decorativa e não delimita controle.
-- Cada cor tem valor para o tema claro e o escuro, que segue `prefers-color-scheme`. O tema `impressao` só redefine fundos, texto e bordas.
+- Cada cor tem valor para o tema claro e o escuro, que segue `prefers-color-scheme`. O tema `impressao` redefine todas as cores, com fundo branco, texto preto e os valores do tema claro nas demais; um token que ficasse de fora levaria o valor escuro para o papel quando o sistema está em modo escuro.
 
 ## Tipografia
 
@@ -156,6 +156,19 @@ que atualiza este documento junto.
   valores aparecem literais no `App.css`.
 - **Componentes que ainda não existem:** `MensagemErro`, `CabecalhoProcesso`, `Parametros` (como
   componente), `TotalRito`, `TabelaMemoria`, `Procedencia` e `Situacao`.
+- **Resumo de erros:** não existe. Com vários campos inválidos depois de Calcular, nada recebe o
+  foco nem lista os erros.
+- **Impressão:** a tabela sai em 8pt, e não 9pt, e sempre em A4 retrato, sem `@page` paisagem
+  para a memória com mais de sete colunas. Não há rodapé com o número do processo e "Página X
+  de Y", nem cabeçalho com a data e a hora do cálculo. A marca `.marca-pagina` não existe: um
+  demonstrativo desatualizado leva o aviso (a faixa `.situacao`) só na primeira página.
+- **`scroll-padding`:** não existe. A faixa de situação e o pé do formulário, fixos na rolagem,
+  podem cobrir o campo que recebe o foco.
+- **Cursor do desabilitado:** todo `button:disabled` mostra `cursor: progress`, inclusive os que
+  não esperam resposta, como Limpar. Só os botões de resultado do demonstrativo que não está atual
+  já mostram `not-allowed`.
+- **Tamanho mínimo na tela:** o eixo da linha do tempo cai para `0.7rem` (11,2px) na coluna de
+  resultado estreita, abaixo dos 12px de `nota`.
 - **Ritos por luminosidade e `borda-forte` com 3:1:** os valores atuais ainda não foram
   conferidos contra essas metas.
 - **PDF do `debeatur-api`:** usa Helvetica e uma paleta própria, em vez dos tokens e da Atkinson.
