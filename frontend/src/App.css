@@ -959,10 +959,6 @@ tfoot .total td {
     height: 170px;
   }
 
-  .eixo {
-    font-size: 0.7rem;
-  }
-
   .eixo .menor {
     visibility: hidden;
   }
