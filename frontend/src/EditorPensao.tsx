@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { InicioJuros, PagamentoRequest } from './api'
 import { CampoDecimal } from './CampoDecimal'
-import { mes } from './formato'
+import { contar, mes } from './formato'
+import { lerPagamentosColados } from './pagamentosColados'
 import { erroDoDiaVencimento, type PensaoEditavel } from './pensao'
 
 interface Props {
@@ -133,6 +134,81 @@ export function EditorPensao({ pensao, onPensao }: Props) {
         O valor pago é abatido da parcela do mesmo mês antes da correção. Um pagamento maior que a parcela não é
         compensado com as outras.
       </p>
+      <ColarPagamentos pensao={pensao} onPagamentos={(pagamentos) => alterar({ pagamentos })} />
     </div>
+  )
+}
+
+interface PropsColar {
+  pensao: PensaoEditavel
+  onPagamentos: (pagamentos: PagamentoRequest[]) => void
+}
+
+/** Pagamentos colados de uma planilha, com o mês e o valor de cada um numa linha. */
+function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
+  const [texto, setTexto] = useState('')
+  const [erros, setErros] = useState<string[]>([])
+  const [incluidos, setIncluidos] = useState(0)
+  const id = useId()
+
+  function incluir() {
+    // Uma linha em branco do "Adicionar pagamento" dá lugar aos colados, em vez de travar o envio.
+    const preenchidos = pensao.pagamentos.filter((p) => p.mes || p.valor.trim())
+    const colagem = lerPagamentosColados(texto, {
+      primeiroMes: pensao.primeiroMes,
+      ultimoMes: pensao.ultimoMes,
+      jaInformados: preenchidos.map((p) => p.mes),
+    })
+    if (!colagem.ok) {
+      setErros(colagem.erros)
+      setIncluidos(0)
+      return
+    }
+    onPagamentos([...preenchidos, ...colagem.pagamentos])
+    setTexto('')
+    setErros([])
+    setIncluidos(colagem.pagamentos.length)
+  }
+
+  return (
+    <details className="colar-pagamentos">
+      <summary>Colar de uma planilha</summary>
+      <label>
+        Mês e valor pago, um pagamento por linha
+        <textarea
+          rows={5}
+          spellCheck={false}
+          autoComplete="off"
+          placeholder={'04/2024\t350,00\n05/2024\t200,00'}
+          aria-describedby={`${id}-dica`}
+          aria-invalid={erros.length > 0 || undefined}
+          aria-errormessage={erros.length > 0 ? `${id}-erros` : undefined}
+          value={texto}
+          onChange={(e) => {
+            setTexto(e.target.value)
+            setIncluidos(0)
+          }}
+        />
+      </label>
+      <p className="dica" id={`${id}-dica`}>
+        Selecione na planilha as duas colunas, o mês (04/2024 ou abr/24) e o valor, e cole aqui. Um cabeçalho na
+        primeira linha é ignorado. Se uma linha não for lida, nenhum pagamento entra.
+      </p>
+      {erros.length > 0 && (
+        <ul className="erros-colagem" id={`${id}-erros`} role="alert">
+          {erros.map((erro) => (
+            <li key={erro}>{erro}</li>
+          ))}
+        </ul>
+      )}
+      <div className="acoes-colagem">
+        <button type="button" className="secundario" disabled={!texto.trim()} onClick={incluir}>
+          Incluir pagamentos
+        </button>
+        <p className="dica" role="status">
+          {incluidos > 0 && `${contar(incluidos, 'pagamento incluído', 'pagamentos incluídos')} acima.`}
+        </p>
+      </div>
+    </details>
   )
 }
