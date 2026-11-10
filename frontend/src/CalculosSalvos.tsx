@@ -57,8 +57,11 @@ const ROTULOS: Record<AcaoSalvo, { botao: string; andamento: string }> = {
 interface PropsLista {
   aberta: boolean
   aoFechar: () => void
-  /** Traz o cálculo para o formulário; uma falha fica escrita na janela, que segue aberta. */
-  aoEscolher: (acao: AcaoSalvo, resumo: ResumoCalculo) => Promise<void>
+  /**
+   * Traz o cálculo para o formulário; uma falha fica escrita na janela, que segue aberta. O sinal é
+   * abortado se a janela fechar antes da resposta, e aí o formulário não muda.
+   */
+  aoEscolher: (acao: AcaoSalvo, resumo: ResumoCalculo, sinal: AbortSignal) => Promise<void>
 }
 
 /** A lista dos cálculos salvos, buscada de novo a cada vez que a janela abre. */
@@ -75,6 +78,14 @@ function ConteudoLista({ aoEscolher }: Pick<PropsLista, 'aoEscolher'>) {
   const [lista, setLista] = useState<ResumoCalculo[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [emCurso, setEmCurso] = useState<{ id: string; acao: AcaoSalvo } | null>(null)
+  /** Abortado quando a janela fecha (Esc, Fechar): uma abertura ainda no servidor não troca mais o caso. */
+  const sinal = useRef<AbortSignal | null>(null)
+
+  useEffect(() => {
+    const controle = new AbortController()
+    sinal.current = controle.signal
+    return () => controle.abort()
+  }, [])
 
   useEffect(() => {
     let vale = true
@@ -88,11 +99,14 @@ function ConteudoLista({ aoEscolher }: Pick<PropsLista, 'aoEscolher'>) {
   }, [])
 
   async function escolher(acao: AcaoSalvo, resumo: ResumoCalculo) {
+    const s = sinal.current
+    if (!s) return
     setErro(null)
     setEmCurso({ id: resumo.id, acao })
     try {
-      await aoEscolher(acao, resumo)
+      await aoEscolher(acao, resumo, s)
     } catch (e) {
+      if (s.aborted) return
       setErro(`Não foi possível ${ROTULOS[acao].botao.toLowerCase()} “${resumo.titulo}”. ${mensagem(e)}`)
     } finally {
       setEmCurso(null)

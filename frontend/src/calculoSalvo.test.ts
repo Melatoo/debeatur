@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CalculoRequest, Regime } from './api'
 import { paraPedido } from './caso'
-import { novaDataBase, paraRascunho, tituloPadrao } from './calculoSalvo'
+import { novaDataBase, paraRascunho, regimeSalvo, tituloPadrao } from './calculoSalvo'
 import { chaveDoPedido } from './recalculo'
 
 const padrao: Regime = {
@@ -126,6 +126,26 @@ describe('paraRascunho', () => {
     expect(chaveDoPedido(paraPedido(paraRascunho(embaralhado, padrao)))).toBe(
       chaveDoPedido(paraPedido(paraRascunho(salvo, padrao))),
     )
+  })
+})
+
+describe('regimeSalvo', () => {
+  it('reconhece o padrão de hoje, salvo por extenso', () => {
+    expect(regimeSalvo(salvo, padrao)).toBe('padrao')
+  })
+
+  it('diz quando o padrão mudou desde o salvamento', () => {
+    const novoPadrao: Regime = { ...padrao, regras: [...padrao.regras, { ...padrao.regras[1], inicio: '2026-01' }] }
+    expect(regimeSalvo(salvo, novoPadrao)).toBe('padrao-anterior')
+  })
+
+  it('sem o padrão de hoje, não dá para saber', () => {
+    expect(regimeSalvo(salvo, null)).toBe('desconhecido')
+  })
+
+  it('critérios fixados no título não são o padrão', () => {
+    const proprio = { ...salvo, regime: { nome: 'Critérios fixados no título', regras: [padrao.regras[1]] } }
+    expect(regimeSalvo(proprio, padrao)).toBe('proprio')
   })
 })
 

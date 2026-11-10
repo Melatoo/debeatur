@@ -18,7 +18,7 @@ import { EditorPensao } from './EditorPensao'
 import { CampoDecimal } from './CampoDecimal'
 import { armazenamentoDoNavegador } from './armazenamento'
 import { estaVazia, fimDoMesAnterior, paraPedido, paraProcesso, parcelaVazia, rascunhoVazio } from './caso'
-import { novaDataBase, paraRascunho, tituloPadrao } from './calculoSalvo'
+import { novaDataBase, paraRascunho, regimeSalvo, tituloPadrao, type RegimeSalvo } from './calculoSalvo'
 import { ListaCalculosSalvos, SalvarCalculo, type AcaoSalvo } from './CalculosSalvos'
 import {
   ESPERA_RASCUNHO_MS,
@@ -58,6 +58,8 @@ interface Origem {
   modo: AcaoSalvo | 'salvo'
   titulo: string
   criadoEm: Date
+  /** O regime salvo diante do padrão de hoje: um padrão antigo pede aviso quando os índices são os de hoje. */
+  regime: RegimeSalvo
 }
 
 /** O caso que o "Limpar" ou a abertura de um cálculo salvo tirou da tela, para o "Desfazer" devolver. */
@@ -104,6 +106,11 @@ function App() {
   const [restauradoDe, setRestauradoDe] = useState(inicio.salvoEm)
   const [troca, setTroca] = useState<Troca | null>(null)
   const [calculo, setCalculo] = useState<Calculo | null>(null)
+  /** O `calculo` de agora, para quem o lê depois de esperar o servidor: um recálculo pode ter chegado no meio. */
+  const calculoVigente = useRef(calculo)
+  useEffect(() => {
+    calculoVigente.current = calculo
+  }, [calculo])
   const [origem, setOrigem] = useState<Origem | null>(null)
   const [listaAberta, setListaAberta] = useState(false)
   const [salvarAberta, setSalvarAberta] = useState(false)
@@ -364,10 +371,14 @@ function App() {
    * Abrir mostra o demonstrativo do snapshot; atualizar também, mas com a data-base avançada, e o
    * recálculo automático refaz o demonstrativo com as séries de hoje; duplicar traz só o formulário.
    *
+   * @param sinal abortado quando a janela fecha antes da resposta: quem desistiu não perde o caso da tela
    * @throws Error se o cálculo não pôde ser buscado; a janela mostra a mensagem
    */
-  async function escolherSalvo(acao: AcaoSalvo, resumo: ResumoCalculo) {
-    const [salvo, padrao] = await Promise.all([reabrirCalculo(resumo.id), buscarPadrao()])
+  async function escolherSalvo(acao: AcaoSalvo, resumo: ResumoCalculo, sinal: AbortSignal) {
+    const [salvo, padrao] = await Promise.all([reabrirCalculo(resumo.id, sinal), buscarPadrao()])
+    if (sinal.aborted) return
+    // O formulário não muda com a janela aberta, mas o demonstrativo pode: um recálculo chega durante a espera.
+    const calculo = calculoVigente.current
     const aberto = paraRascunho(salvo.calculo, padrao)
     let novoCalculo: Calculo | null = null
     if (acao !== 'duplicar') {
@@ -382,11 +393,18 @@ function App() {
       }
     }
     const depois = acao === 'atualizar' ? { ...aberto, dataBase: novaDataBase(aberto.dataBase) ?? aberto.dataBase } : aberto
-    if (!emBranco || calculo) setTroca({ motivo: 'abrir', rascunho, calculo, origem, depois })
-    else setTroca(null)
+    // Logo depois de um "Limpar", o caso a devolver é o que ele tirou da tela, e não o formulário em branco.
+    const anterior =
+      podeDesfazer && troca.motivo === 'limpar' ? troca : !emBranco || calculo ? { rascunho, calculo, origem } : null
+    setTroca(anterior && { motivo: 'abrir', rascunho: anterior.rascunho, calculo: anterior.calculo, origem: anterior.origem, depois })
     setRestauradoDe(null)
     trocarCaso(depois, novoCalculo)
-    setOrigem({ modo: acao, titulo: salvo.titulo, criadoEm: new Date(salvo.criadoEm) })
+    setOrigem({
+      modo: acao,
+      titulo: salvo.titulo,
+      criadoEm: new Date(salvo.criadoEm),
+      regime: regimeSalvo(salvo.calculo, padrao),
+    })
     setListaAberta(false)
   }
 
@@ -403,7 +421,8 @@ function App() {
     const deste = { id: salvo.id, processo: textoDoProcesso(processo) }
     // Se o demonstrativo mudou durante o salvamento, o salvo é o anterior, e o da tela não é ele.
     setCalculo((atual) => (atual === enviado ? { ...atual, resultado: salvo.demonstrativo, salvo: deste } : atual))
-    setOrigem({ modo: 'salvo', titulo: salvo.titulo, criadoEm: new Date(salvo.criadoEm) })
+    // Um regime antigo que veio de outro salvo continua antigo neste: o aviso segue com ele.
+    setOrigem({ modo: 'salvo', titulo: salvo.titulo, criadoEm: new Date(salvo.criadoEm), regime: origem?.regime ?? 'padrao' })
     setRestauradoDe(null)
     setSalvarAberta(false)
   }
@@ -419,6 +438,19 @@ function App() {
     if (o.modo === 'atualizar') return `Atualização do cálculo salvo ${nome}, com os índices de hoje. Salve para guardá-la.`
     return `Alterado a partir do cálculo salvo ${nome}: os números usam os índices de hoje. Salve para guardar esta versão.`
   }
+
+  /**
+   * Com os índices de hoje, as regras de um regime padrão antigo deixam de fora o que mudou depois
+   * do salvamento. O formulário as mantém (é o regime do cálculo que foi aos autos), mas avisa.
+   */
+  const avisoDoRegime =
+    origem && regimeProprio && !idSalvo
+      ? origem.regime === 'padrao-anterior'
+        ? 'O regime padrão do TJMG mudou desde que este cálculo foi salvo, e o formulário segue as regras daquela época como critérios do título. Confira o regime antes de levar estes números aos autos.'
+        : origem.regime === 'desconhecido'
+          ? 'Não foi possível buscar o regime padrão de hoje, e o formulário segue as regras salvas como critérios do título. Confira o regime antes de levar estes números aos autos.'
+          : null
+      : null
 
   const situacao = !desatualizado
     ? carregando
@@ -637,6 +669,9 @@ function App() {
               </button>
             </div>
             {calculo && <p className="dica">O demonstrativo se atualiza sozinho a cada alteração.</p>}
+            <p className="aviso" role="status">
+              {avisoDoRegime}
+            </p>
             <p className="dica rascunho" role="status">
               {podeDesfazer && troca.motivo === 'limpar' ? (
                 <>
@@ -657,7 +692,8 @@ function App() {
                       </>
                     )}
                     {restauradoDe && `Caso restaurado do rascunho de ${dataHora(restauradoDe)}. `}
-                    O formulário fica guardado neste navegador; em computador compartilhado, use Limpar ao terminar.
+                    O formulário fica guardado neste navegador; em computador compartilhado, use Limpar ao terminar. O
+                    Limpar não apaga os cálculos salvos, que ficam no servidor.
                   </>
                 )
               )}

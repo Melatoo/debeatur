@@ -218,8 +218,8 @@ export async function listarCalculos(): Promise<ResumoCalculo[]> {
   return lerResposta(await fetch('/api/calculos/salvos'), 'carregar os cálculos salvos')
 }
 
-export async function reabrirCalculo(id: string): Promise<CalculoSalvo> {
-  return lerResposta(await fetch(`/api/calculos/salvos/${encodeURIComponent(id)}`), 'abrir o cálculo')
+export async function reabrirCalculo(id: string, sinal?: AbortSignal): Promise<CalculoSalvo> {
+  return lerResposta(await fetch(`/api/calculos/salvos/${encodeURIComponent(id)}`, { signal: sinal }), 'abrir o cálculo')
 }
 
 /** O PDF do cálculo salvo, com o snapshot das séries: os mesmos números da tela ao abri-lo. */

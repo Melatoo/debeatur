@@ -25,7 +25,7 @@ main {
 
 .topo button {
   flex: none;
-  padding: 5px 14px;
+  padding: 4px 12px;
   font-size: 0.9rem;
 }
 
@@ -266,7 +266,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Só o botão que espera uma resposta do servidor (Calcular, Baixar PDF) mostra o andamento. */
+/* Só o botão que espera uma resposta do servidor (Calcular, Baixar PDF, Salvar e as ações de um cálculo salvo) mostra o andamento. */
 button:disabled.esperando {
   cursor: progress;
 }
@@ -295,6 +295,10 @@ button:disabled.esperando {
 
 .enviar .rascunho:empty {
   margin: 0;
+}
+
+.enviar .aviso:not(:empty) {
+  margin-top: 12px;
 }
 
 .rascunho button {
@@ -931,7 +935,7 @@ tfoot .total td {
 .janela {
   width: min(960px, calc(100% - 32px));
   max-height: calc(100dvh - 64px);
-  padding: 20px 24px 24px;
+  padding: 24px;
   border: 1px solid var(--borda-forte);
   border-radius: 8px;
   background: var(--superficie);
@@ -939,7 +943,7 @@ tfoot .total td {
 }
 
 .janela::backdrop {
-  background: color-mix(in srgb, var(--texto) 40%, transparent);
+  background: var(--veu);
 }
 
 .janela:has(.formulario-salvar) {
@@ -987,7 +991,7 @@ tfoot .total td {
 .acoes-salvo {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
 }
 
 .acoes-salvo button {

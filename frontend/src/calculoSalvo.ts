@@ -35,13 +35,31 @@ function paraPensaoEditavel(p: NonNullable<CalculoRequest['pensao']>): PensaoEdi
 }
 
 /**
+ * O regime de um cálculo salvo comparado com o padrão de hoje. O servidor salva o regime resolvido,
+ * então o padrão volta por extenso, e só o nome diz que ele foi o escolhido:
+ * - `padrao`: as regras ainda são as do padrão de hoje;
+ * - `padrao-anterior`: foi o padrão, mas o padrão mudou desde o salvamento;
+ * - `desconhecido`: não deu para buscar o padrão de hoje e comparar;
+ * - `proprio`: critérios fixados no título.
+ *
+ * @param padrao o regime de `GET /api/regimes/padrao`, ou nulo se não deu para buscá-lo
+ */
+export type RegimeSalvo = 'padrao' | 'padrao-anterior' | 'desconhecido' | 'proprio'
+
+export function regimeSalvo(pedido: CalculoRequest, padrao: Regime | null): RegimeSalvo {
+  if (!pedido.regime) return 'padrao'
+  if (padrao === null) return 'desconhecido'
+  if (pedido.regime.nome !== padrao.nome) return 'proprio'
+  return iguais(paraEditavel(pedido.regime.regras), paraEditavel(padrao.regras)) ? 'padrao' : 'padrao-anterior'
+}
+
+/**
  * O pedido de um cálculo salvo como formulário, para abrir, duplicar ou atualizar.
  *
- * O servidor salva o regime resolvido: um cálculo feito com o regime padrão volta com as regras
- * por extenso. Se elas ainda forem as do padrão de hoje, o formulário volta a "Regime padrão do
- * TJMG", como foi preenchido. Se o padrão mudou desde então, ou não se sabe qual é (`padrao`
- * nulo), as regras salvas entram como critérios do título: reabrir não pode mudar o regime de
- * um cálculo que já foi para os autos.
+ * Se o regime salvo ainda for o padrão de hoje, o formulário volta a "Regime padrão do TJMG", como
+ * foi preenchido. Se o padrão mudou desde então, ou não se sabe qual é (`padrao` nulo), as regras
+ * salvas entram como critérios do título: reabrir não pode mudar o regime de um cálculo que já foi
+ * para os autos. Ver `regimeSalvo`.
  *
  * @param padrao o regime de `GET /api/regimes/padrao`, ou nulo se não deu para buscá-lo
  */
@@ -56,9 +74,7 @@ export function paraRascunho(pedido: CalculoRequest, padrao: Regime | null): Ras
     inicioJuros: p.inicioJuros ?? '',
   }))
   const regras = pedido.regime ? paraEditavel(pedido.regime.regras) : []
-  const ehPadrao =
-    !pedido.regime ||
-    (padrao !== null && pedido.regime.nome === padrao.nome && iguais(regras, paraEditavel(padrao.regras)))
+  const ehPadrao = regimeSalvo(pedido, padrao) === 'padrao'
   const nome = pedido.regime?.nome ?? ''
   return {
     processo: {
