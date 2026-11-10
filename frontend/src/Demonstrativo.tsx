@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   gerarPdf,
+  gerarPdfSalvo,
   type CalculoRequest,
   type Demonstrativo as Resultado,
   type LinhaDemonstrativo,
@@ -32,6 +33,13 @@ interface Props {
   motivo: string | null
   /** Refaz o cálculo que falhou; sem ele, a faixa não oferece nova tentativa. */
   aoTentarDeNovo?: () => void
+  /**
+   * Id do cálculo salvo que está na tela, sem nenhuma alteração desde que foi aberto ou salvo. O PDF
+   * sai dele, com o snapshot das séries, e não de um cálculo refeito com as séries de hoje.
+   */
+  idSalvo?: string
+  /** Abre a janela de salvar; sem ele, o botão nem aparece. */
+  aoSalvar?: () => void
 }
 
 export type Situacao = 'atual' | 'atualizando' | 'desatualizado'
@@ -87,7 +95,7 @@ function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase
 const notaDosJuros = (l: LinhaDemonstrativo) =>
   l.inicioJuros == null ? 'sem juros' : l.inicioJuros !== l.inicioCorrecao ? `juros desde ${data(l.inicioJuros)}` : null
 
-export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, aoTentarDeNovo }: Props) {
+export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, aoTentarDeNovo, idSalvo, aoSalvar }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
   const faixa = useRef<HTMLParagraphElement>(null)
   useAlturaFixa(faixa, '--altura-situacao')
@@ -254,13 +262,13 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
   /**
    * Refaz o cálculo do pedido no servidor, que monta o PDF com os mesmos critérios e índices da
    * tela, com as séries do cache (salvo revisão de alguma série no SGS entre um e outro). O PDF de
-   * um cálculo salvo, com o snapshot, vem de `GET /api/calculos/salvos/{id}/pdf`.
+   * um cálculo salvo e intacto vem do snapshot, como os números que ele mostra.
    */
   async function baixarPdf() {
     setGerandoPdf(true)
     avisar('Gerando PDF…')
     try {
-      const { conteudo, nome } = await gerarPdf({ ...pedido, processo })
+      const { conteudo, nome } = await (idSalvo ? gerarPdfSalvo(idSalvo) : gerarPdf({ ...pedido, processo }))
       if (pedidoNaTela.current !== pedido) {
         setAviso({ de: pedidoNaTela.current, texto: 'O demonstrativo mudou enquanto o PDF era gerado. Baixe de novo.' })
         return
@@ -388,6 +396,12 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           >
             {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
           </button>
+          {aoSalvar && (
+            // Salvo e intacto, salvar de novo só faria uma cópia, com os índices de hoje no lugar dos dele.
+            <button type="button" className="secundario" onClick={aoSalvar} disabled={travado || idSalvo !== undefined}>
+              {idSalvo ? 'Salvo' : 'Salvar'}
+            </button>
+          )}
           <button type="button" className="secundario" onClick={copiar} disabled={travado}>
             Copiar tabela
           </button>
