@@ -15,7 +15,18 @@ main {
 /* ---------- Topo ---------- */
 
 .topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
   margin-bottom: 8px;
+}
+
+.topo button {
+  flex: none;
+  padding: 4px 12px;
+  font-size: 0.9rem;
 }
 
 .topo h1 {
@@ -255,7 +266,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Só o botão que espera uma resposta do servidor (Calcular, Baixar PDF) mostra o andamento. */
+/* Só o botão que espera uma resposta do servidor (Calcular, Baixar PDF, Salvar e as ações de um cálculo salvo) mostra o andamento. */
 button:disabled.esperando {
   cursor: progress;
 }
@@ -284,6 +295,10 @@ button:disabled.esperando {
 
 .enviar .rascunho:empty {
   margin: 0;
+}
+
+.enviar .aviso:not(:empty) {
+  margin-top: 12px;
 }
 
 .rascunho button {
@@ -915,6 +930,89 @@ tfoot .total td {
   }
 }
 
+/* ---------- Janelas: cálculos salvos e salvar ---------- */
+
+.janela {
+  width: min(960px, calc(100% - 32px));
+  max-height: calc(100dvh - 64px);
+  padding: 24px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 8px;
+  background: var(--superficie);
+  color: var(--texto);
+}
+
+.janela::backdrop {
+  background: var(--veu);
+}
+
+.janela:has(.formulario-salvar) {
+  width: min(560px, calc(100% - 32px));
+}
+
+.cabecalho-janela {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cabecalho-janela h2 {
+  margin: 0;
+}
+
+.janela .erro {
+  margin: 12px 0;
+}
+
+.lista-vazia {
+  padding: 32px 16px;
+  border: 1px dashed var(--borda-forte);
+  border-radius: 8px;
+  color: var(--texto-suave);
+  text-align: center;
+}
+
+/* Título, data-base, total, salvo em e ações. */
+.tabela-salvos {
+  min-width: 720px;
+  table-layout: auto;
+}
+
+.tabela-salvos th,
+.tabela-salvos td {
+  vertical-align: top;
+}
+
+.tabela-salvos thead th:first-child {
+  width: auto;
+}
+
+.acoes-salvo {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.acoes-salvo button {
+  padding: 3px 12px;
+  font-size: 0.875rem;
+}
+
+/* Desfaz o que vale para o formulário do cálculo, inclusive a coluna com rolagem própria. */
+.janela .formulario-salvar {
+  max-width: none;
+  margin: 16px 0 0;
+  padding: 0;
+  overflow: visible;
+  container: none;
+}
+
+.formulario-salvar .botoes {
+  display: flex;
+  gap: 8px;
+}
+
 /* ---------- Colunas estreitas ---------- */
 
 @container formulario (max-width: 720px) {
@@ -1017,6 +1115,8 @@ tfoot .total td {
   .seletor-colunas,
   .erro,
   .topo p,
+  .topo button,
+  .janela,
   .acoes-resultado,
   .status {
     display: none;

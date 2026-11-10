@@ -177,6 +177,61 @@ export async function gerarPdf(request: CalculoRequest): Promise<Anexo> {
   return { conteudo: await resposta.blob(), nome }
 }
 
+/** Linha da lista de cálculos salvos. */
+export interface ResumoCalculo {
+  id: string
+  titulo: string
+  dataBase: string
+  /** Nome do regime usado. */
+  regime: string
+  total: number
+  /** Instante ISO 8601. */
+  criadoEm: string
+}
+
+/**
+ * Cálculo salvo, como volta do servidor. O `calculo` é o pedido como foi salvo, com o regime
+ * resolvido (o padrão vem por extenso), e os decimais dele chegam como números JSON, e não como
+ * texto; `paraRascunho` os devolve ao formulário. O `demonstrativo` é refeito com o snapshot das
+ * séries: sai igual ao do dia em que foi salvo.
+ */
+export interface CalculoSalvo {
+  id: string
+  titulo: string
+  criadoEm: string
+  calculo: CalculoRequest
+  demonstrativo: Demonstrativo
+}
+
+/** Calcula com as séries de hoje e salva o pedido com o snapshot delas. Sem título, o servidor dá um. */
+export async function salvarCalculo(titulo: string, calculo: CalculoRequest): Promise<CalculoSalvo> {
+  const resposta = await fetch('/api/calculos/salvos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ titulo: titulo.trim() || null, calculo }),
+  })
+  return lerResposta(resposta, 'salvar o cálculo')
+}
+
+/** Os cálculos salvos, do mais recente para o mais antigo. */
+export async function listarCalculos(): Promise<ResumoCalculo[]> {
+  return lerResposta(await fetch('/api/calculos/salvos'), 'carregar os cálculos salvos')
+}
+
+export async function reabrirCalculo(id: string, sinal?: AbortSignal): Promise<CalculoSalvo> {
+  return lerResposta(await fetch(`/api/calculos/salvos/${encodeURIComponent(id)}`, { signal: sinal }), 'abrir o cálculo')
+}
+
+/** O PDF do cálculo salvo, com o snapshot das séries: os mesmos números da tela ao abri-lo. */
+export async function gerarPdfSalvo(id: string): Promise<Anexo> {
+  const resposta = await fetch(`/api/calculos/salvos/${encodeURIComponent(id)}/pdf`, {
+    headers: { Accept: 'application/pdf, application/problem+json' },
+  })
+  if (!resposta.ok) await lerResposta(resposta, 'gerar o PDF')
+  const nome = nomeDoAnexo(resposta.headers.get('Content-Disposition'), `demonstrativo-${id}.pdf`)
+  return { conteudo: await resposta.blob(), nome }
+}
+
 export async function buscarRegimePadrao(): Promise<Regime> {
   return lerResposta(await fetch('/api/regimes/padrao'), 'carregar o regime padrão')
 }

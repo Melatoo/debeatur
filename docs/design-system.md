@@ -76,7 +76,8 @@ Siga `frontend/src/formato.ts`; é a única fonte desses formatos.
 - `erro` é para falha do cálculo e campo inválido; `aviso` para dado que pede atenção e para o demonstrativo desatualizado, com `aviso-fundo` na faixa.
 - `foco` (azul) desenha o contorno de 2px de qualquer controle. É a única cor que não é de rito nem de estado, para o foco não ser lido como penhora; tem 5:1 ou mais sobre `fundo`, `superficie` e `aviso-fundo` nos dois temas.
 - `borda-forte` contorna campos e botões secundários com 3:1 ou mais sobre todo fundo em que eles aparecem. `borda` é decorativa e não delimita controle.
-- Cada cor tem valor para o tema claro e o escuro, que segue `prefers-color-scheme`. O tema `impressao` redefine todas as cores, com fundo branco, texto preto e os valores do tema claro nas demais; um token que ficasse de fora levaria o valor escuro para o papel quando o sistema está em modo escuro.
+- `veu` cobre a página atrás de uma janela modal (Cálculos salvos, Salvar cálculo): `texto` a 40% no tema claro e preto a 64% no escuro, onde um véu claro acenderia a página em vez de apagá-la. Não é cor de conteúdo: nada se escreve nem se desenha com ela. A janela fica em `superficie`, com 1px de `borda-forte` e `raio-cartao`.
+- Cada cor tem valor para o tema claro e o escuro, que segue `prefers-color-scheme`. O tema `impressao` redefine todas as cores, com fundo branco, texto preto e os valores do tema claro nas demais (o `veu` fica transparente, porque a janela não vai para o papel); um token que ficasse de fora levaria o valor escuro para o papel quando o sistema está em modo escuro.
 
 ## Tipografia
 
@@ -109,7 +110,7 @@ Os raios são três: `raio-amostra` (3px) nas amostras e barras, `raio-controle`
 
 - **Foco:** contorno `foco` de 2px. Campos também trocam a borda para `foco`.
 - **Campo inválido:** `aria-invalid="true"`, borda em `erro` e a `MensagemErro` logo abaixo, ligada por `aria-describedby`. A mensagem fica na tela até o dado ser corrigido.
-- **Desabilitado:** `opacity: 0.6`. Só o botão que espera uma resposta (Calcular, Baixar PDF) mostra `cursor: progress`; os outros, `not-allowed`.
+- **Desabilitado:** `opacity: 0.6`. Só o botão que espera uma resposta (Calcular, Baixar PDF, Salvar e o Abrir, Atualizar ou Duplicar de um cálculo salvo) mostra `cursor: progress`; os outros, `not-allowed`.
 - **Situação do demonstrativo** (`data-situacao`): `atual` não mostra faixa; `atualizando` apaga os números a 0.6 e mostra "Atualizando o demonstrativo…"; `desatualizado` apaga a 0.4 e mostra a faixa em `aviso-fundo` com borda `aviso`. A faixa acompanha a rolagem e é uma região `role="status"`.
 - **Hover em linha de tabela:** `borda` a 35%, para seguir a linha com o olho. Some na impressão.
 
@@ -131,7 +132,7 @@ Não há ícones nem logotipo. O nome "Debeatur" aparece em texto, no estilo `ti
 
 ## Sigilo
 
-Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `CabecalhoProcesso` diz isso na tela, e o PDF, em toda página. O caso guardado no navegador fica só nele, e Limpar apaga também essa cópia.
+Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `CabecalhoProcesso` diz isso na tela, e o PDF, em toda página. O caso guardado no navegador fica só nele, e Limpar apaga também essa cópia. Um cálculo salvo vai para o servidor e não some com o Limpar; o pé do formulário diz isso junto da recomendação de limpar em computador compartilhado.
 
 ## Acessibilidade
 

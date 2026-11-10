@@ -21,6 +21,7 @@
   --aviso: #7a4b00;
   --aviso-fundo: #f2ede6;
   --foco: #1d5bd6;
+  --veu: #1a223866;
 
   color-scheme: light;
 }
@@ -42,6 +43,7 @@
     --aviso: #f0c36b;
     --aviso-fundo: #2f2f30;
     --foco: #8ab4ff;
+    --veu: #000000a3;
 
     color-scheme: dark;
   }
@@ -68,6 +70,7 @@
     --aviso: #7a4b00;
     --aviso-fundo: #f2ede6;
     --foco: #1d5bd6;
+    --veu: #ffffff00;
 
     color-scheme: light;
   }
