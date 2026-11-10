@@ -1,6 +1,7 @@
 import type { PagamentoRequest } from './api'
 import { mes as mesBr } from './formato'
-import { casasDecimais, lerDecimal, paraCampo, pontoAmbiguo } from './numero'
+import { erroDeDecimal, lerDecimal, paraCampo } from './numero'
+import { anoMes } from './regime'
 
 const NOMES_POR_EXTENSO = [
   'janeiro',
@@ -26,12 +27,22 @@ const NOMES = new Map<string, number>(
 )
 NOMES.set('marco', 3)
 
-const doisDigitos = (n: number) => String(n).padStart(2, '0')
-
 /** Ano e mês válidos em AAAA-MM, ou null. */
-function anoMes(ano: number, mes: number): string | null {
+function anoMesValido(ano: number, mes: number): string | null {
   if (mes < 1 || mes > 12 || ano < 1900 || ano > 2999) return null
-  return `${ano}-${doisDigitos(mes)}`
+  return anoMes(ano, mes)
+}
+
+/** Dia de uma data inteira: só importa que exista, de 1 a 31, porque o pagamento vale pelo mês. */
+const diaValido = (dia: string | undefined) => dia === undefined || (Number(dia) >= 1 && Number(dia) <= 31)
+
+/**
+ * Ano de dois dígitos depois do nome do mês: deste século, salvo se der um ano que ainda não chegou.
+ * Pagamento é coisa passada, então "dez/99" é 1999, e não 2099.
+ */
+function anoCurto(aa: string): number {
+  const ano = 2000 + Number(aa)
+  return ano > new Date().getFullYear() ? ano - 100 : ano
 }
 
 /**
@@ -43,18 +54,18 @@ function anoMes(ano: number, mes: number): string | null {
 export function lerMes(texto: string): string | null {
   const t = texto.trim().toLowerCase()
   let m = /^(\d{1,2})\/(\d{4})$/.exec(t)
-  if (m) return anoMes(Number(m[2]), Number(m[1]))
+  if (m) return anoMesValido(Number(m[2]), Number(m[1]))
   m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t)
-  if (m) return Number(m[1]) <= 31 ? anoMes(Number(m[3]), Number(m[2])) : null
-  m = /^(\d{4})-(\d{2})(-(\d{2}))?$/.exec(t)
-  if (m) return !m[4] || Number(m[4]) <= 31 ? anoMes(Number(m[1]), Number(m[2])) : null
+  if (m) return diaValido(m[1]) ? anoMesValido(Number(m[3]), Number(m[2])) : null
+  m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(t)
+  if (m) return diaValido(m[3]) ? anoMesValido(Number(m[1]), Number(m[2])) : null
   m = /^([a-zç]+)\.?(?:\/|-|\s+de\s+|\s+)(\d{2}|\d{4})$/.exec(t)
   if (m) {
     const numero = NOMES.get(m[1])
     if (numero === undefined) return null
-    // Com o nome do mês, "abr/24" não se confunde com dia e mês: o ano curto é deste século.
-    const ano = m[2].length === 2 ? 2000 + Number(m[2]) : Number(m[2])
-    return anoMes(ano, numero)
+    // Com o nome do mês, "abr/24" não se confunde com dia e mês.
+    const ano = m[2].length === 2 ? anoCurto(m[2]) : Number(m[2])
+    return anoMesValido(ano, numero)
   }
   return null
 }
@@ -74,7 +85,8 @@ interface Limites {
 /**
  * Lê pagamentos colados de uma planilha: uma linha por pagamento, com o mês e o valor separados por
  * tabulação (o que o Excel e o Google Planilhas põem na área de transferência) ou ponto e vírgula.
- * Uma primeira linha sem mês nem valor é o cabeçalho e fica de fora; linhas em branco também.
+ * A primeira linha fica de fora quando é um cabeçalho, com rótulos em vez de mês e valor; linhas em
+ * branco também. Uma linha de dados que não se lê é erro, mesmo sendo a primeira.
  *
  * Ou entra tudo, ou nada: com uma linha que não se lê, a colagem devolve os erros de cada linha e
  * nenhum pagamento, para não ficar metade da planilha no formulário sem que se perceba.
@@ -84,6 +96,7 @@ export function lerPagamentosColados(texto: string, limites: Limites): Colagem {
   const erros: string[] = []
   const pagamentos: PagamentoRequest[] = []
   const vistos = new Map<string, number>(limites.jaInformados.filter(Boolean).map((m) => [m, 0]))
+  const primeira = linhas.findIndex((linha) => linha.trim())
 
   linhas.forEach((linha, i) => {
     if (!linha.trim()) return
@@ -96,7 +109,10 @@ export function lerPagamentosColados(texto: string, limites: Limites): Colagem {
     const mes = lerMes(textoMes)
     const valor = lerDecimal(textoValor)
 
-    if (pagamentos.length === 0 && erros.length === 0 && mes === null && valor === null) return
+    // Cabeçalho só na primeira linha e só com rótulos ("Mês", "Valor pago"): uma linha de dados
+    // ilegível, como "04/24 1.500", tem de dar erro, e não sumir como se fosse cabeçalho.
+    const rotulos = celulas.length > 0 && celulas.every((c) => /\p{L}/u.test(c))
+    if (i === primeira && rotulos && mes === null && valor === null) return
     if (celulas.length !== 2) {
       erros.push(`Linha ${numero}: esperava duas colunas, o mês e o valor; vieram ${celulas.length}.`)
       return
@@ -105,20 +121,10 @@ export function lerPagamentosColados(texto: string, limites: Limites): Colagem {
       erros.push(`Linha ${numero}: "${textoMes}" não é um mês (ex.: 04/2024 ou abr/2024).`)
       return
     }
-    if (valor === null) {
-      erros.push(
-        pontoAmbiguo(textoValor)
-          ? `Linha ${numero}: em "${textoValor}" o ponto é ambíguo; escreva com os centavos (ex.: 1.500,00).`
-          : `Linha ${numero}: "${textoValor}" não é um valor em reais (ex.: 1.234,56).`,
-      )
-      return
-    }
-    if (casasDecimais(valor) > 2) {
-      erros.push(`Linha ${numero}: "${textoValor}" tem mais de duas casas decimais.`)
-      return
-    }
-    if (Number(valor) <= 0) {
-      erros.push(`Linha ${numero}: o valor pago deve ser maior que zero.`)
+    // A mesma regra do campo "Valor pago", para a colagem não aceitar o que o campo recusa.
+    const erroValor = erroDeDecimal(textoValor, 2)
+    if (erroValor || valor === null) {
+      erros.push(`Linha ${numero}, valor "${textoValor}": ${erroValor}`)
       return
     }
     if ((limites.primeiroMes && mes < limites.primeiroMes) || (limites.ultimoMes && mes > limites.ultimoMes)) {

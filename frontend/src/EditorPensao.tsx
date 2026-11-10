@@ -150,6 +150,16 @@ function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
   const [erros, setErros] = useState<string[]>([])
   const [incluidos, setIncluidos] = useState(0)
   const id = useId()
+  const painel = useRef<HTMLDetailsElement>(null)
+  const caixa = useRef<HTMLTextAreaElement>(null)
+
+  // Texto colado e não incluído não vai para o cálculo: o formulário fica inválido até incluí-lo ou
+  // apagá-lo, senão o débito sairia sem abater pagamentos que estão na tela.
+  useEffect(() => {
+    caixa.current?.setCustomValidity(
+      texto.trim() ? 'Inclua os pagamentos colados, com "Incluir pagamentos", ou apague o texto antes de calcular.' : '',
+    )
+  }, [texto])
 
   function incluir() {
     // Uma linha em branco do "Adicionar pagamento" dá lugar aos colados, em vez de travar o envio.
@@ -171,11 +181,12 @@ function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
   }
 
   return (
-    <details className="colar-pagamentos">
+    <details className="colar-pagamentos" ref={painel}>
       <summary>Colar de uma planilha</summary>
       <label>
         Mês e valor pago, um pagamento por linha
         <textarea
+          ref={caixa}
           rows={5}
           spellCheck={false}
           autoComplete="off"
@@ -186,7 +197,13 @@ function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
           value={texto}
           onChange={(e) => {
             setTexto(e.target.value)
+            // Os erros eram do texto anterior: com outro texto, as linhas podem nem ser as mesmas.
+            setErros([])
             setIncluidos(0)
+          }}
+          // Com o painel fechado, o navegador não teria onde mostrar por que o envio parou.
+          onInvalid={() => {
+            if (painel.current) painel.current.open = true
           }}
         />
       </label>

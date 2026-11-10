@@ -18,11 +18,13 @@ describe('lerMes', () => {
     ['março/2025', '2025-03'],
     ['marco/2025', '2025-03'],
     ['dez/25', '2025-12'],
+    ['dez/99', '1999-12'],
+    ['jan/00', '2000-01'],
   ])('lê %j como %s', (texto, esperado) => {
     expect(lerMes(texto)).toBe(esperado)
   })
 
-  it.each(['04/24', '13/2024', '00/2024', '32/04/2024', 'abrigo/2024', 'abr', '2024', '', 'R$ 350,00'])(
+  it.each(['04/24', '13/2024', '00/2024', '32/04/2024', '00/04/2024', '2024-04-00', '2024-04-32', 'abrigo/2024', 'abr', '2024', '', 'R$ 350,00'])(
     'recusa %j',
     (texto) => {
       expect(lerMes(texto)).toBeNull()
@@ -59,9 +61,9 @@ describe('lerPagamentosColados', () => {
       ok: false,
       erros: [
         'Linha 2: "13/2024" não é um mês (ex.: 04/2024 ou abr/2024).',
-        'Linha 3: em "1.500" o ponto é ambíguo; escreva com os centavos (ex.: 1.500,00).',
-        'Linha 4: "10,999" tem mais de duas casas decimais.',
-        'Linha 5: o valor pago deve ser maior que zero.',
+        'Linha 3, valor "1.500": O ponto é ambíguo: para milhar, escreva sem o ponto ou com os centavos (ex.: 1500 ou 1.500,00); para decimais, use vírgula (ex.: 1,5).',
+        'Linha 4, valor "10,999": Use no máximo 2 casas decimais.',
+        'Linha 5, valor "0": Informe um valor maior que zero.',
         'Linha 6: esperava duas colunas, o mês e o valor; vieram 1.',
       ],
     })
@@ -71,6 +73,20 @@ describe('lerPagamentosColados', () => {
     expect(lerPagamentosColados('04/2024\t350,00\nTotal\tx', semLimites)).toEqual({
       ok: false,
       erros: ['Linha 2: "Total" não é um mês (ex.: 04/2024 ou abr/2024).'],
+    })
+  })
+
+  it('não toma por cabeçalho linhas de dados ilegíveis no começo', () => {
+    expect(lerPagamentosColados('04/24\t1.500\n05/24\t1.500\n06/2024\t200,00', semLimites)).toEqual({
+      ok: false,
+      erros: [
+        'Linha 1: "04/24" não é um mês (ex.: 04/2024 ou abr/2024).',
+        'Linha 2: "05/24" não é um mês (ex.: 04/2024 ou abr/2024).',
+      ],
+    })
+    expect(lerPagamentosColados('13/2024\t1.500\n06/2024\t200,00', semLimites)).toEqual({
+      ok: false,
+      erros: ['Linha 1: "13/2024" não é um mês (ex.: 04/2024 ou abr/2024).'],
     })
   })
 

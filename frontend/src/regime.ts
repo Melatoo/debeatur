@@ -68,16 +68,19 @@ export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
 export const selicNaViradaDaLei14905 = (regra: RegraEditavel) =>
   regra.correcao === 'SELIC' && (regra.fim === '2024-07' || regra.fim === '2024-08')
 
+/** Ano e mês (1 a 12) no formato AAAA-MM. */
+export const anoMes = (ano: number, mes: number) => `${ano}-${String(mes).padStart(2, '0')}`
+
 /** Mês seguinte a um mês AAAA-MM. */
 export function mesSeguinte(mes: string): string {
   const [ano, m] = mes.split('-').map(Number)
-  return m === 12 ? `${ano + 1}-01` : `${ano}-${String(m + 1).padStart(2, '0')}`
+  return m === 12 ? anoMes(ano + 1, 1) : anoMes(ano, m + 1)
 }
 
 /** Mês anterior a um mês AAAA-MM. */
 export function mesAnterior(mes: string): string {
   const [ano, m] = mes.split('-').map(Number)
-  return m === 1 ? `${ano - 1}-12` : `${ano}-${String(m - 1).padStart(2, '0')}`
+  return m === 1 ? anoMes(ano - 1, 12) : anoMes(ano, m - 1)
 }
 
 export function descreverPeriodo(regra: Regra): string {
