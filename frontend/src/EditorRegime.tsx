@@ -1,5 +1,6 @@
 import type { IndiceCorrecao, TipoJuros } from './api'
 import { CampoDecimal } from './CampoDecimal'
+import { Dica } from './Dica'
 import {
   INDICES,
   TIPOS_JUROS,
@@ -127,10 +128,9 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
         </fieldset>
       ))}
 
-      <p className="dica">
-        Os períodos precisam ser contínuos e cobrir do primeiro termo inicial até o mês anterior à data-base. Deixe
-        o “Até” da última regra em branco para que ela valha até a data-base.
-      </p>
+      <Dica curta="Os períodos precisam ser contínuos, do primeiro termo inicial ao mês anterior à data-base.">
+        Deixe o “Até” da última regra em branco para que ela valha até a data-base.
+      </Dica>
       <button type="button" className="secundario" onClick={adicionar}>
         Adicionar período
       </button>

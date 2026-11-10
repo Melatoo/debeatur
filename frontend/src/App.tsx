@@ -29,6 +29,8 @@ import {
   type Rascunho,
 } from './rascunho'
 import { EditorRegime } from './EditorRegime'
+import { Dica } from './Dica'
+import { ehApple, ehAtalhoDeCalcular, rotuloDoAtalho } from './atalho'
 import { ESPERA_RECALCULO_MS, chaveDoPedido, formularioValido } from './recalculo'
 import { paraEditavel, regraVazia, type RegraEditavel } from './regime'
 import './App.css'
@@ -309,6 +311,20 @@ function App() {
 
   useEffect(() => () => clearTimeout(espera.current), [])
 
+  const [apple] = useState(() => ehApple(navigator.platform))
+  const atalho = rotuloDoAtalho(apple)
+  // Ctrl+Enter calcula de qualquer ponto da página, como o botão: o requestSubmit valida o formulário
+  // antes. Com uma janela modal aberta (Cálculos salvos, Salvar), o atalho fica com ela.
+  useEffect(() => {
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (!ehAtalhoDeCalcular(evento, apple) || document.querySelector('dialog[open]')) return
+      evento.preventDefault()
+      formulario.current?.requestSubmit()
+    }
+    document.addEventListener('keydown', aoTeclar)
+    return () => document.removeEventListener('keydown', aoTeclar)
+  }, [apple])
+
   function enviar(evento: FormEvent) {
     evento.preventDefault()
     cancelarEspera()
@@ -581,11 +597,11 @@ function App() {
                 </label>
               )}
             </div>
-            <p className="dica" id="dica-data-base">
-              O débito é atualizado até a data-base. Ela começa no fim do mês anterior porque o índice de {mesFechado} só
-              sai por volta do dia 10. Depois que ele sair, avance a data-base: parada no fim do mês anterior, ela deixa de
-              fora a correção e os juros do mês corrente.
-            </p>
+            <Dica id="dica-data-base" curta="O débito é atualizado até esta data.">
+              Ela começa no fim do mês anterior porque o índice de {mesFechado} só sai por volta do dia 10. Depois que ele
+              sair, avance a data-base: parada no fim do mês anterior, ela deixa de fora a correção e os juros do mês
+              corrente.
+            </Dica>
 
             {comPensao && (
               <>
@@ -661,12 +677,21 @@ function App() {
           <div ref={pe} className="enviar">
             <div className="botoes">
               {/* Depois do primeiro cálculo, o andamento aparece no demonstrativo, e o botão não pisca a cada edição. */}
-              <button type="submit" className="esperando" disabled={carregando && !calculo}>
+              <button
+                type="submit"
+                className="esperando"
+                disabled={carregando && !calculo}
+                aria-keyshortcuts={atalho.aria}
+              >
                 {carregando && !calculo ? 'Calculando…' : 'Calcular'}
               </button>
               <button type="button" className="secundario" onClick={limpar} disabled={emBranco && !calculo}>
                 Limpar
               </button>
+              {/* O leitor de tela já anuncia o atalho pelo aria-keyshortcuts do Calcular. */}
+              <span className="atalho" aria-hidden="true">
+                <kbd>{atalho.tela}</kbd> calcula de qualquer campo
+              </span>
             </div>
             {calculo && <p className="dica">O demonstrativo se atualiza sozinho a cada alteração.</p>}
             <p className="aviso" role="status">
