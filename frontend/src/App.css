@@ -1,3 +1,11 @@
+/*
+ * A faixa de situação fica parada no topo da página enquanto ela rola; o scroll-padding reserva a
+ * altura dela (medida em useAlturaFixa) para o foco nunca parar por baixo da faixa.
+ */
+html {
+  scroll-padding-top: var(--altura-situacao, 0px);
+}
+
 main {
   max-width: 1180px;
   margin: 0 auto;
@@ -244,6 +252,11 @@ button.secundario:hover {
 
 button:disabled {
   opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Só o botão que espera uma resposta do servidor (Calcular, Baixar PDF) mostra o andamento. */
+button:disabled.esperando {
   cursor: progress;
 }
 
@@ -342,10 +355,6 @@ button:disabled {
 
 .demonstrativo[data-situacao='desatualizado'] > :not(.situacao, .cabecalho-resultado) {
   opacity: 0.4;
-}
-
-.demonstrativo:not([data-situacao='atual']) .acoes-resultado button:disabled {
-  cursor: not-allowed;
 }
 
 .cabecalho-resultado {
@@ -745,6 +754,14 @@ table {
   background: var(--superficie);
 }
 
+caption {
+  caption-side: top;
+  padding: 0 0 4px;
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+}
+
 th,
 td {
   padding: 7px 10px;
@@ -860,6 +877,8 @@ tfoot .total td {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
+    /* O pé com o Calcular fica parado embaixo; o campo que recebe o foco para acima dele. */
+    scroll-padding-bottom: var(--altura-pe, 0px);
     /* Folga para o contorno de foco dos campos não ser cortado pela rolagem. */
     margin-left: -4px;
     padding: 0 12px 0 4px;
@@ -956,10 +975,6 @@ tfoot .total td {
 
   .grafico {
     height: 170px;
-  }
-
-  .eixo {
-    font-size: 0.7rem;
   }
 
   .eixo .menor {

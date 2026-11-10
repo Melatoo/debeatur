@@ -12,6 +12,7 @@ import {
 import { lerColunasOcultas, salvarColunasOcultas, type ColunaOpcional } from './colunas'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
 import { LinhaDoTempo } from './LinhaDoTempo'
+import { useAlturaFixa } from './alturaFixa'
 import { paraCampo } from './numero'
 import { armazenamentoDoNavegador } from './armazenamento'
 import { INDICES, descreverPeriodo, mesAnterior } from './regime'
@@ -88,6 +89,8 @@ const notaDosJuros = (l: LinhaDemonstrativo) =>
 
 export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, aoTentarDeNovo }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
+  const faixa = useRef<HTMLParagraphElement>(null)
+  useAlturaFixa(faixa, '--altura-situacao')
   /**
    * Aviso de PDF ou cópia, preso ao pedido de que fala: o recálculo automático troca os números sem
    * remontar, e "PDF baixado" não pode ficar ao lado de números que não estão nele.
@@ -159,7 +162,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           {
             id: 'salarioMinimo' as const,
             titulo: 'Salário mínimo',
-            celula: (l: LinhaDemonstrativo) => (l.pensao ? moeda(l.pensao.salarioMinimo) : '—'),
+            celula: (l: LinhaDemonstrativo) => (l.pensao ? decimal(l.pensao.salarioMinimo) : '—'),
             texto: (l: LinhaDemonstrativo) => (l.pensao ? decimal(l.pensao.salarioMinimo) : ''),
           },
         ]
@@ -167,7 +170,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
     {
       id: 'devido',
       titulo: 'Devido',
-      celula: (l) => moeda(l.pensao ? l.pensao.valorDevido : l.valorOriginal),
+      celula: (l) => decimal(l.pensao ? l.pensao.valorDevido : l.valorOriginal),
       texto: (l) => decimal(l.pensao ? l.pensao.valorDevido : l.valorOriginal),
     },
     ...(comPagamento
@@ -175,7 +178,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           {
             id: 'pago' as const,
             titulo: 'Pago',
-            celula: (l: LinhaDemonstrativo) => (l.pensao?.valorPago ? moeda(l.pensao.valorPago) : '—'),
+            celula: (l: LinhaDemonstrativo) => (l.pensao?.valorPago ? decimal(l.pensao.valorPago) : '—'),
             texto: (l: LinhaDemonstrativo) => (l.pensao?.valorPago ? decimal(l.pensao.valorPago) : ''),
           },
         ]
@@ -184,7 +187,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
     {
       id: 'corrigido',
       titulo: 'Saldo corrigido',
-      celula: (l) => moeda(l.valorCorrigido),
+      celula: (l) => decimal(l.valorCorrigido),
       texto: (l) => decimal(l.valorCorrigido),
       total: 'totalCorrigido',
     },
@@ -197,14 +200,14 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
     {
       id: 'juros',
       titulo: 'Juros',
-      celula: (l) => moeda(l.valorJuros),
+      celula: (l) => decimal(l.valorJuros),
       texto: (l) => decimal(l.valorJuros),
       total: 'totalJuros',
     },
     {
       id: null,
       titulo: 'Atualizado',
-      celula: (l) => moeda(l.subtotal),
+      celula: (l) => decimal(l.subtotal),
       texto: (l) => decimal(l.subtotal),
       total: 'debitoAtualizado',
     },
@@ -255,7 +258,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
    */
   async function baixarPdf() {
     setGerandoPdf(true)
-    avisar('Gerando o PDF…')
+    avisar('Gerando PDF…')
     try {
       const { conteudo, nome } = await gerarPdf({ ...pedido, processo })
       if (pedidoNaTela.current !== pedido) {
@@ -292,6 +295,10 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         {descricao && <p className="regra-rito">{descricao}</p>}
         <div className="rolagem" tabIndex={0} role="region" aria-labelledby={id}>
           <table style={{ '--colunas': colunas.length } as CSSProperties}>
+            {/* O título já está no h3 acima; na tela, o caption só diz a unidade que as células não repetem. */}
+            <caption>
+              <span className="sr-only">{rotulo}. </span>Valores em R$
+            </caption>
             <thead>
               <tr>
                 {colunas.map((c) => (
@@ -322,7 +329,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
                   Subtotal, {contar(ordenadas.length, 'parcela', 'parcelas')}
                 </th>
                 {colunas.slice(primeiraComTotal).map((c) => (
-                  <td key={c.titulo}>{c.total && moeda(totais[c.total])}</td>
+                  <td key={c.titulo}>{c.total && decimal(totais[c.total])}</td>
                 ))}
               </tr>
               {rodape}
@@ -338,7 +345,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
       <th scope="row" colSpan={colunas.length - 1}>
         {rotulo}
       </th>
-      <td>{moeda(valor)}</td>
+      <td>{decimal(valor)}</td>
     </tr>
   )
 
@@ -352,7 +359,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
       aria-labelledby="titulo-demonstrativo"
     >
       {/* Sem aria-busy na seção: dentro de uma região ocupada, o leitor de tela cala esta faixa. */}
-      <p className="situacao" role="status">
+      <p ref={faixa} className="situacao" role="status">
         {situacao === 'atualizando' && 'Atualizando o demonstrativo…'}
         {situacao === 'desatualizado' && (
           <>
@@ -373,7 +380,12 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           Demonstrativo atualizado até {data(resultado.dataBase)}
         </h2>
         <div className="acoes-resultado">
-          <button type="button" onClick={baixarPdf} disabled={gerandoPdf || travado}>
+          <button
+            type="button"
+            className={gerandoPdf ? 'esperando' : undefined}
+            onClick={baixarPdf}
+            disabled={gerandoPdf || travado}
+          >
             {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
           </button>
           <button type="button" className="secundario" onClick={copiar} disabled={travado}>

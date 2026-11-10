@@ -7,8 +7,9 @@ import {
   type ParcelaRequest,
   type ProcessoRequest,
 } from './api'
+import { useAlturaFixa } from './alturaFixa'
 import { Demonstrativo } from './Demonstrativo'
-import { mes } from './formato'
+import { dataHora, mes } from './formato'
 import { EditorPensao } from './EditorPensao'
 import { CampoDecimal } from './CampoDecimal'
 import { exigirDecimal } from './numero'
@@ -71,9 +72,6 @@ const rascunhoVazio = (): Rascunho => ({
 /** Critérios do título escolhidos, mas sem as regras: elas ainda precisam vir do servidor. */
 const faltamRegras = (r: Rascunho) => r.regimeProprio && r.regras.length === 0
 
-const quando = (d: Date) =>
-  d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-
 interface Calculo {
   /** Muda a cada clique em Calcular, para o demonstrativo recomeçar do topo; o recálculo automático o mantém. */
   numero: number
@@ -129,6 +127,8 @@ function App() {
   /** Chave do formulário que, depois do primeiro cálculo, ficou com campo inválido e não pôde ser recalculado. */
   const [invalidoEm, setInvalidoEm] = useState<string | null>(null)
   const formulario = useRef<HTMLFormElement>(null)
+  const pe = useRef<HTMLDivElement>(null)
+  useAlturaFixa(pe, '--altura-pe', formulario)
   /** O cálculo que está no servidor; um mais novo cancela o anterior, que chegaria fora de ordem. */
   const emCurso = useRef<AbortController | null>(null)
   const espera = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -566,10 +566,10 @@ function App() {
             )}
           </section>
 
-          <div className="enviar">
+          <div ref={pe} className="enviar">
             <div className="botoes">
               {/* Depois do primeiro cálculo, o andamento aparece no demonstrativo, e o botão não pisca a cada edição. */}
-              <button type="submit" disabled={carregando && !calculo}>
+              <button type="submit" className="esperando" disabled={carregando && !calculo}>
                 {carregando && !calculo ? 'Calculando…' : 'Calcular'}
               </button>
               <button type="button" className="secundario" onClick={limpar} disabled={emBranco && !calculo}>
@@ -588,7 +588,7 @@ function App() {
               ) : (
                 !emBranco && (
                   <>
-                    {restauradoDe && `Caso restaurado do rascunho de ${quando(restauradoDe)}. `}
+                    {restauradoDe && `Caso restaurado do rascunho de ${dataHora(restauradoDe)}. `}
                     Salvo só neste navegador; em computador compartilhado, use Limpar ao terminar.
                   </>
                 )

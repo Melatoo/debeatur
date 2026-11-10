@@ -160,17 +160,4 @@ que atualiza este documento junto.
   para a memória com mais de sete colunas. Não há rodapé com o número do processo e "Página X
   de Y", nem cabeçalho com a data e a hora do cálculo. A marca `.marca-pagina` não existe: um
   demonstrativo desatualizado leva o aviso (a faixa `.situacao`) só na primeira página.
-- **`scroll-padding`:** não existe. A faixa de situação e o pé do formulário, fixos na rolagem,
-  podem cobrir o campo que recebe o foco.
-- **Cursor do desabilitado:** todo `button:disabled` mostra `cursor: progress`, inclusive os que
-  não esperam resposta, como Limpar. Só os botões de resultado do demonstrativo que não está atual
-  já mostram `not-allowed`.
-- **Tamanho mínimo na tela:** o eixo da linha do tempo cai para `0.7rem` (11,2px) na coluna de
-  resultado estreita, abaixo dos 12px de `nota`.
 - **PDF do `debeatur-api`:** usa Helvetica e uma paleta própria, em vez dos tokens e da Atkinson.
-- **Dia do vencimento:** o campo do `EditorPensao` é `type="number"`, e não de texto.
-- **`<caption>` nas tabelas:** a memória de cálculo não tem `<caption>` com o rito e a unidade
-  ("Valores em R$"); o nome vem só do título ligado à `.rolagem` por `aria-labelledby`.
-- **Data e hora do cálculo:** o `App.tsx` formata com `toLocaleString` direto, fora do
-  `formato.ts`.
-- **Rótulo durante a geração do PDF:** o aviso diz "Gerando o PDF…", e não "Gerando PDF…".
