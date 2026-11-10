@@ -1218,3 +1218,13 @@ tfoot .total td {
     background: none;
   }
 }
+
+/* Índice que só não saiu ainda: pede atenção, mas não é falha do cálculo. */
+.erro.pendente {
+  color: var(--aviso);
+  font-weight: 400;
+}
+
+.erro .secundario {
+  margin-left: 4px;
+}

@@ -31,8 +31,8 @@ interface Props {
   situacao: Situacao
   /** Por que ficou desatualizado, quando não dá para recalcular. */
   motivo: string | null
-  /** Refaz o cálculo que falhou; sem ele, a faixa não oferece nova tentativa. */
-  aoTentarDeNovo?: () => void
+  /** O que a faixa de desatualizado oferece para sair dele: "Tentar de novo", "Usar a data-base…". */
+  acao?: AcaoDaSituacao
   /**
    * Id do cálculo salvo que está na tela, sem nenhuma alteração desde que foi aberto ou salvo. O PDF
    * sai dele, com o snapshot das séries, e não de um cálculo refeito com as séries de hoje.
@@ -43,6 +43,11 @@ interface Props {
 }
 
 export type Situacao = 'atual' | 'atualizando' | 'desatualizado'
+
+export interface AcaoDaSituacao {
+  rotulo: string
+  aoClicar: () => void
+}
 
 const RITOS: Record<Rito, { titulo: string; regra: string }> = {
   PRISAO: {
@@ -95,7 +100,7 @@ function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase
 const notaDosJuros = (l: LinhaDemonstrativo) =>
   l.inicioJuros == null ? 'sem juros' : l.inicioJuros !== l.inicioCorrecao ? `juros desde ${data(l.inicioJuros)}` : null
 
-export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, aoTentarDeNovo, idSalvo, aoSalvar }: Props) {
+export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, acao, idSalvo, aoSalvar }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
   const faixa = useRef<HTMLParagraphElement>(null)
   useAlturaFixa(faixa, '--altura-situacao')
@@ -372,11 +377,11 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         {situacao === 'desatualizado' && (
           <>
             <strong>Demonstrativo desatualizado.</strong> {motivo}
-            {aoTentarDeNovo && (
+            {acao && (
               <>
                 {' '}
-                <button type="button" className="secundario" onClick={aoTentarDeNovo}>
-                  Tentar de novo
+                <button type="button" className="secundario" onClick={acao.aoClicar}>
+                  {acao.rotulo}
                 </button>
               </>
             )}

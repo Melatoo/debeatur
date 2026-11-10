@@ -122,10 +122,23 @@ export interface Demonstrativo {
   ritos: Ritos | null
 }
 
+/** Erro devolvido pela API, com o problem+json inteiro para quem quiser mais que a mensagem. */
+export class ErroDaApi extends Error {
+  readonly status: number
+  readonly problema: unknown
+
+  constructor(mensagem: string, status: number, problema: unknown) {
+    super(mensagem)
+    this.name = 'ErroDaApi'
+    this.status = status
+    this.problema = problema
+  }
+}
+
 async function lerResposta<T>(resposta: Response, acao: string): Promise<T> {
   if (!resposta.ok) {
     const problema = await resposta.json().catch(() => null)
-    throw new Error(problema?.detail ?? `Erro ${resposta.status} ao ${acao}`)
+    throw new ErroDaApi(problema?.detail ?? `Erro ${resposta.status} ao ${acao}`, resposta.status, problema)
   }
   return resposta.json()
 }
