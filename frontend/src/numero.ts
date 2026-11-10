@@ -46,5 +46,29 @@ export function exigirDecimal(texto: string, campo: string, milhar = true): stri
 /** Casas decimais de um texto já lido por {@link lerDecimal}. */
 export const casasDecimais = (lido: string) => lido.split('.')[1]?.length ?? 0
 
+/**
+ * Por que um decimal digitado não vale, ou '' se vale. É a regra do campo de valor do formulário e
+ * da colagem de pagamentos, para os dois aceitarem e explicarem o mesmo texto do mesmo jeito.
+ * Vazio vale: fica a cargo do `required`, e um campo opcional vazio é válido.
+ *
+ * @param casas máximo de casas decimais aceitas
+ * @param milhar se o ponto pode separar milhares (valores em reais) ou é só decimal (percentuais)
+ */
+export function erroDeDecimal(texto: string, casas: number, milhar = true): string {
+  if (!texto.trim()) return ''
+  const lido = lerDecimal(texto, milhar)
+  if (lido === null) {
+    if (milhar && pontoAmbiguo(texto)) {
+      return 'O ponto é ambíguo: para milhar, escreva sem o ponto ou com os centavos (ex.: 1500 ou 1.500,00); para decimais, use vírgula (ex.: 1,5).'
+    }
+    return milhar
+      ? 'Informe só números, com vírgula antes dos centavos (ex.: 1.234,56).'
+      : 'Informe só números, com vírgula decimal (ex.: 0,5).'
+  }
+  if (casasDecimais(lido) > casas) return `Use no máximo ${casas} casas decimais.`
+  if (Number(lido) <= 0) return 'Informe um valor maior que zero.'
+  return ''
+}
+
 /** Decimal no formato da API ("1234.56") como o formulário o mostra ("1234,56"). */
 export const paraCampo = (valor: number | string) => String(valor).replace('.', ',')
