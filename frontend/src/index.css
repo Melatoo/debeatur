@@ -19,7 +19,7 @@ body {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--penhora) 28%, transparent);
+  background: color-mix(in srgb, var(--foco) 28%, transparent);
   color: var(--texto);
 }
 

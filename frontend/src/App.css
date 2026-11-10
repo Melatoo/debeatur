@@ -328,7 +328,7 @@ button:disabled {
 .demonstrativo[data-situacao='desatualizado'] .situacao {
   border-color: var(--aviso);
   color: var(--texto);
-  background: color-mix(in srgb, var(--aviso) 10%, var(--superficie));
+  background: var(--aviso-fundo);
 }
 
 /* Os números ficam à vista para comparar, mas apagados, para ninguém copiá-los como se valessem. */
@@ -376,7 +376,7 @@ button:disabled {
   margin: 0;
   min-height: 1.5em;
   font-size: 0.9rem;
-  color: var(--penhora);
+  color: var(--texto-suave);
 }
 
 .parametros {

@@ -147,9 +147,7 @@ Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `
 O texto acima descreve coisas que o frontend ainda não implementa. Cada uma entra num PR próprio,
 que atualiza este documento junto.
 
-- **`foco`:** no código, `--foco` tem o mesmo valor de `--penhora` (`#2f6f7e` no claro, `#6fbac8`
-  no escuro). O alvo é uma cor própria, azul, para o foco não ser lido como penhora.
-- **Tokens que ainda não existem:** `aviso-fundo`, a escala `espaco-1` a `espaco-8`, os fios
+- **Tokens que ainda não existem:** a escala `espaco-1` a `espaco-8`, os fios
   (`fio-divisao`, `fio-subtotal`, `fio-total`, `fio-resultado`, `fio-vazio`), os raios
   (`raio-amostra`, `raio-controle`, `raio-cartao`), `largura-leitura`, `largura-pagina`,
   `largura-coluna-tabela`, `quebra-duas-colunas` e os estilos de texto pelo nome. Hoje esses
@@ -169,12 +167,8 @@ que atualiza este documento junto.
   já mostram `not-allowed`.
 - **Tamanho mínimo na tela:** o eixo da linha do tempo cai para `0.7rem` (11,2px) na coluna de
   resultado estreita, abaixo dos 12px de `nota`.
-- **Ritos por luminosidade e `borda-forte` com 3:1:** os valores atuais ainda não foram
-  conferidos contra essas metas.
 - **PDF do `debeatur-api`:** usa Helvetica e uma paleta própria, em vez dos tokens e da Atkinson.
 - **Dia do vencimento:** o campo do `EditorPensao` é `type="number"`, e não de texto.
-- **Mensagem de status das ações do resultado:** o `.status` está em `penhora`, e não em
-  `texto-suave`. Cor de rito usada como cor de texto.
 - **`<caption>` nas tabelas:** a memória de cálculo não tem `<caption>` com o rito e a unidade
   ("Valores em R$"); o nome vem só do título ligado à `.rolagem` por `aria-labelledby`.
 - **Data e hora do cálculo:** o `App.tsx` formata com `toLocaleString` direto, fora do
