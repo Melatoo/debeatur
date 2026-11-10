@@ -12,6 +12,7 @@ import br.com.debeatur.core.indice.SalarioMinimo;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 import br.com.debeatur.core.regime.RegraPeriodo;
 import br.com.debeatur.api.serie.FonteSeries;
+import br.com.debeatur.api.serie.SnapshotSeries;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -48,17 +49,20 @@ public class CalculoService {
      * salvo, refaz o demonstrativo daquele dia.
      */
     public DemonstrativoResponse calcular(CalculoRequest request, FonteSeries fonte) {
+        // Anota o que o motor leu, para o demonstrativo mostrar a série de cada fator.
+        SnapshotSeries.Gravacao lidas = SnapshotSeries.gravando(fonte);
         ParcelasDaPensao pensao = request.pensao() == null
                 ? ParcelasDaPensao.vazia()
-                : parcelas(request.pensao(), request.dataBase(), fonte);
+                : parcelas(request.pensao(), request.dataBase(), lidas);
         ParametrosCalculo parametros = request.paraDominio(pensao.parcelas());
-        Demonstrativo demonstrativo = calcular(parametros, fonte);
+        Demonstrativo demonstrativo = calcular(parametros, lidas);
+        List<DemonstrativoResponse.SerieUsada> series = DemonstrativoResponse.SerieUsada.de(lidas.snapshot(), fonte);
         if (!request.separaPorRito()) {
-            return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria());
+            return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), series);
         }
         DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo, request.pensao().ajuizamento(),
                 request.aplicarArt523());
-        return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), porRito);
+        return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), porRito, series);
     }
 
     /**

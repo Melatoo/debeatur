@@ -30,7 +30,7 @@ interface PropsJanela {
   children: ReactNode
 }
 
-function Janela({ id, titulo, aberta, aoFechar, children }: PropsJanela) {
+export function Janela({ id, titulo, aberta, aoFechar, children }: PropsJanela) {
   const janela = useRef<HTMLDialogElement>(null)
   useModal(janela, aberta)
   return (

@@ -7,10 +7,12 @@ import br.com.debeatur.core.indice.SalarioMinimoIndisponivelException;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.YearMonth;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -29,12 +31,31 @@ public final class SnapshotSeries implements FonteSeries {
     public static final String SALARIO_MINIMO = CacheSeries.SALARIO_MINIMO;
 
     private final Map<String, SortedMap<YearMonth, BigDecimal>> valores;
+    /** Quando o cálculo foi salvo com estes valores; nulo num snapshot que ainda não foi gravado. */
+    private final Instant guardadoEm;
 
     /** @param valores valor de cada mês, por série */
     public SnapshotSeries(Map<String, ? extends Map<YearMonth, BigDecimal>> valores) {
+        this(valores, null);
+    }
+
+    /**
+     * @param valores    valor de cada mês, por série
+     * @param guardadoEm quando o cálculo foi salvo, que o demonstrativo diz ser a data dos valores
+     */
+    public SnapshotSeries(Map<String, ? extends Map<YearMonth, BigDecimal>> valores, Instant guardadoEm) {
         Map<String, SortedMap<YearMonth, BigDecimal>> copia = new HashMap<>();
         valores.forEach((serie, meses) -> copia.put(serie, Collections.unmodifiableSortedMap(new TreeMap<>(meses))));
         this.valores = Collections.unmodifiableMap(copia);
+        this.guardadoEm = guardadoEm;
+    }
+
+    /** Os valores são todos do mesmo instante: o do salvamento. */
+    @Override
+    public Optional<Captura> captura(String serie) {
+        return valores.containsKey(serie) && guardadoEm != null
+                ? Optional.of(new Captura(guardadoEm, true))
+                : Optional.empty();
     }
 
     /** Fonte que repassa as séries de {@code origem} e anota cada valor que entregou. */
@@ -103,6 +124,11 @@ public final class SnapshotSeries implements FonteSeries {
                 }
             }
             return salario;
+        }
+
+        @Override
+        public Optional<Captura> captura(String serie) {
+            return origem.captura(serie);
         }
 
         private void anotar(String serie, YearMonth mes, BigDecimal valor) {

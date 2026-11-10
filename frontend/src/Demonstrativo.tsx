@@ -12,6 +12,7 @@ import {
 } from './api'
 import { lerColunasOcultas, salvarColunasOcultas, type ColunaOpcional } from './colunas'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
+import { FatorMesAMes } from './FatorMesAMes'
 import { LinhaDoTempo } from './LinhaDoTempo'
 import { useAlturaFixa } from './alturaFixa'
 import { paraCampo } from './numero'
@@ -111,6 +112,10 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
     pedidoNaTela.current = pedido
   }, [pedido])
   const [gerandoPdf, setGerandoPdf] = useState(false)
+  /** A linha cujo fator está aberto na janela da série mês a mês. */
+  const [fatorAberto, setFatorAberto] = useState<{ de: Resultado; linha: LinhaDemonstrativo } | null>(null)
+  // O recálculo automático troca o resultado sem remontar: a janela fecha, em vez de misturar os dois.
+  const fatorDe = fatorAberto?.de === resultado ? fatorAberto.linha : null
   const { linhas, ritos } = resultado
   const pensao = pedido.pensao
   const comSalarioMinimo = linhas.some((l) => l.pensao)
@@ -191,7 +196,18 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           },
         ]
       : []),
-    { id: 'fator', titulo: 'Fator', celula: (l) => fator(l.fatorCorrecao), texto: (l) => fator(l.fatorCorrecao) },
+    {
+      id: 'fator',
+      titulo: 'Fator',
+      // Na tela, o fator abre a série mês a mês; impresso, é só o número.
+      celula: (l) => (
+        <button type="button" className="ver-fator" aria-haspopup="dialog" onClick={() => setFatorAberto({ de: resultado, linha: l })}>
+          {fator(l.fatorCorrecao)}
+          <span className="sr-only">, ver a série mês a mês de {nomeDaParcela(l)}</span>
+        </button>
+      ),
+      texto: (l) => fator(l.fatorCorrecao),
+    },
     {
       id: 'corrigido',
       titulo: 'Saldo corrigido',
@@ -622,6 +638,13 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         <span>Total da execução</span>
         <strong>{moeda(resultado.total)}</strong>
       </p>
+
+      <FatorMesAMes
+        linha={fatorDe}
+        nome={fatorDe ? nomeDaParcela(fatorDe) : ''}
+        resultado={resultado}
+        aoFechar={() => setFatorAberto(null)}
+      />
     </section>
   )
 }

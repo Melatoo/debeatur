@@ -75,10 +75,10 @@ class RepositorioCalculos {
                 .params(escritorio, id)
                 .query((rs, linha) -> Map.entry(resumo(rs, linha), rs.getString("pedido")))
                 .optional()
-                .map(linha -> new Salvo(linha.getKey(), linha.getValue(), snapshot(id)));
+                .map(linha -> new Salvo(linha.getKey(), linha.getValue(), snapshot(id, linha.getKey().criadoEm())));
     }
 
-    private SnapshotSeries snapshot(UUID calculo) {
+    private SnapshotSeries snapshot(UUID calculo, Instant criadoEm) {
         Map<String, Map<YearMonth, BigDecimal>> valores = new HashMap<>();
         jdbc.sql("SELECT serie, mes, valor FROM calculo_serie WHERE calculo_id = ?")
                 .param(calculo)
@@ -86,7 +86,7 @@ class RepositorioCalculos {
                     valores.computeIfAbsent(rs.getString("serie"), s -> new HashMap<>())
                             .put(YearMonth.from(rs.getObject("mes", LocalDate.class)), rs.getBigDecimal("valor"));
                 });
-        return new SnapshotSeries(valores);
+        return new SnapshotSeries(valores, criadoEm);
     }
 
     private static Resumo resumo(ResultSet rs, int linha) throws SQLException {
