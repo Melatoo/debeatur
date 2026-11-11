@@ -82,7 +82,7 @@ relatório. Ele não passa em branco.
 | Juros simples sobre o valor corrigido | Confirmada pelo CADEJ (casos 1, 3, 4 e 5) |
 | HALF_UP em duas casas a cada valor monetário | Confirmada pelo CADEJ em todas as linhas dos cinco casos |
 | Multa de 10% sobre o débito atualizado | Confirmada pelo CADEJ (casos 1, 3 e 4) |
-| Honorários de 10% sobre o débito atualizado | **Diverge** do CADEJ (ver divergência 5) |
+| Honorários de 10% sobre o débito atualizado, sem a multa | Segue o STJ (REsp 1.757.033/DF); **diverge** do CADEJ (ver divergência 5) |
 | Virada da Lei 14.905/2024 e taxa legal no demonstrativo | Pendente: o CADEJ simplificado não cobre; precisa de cálculo homologado |
 
 ## Divergências registradas
@@ -100,13 +100,26 @@ relatório. Ele não passa em branco.
    da DPMG (#3): 29/30 de 1% (0,9667%, arredondado a quatro casas) mais 2/31 da taxa legal de
    agosto (Res. CMN 5.171/2024, arts. 6º e 8º, parágrafo único), total de 1,005752%. Os 2/31 da
    taxa legal são norma; os 29/30 do mês comercial são convenção da planilha.
-4. **O critério anterior à lei varia no próprio TJMG.** Na apelação 1.0000.25.153453-3/001, a
-   maioria aplicou a SELIC até 30/08/2024 (REsp 1.795.982); o voto vencido aplicou a tabela da
-   CGJ e 1% a.m. Isso reforça que o regime precisa vir do título (#3), e cada caso deve
-   transcrever o critério que o próprio cálculo usou.
+4. **Critério anterior à lei: SELIC pelo Tema 1368, salvo coisa julgada (#28).** O TJMG
+   divergia: na apelação 1.0000.25.153453-3/001, a maioria aplicou a SELIC até 30/08/2024
+   (REsp 1.795.982), e o voto vencido aplicou a tabela da CGJ e 1% a.m. A Corte Especial do STJ
+   fixou em repetitivo que a taxa do art. 406 do CC, antes da Lei 14.905/2024, é a SELIC
+   (Tema 1368, REsp 2.199.164/PR, julgado em 15/10/2025, sem modulação). A SELIC engloba
+   correção e juros e não se cumula com a tabela da CGJ ou com o INPC. Daí:
+   - **título omisso ou "juros legais":** SELIC até 29/08/2024; a partir de 30/08/2024, IPCA +
+     taxa legal;
+   - **título que fixou a tabela da CGJ + 1% a.m.:** a coisa julgada prevalece, e vale o
+     `civelPadrao()`, igual à planilha da DPMG.
+
+   O regime continua vindo do título (#3), e cada caso deve transcrever o critério que o
+   próprio cálculo usou. O motor ainda não divide agosto/2024 entre a SELIC e a lei nova (#32):
+   falta um cálculo homologado ou da contadoria que mostre a convenção do mês da virada.
 5. **Base dos honorários do art. 523, §1º.** O CADEJ calcula os honorários de 10% sobre o
    débito já acrescido da multa (casos 1 e 4: R$ 1.771,65 sobre R$ 17.716,53). O motor calcula
-   sobre o débito atualizado (R$ 1.610,59 sobre R$ 16.105,94). O motor **não** foi alterado:
-   a base dos honorários é uma questão jurídica e precisa de decisão de quem responde pelo
-   domínio, de preferência confirmada por um cálculo homologado. Enquanto isso, os casos do
-   CADEJ registram a divergência nos honorários e no total.
+   sobre o débito atualizado (R$ 1.610,59 sobre R$ 16.105,94), como o STJ: a multa não integra a
+   base dos honorários, porque as duas incidem sobre o débito (REsp 1.757.033/DF, 3ª Turma,
+   rel. Min. Ricardo Villas Bôas Cueva, julgado em 09/10/2018, DJe 15/10/2018, unânime). O
+   precedente foi conferido pela ementa e pelos informativos, e falta ler o inteiro teor. É
+   acórdão de turma, não repetitivo, então o motor fica como está e os casos do CADEJ seguem
+   registrando a divergência nos honorários e no total. Um cálculo homologado do TJMG ainda
+   confirmaria a prática local.
