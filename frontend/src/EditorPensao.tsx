@@ -212,12 +212,15 @@ function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
         O mês pode vir como 04/2024 ou abr/24. Um cabeçalho na primeira linha é ignorado. Se uma linha não for lida,
         nenhum pagamento entra.
       </Dica>
+      {/* O role="alert" fica em volta: no próprio <ul>, ele tiraria do leitor de tela a semântica de lista. */}
       {erros.length > 0 && (
-        <ul className="erros-colagem" id={`${id}-erros`} role="alert">
-          {erros.map((erro) => (
-            <li key={erro}>{erro}</li>
-          ))}
-        </ul>
+        <div id={`${id}-erros`} role="alert">
+          <ul className="erros-colagem">
+            {erros.map((erro) => (
+              <li key={erro}>{erro}</li>
+            ))}
+          </ul>
+        </div>
       )}
       <div className="acoes-colagem">
         <button type="button" className="secundario" disabled={!texto.trim()} onClick={incluir}>
