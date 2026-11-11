@@ -180,6 +180,53 @@ textarea:focus-visible {
   margin-top: 0;
 }
 
+/* Botão com cara de link, para não competir com as ações; a altura mínima é o alvo de 24px (WCAG 2.5.8). */
+button.saiba-mais {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--texto);
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+button.saiba-mais:hover {
+  background: transparent;
+  text-decoration-thickness: 2px;
+}
+
+.dica-detalhe {
+  margin: 4px 0 0;
+}
+
+.atalho {
+  font-size: 0.875rem;
+  color: var(--texto-suave);
+}
+
+/* Sem teclado físico, o atalho não serve. */
+@media (pointer: coarse) {
+  .atalho {
+    display: none;
+  }
+}
+
+kbd {
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 5px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 3px;
+  color: var(--texto);
+  white-space: nowrap;
+}
+
 fieldset {
   margin: 0;
   min-width: 0;
@@ -1262,4 +1309,14 @@ button.ver-fator:hover {
   button.ver-fator {
     text-decoration: none;
   }
+}
+
+/* Índice que só não saiu ainda: pede atenção, mas não é falha do cálculo. */
+.erro.pendente {
+  color: var(--aviso);
+  font-weight: 400;
+}
+
+.erro .secundario {
+  margin-left: 4px;
 }

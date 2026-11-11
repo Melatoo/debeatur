@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState, type FormEvent } 
 import {
   buscarRegimePadrao,
   calcular,
+  ErroDaApi,
   reabrirCalculo,
   salvarCalculo,
   type CalculoRequest,
@@ -12,8 +13,8 @@ import {
   type ResumoCalculo,
 } from './api'
 import { useAlturaFixa } from './alturaFixa'
-import { Demonstrativo } from './Demonstrativo'
-import { dataHora, mes } from './formato'
+import { Demonstrativo, type AcaoDaSituacao } from './Demonstrativo'
+import { data, dataHora, mes } from './formato'
 import { EditorPensao } from './EditorPensao'
 import { CampoDecimal } from './CampoDecimal'
 import { armazenamentoDoNavegador } from './armazenamento'
@@ -29,8 +30,11 @@ import {
   type Rascunho,
 } from './rascunho'
 import { EditorRegime } from './EditorRegime'
+import { Dica } from './Dica'
+import { ehApple, ehAtalhoDeCalcular, rotuloDoAtalho } from './atalho'
 import { ESPERA_RECALCULO_MS, chaveDoPedido, formularioValido } from './recalculo'
 import { paraEditavel, regraVazia, type RegraEditavel } from './regime'
+import { avisoDeSerie, lerSerieIndisponivel, type AvisoDeSerie } from './serieIndisponivel'
 import './App.css'
 
 /** Critérios do título escolhidos, mas sem as regras: elas ainda precisam vir do servidor. */
@@ -117,7 +121,7 @@ function App() {
   /** O regime padrão, buscado uma vez para reconhecê-lo num cálculo salvo; nulo se a busca falhou. */
   const regimePadrao = useRef<Promise<Regime | null> | null>(null)
   /** Erro do último cálculo, com a chave do formulário que o provocou: editar de novo o tira da tela. */
-  const [erro, setErro] = useState<{ chave: string; mensagem: string } | null>(null)
+  const [erro, setErro] = useState<{ chave: string; mensagem: string; serie: AvisoDeSerie | null } | null>(null)
   const [carregando, setCarregando] = useState(false)
   /** Chave do formulário que, depois do primeiro cálculo, ficou com campo inválido e não pôde ser recalculado. */
   const [invalidoEm, setInvalidoEm] = useState<string | null>(null)
@@ -236,7 +240,10 @@ function App() {
   const desatualizado = calculo !== null && chaveAtual !== calculo.chave
   const invalido = desatualizado && invalidoEm === chaveAtual
   // Antes do primeiro cálculo, o erro fica até o próximo clique; depois, só enquanto o formulário não muda.
-  const mensagemDeErro = erro && (calculo === null || erro.chave === chaveAtual) ? erro.mensagem : null
+  const erroAtual = erro && (calculo === null || erro.chave === chaveAtual) ? erro : null
+  const mensagemDeErro = erroAtual?.mensagem ?? null
+  /** Falta o valor de uma série no mês: em vez da mensagem do servidor, o aviso diz se só não saiu ainda. */
+  const avisoSerie = erroAtual?.serie ?? null
 
   /** @param manual pelo botão Calcular: leva até o resultado; o recálculo automático deixa a tela onde está */
   async function executar(manual: boolean) {
@@ -261,7 +268,12 @@ function App() {
     } catch (e) {
       if (controle.signal.aborted) return
       // O demonstrativo anterior fica, marcado como desatualizado, em vez de sumir com o erro.
-      setErro({ chave, mensagem: e instanceof Error ? e.message : String(e) })
+      const serie = e instanceof ErroDaApi ? lerSerieIndisponivel(e.problema) : null
+      setErro({
+        chave,
+        mensagem: e instanceof Error ? e.message : String(e),
+        serie: serie && pedido ? avisoDeSerie(serie, pedido.dataBase) : null,
+      })
     } finally {
       if (emCurso.current === controle) {
         emCurso.current = null
@@ -309,6 +321,20 @@ function App() {
 
   useEffect(() => () => clearTimeout(espera.current), [])
 
+  const [apple] = useState(() => ehApple(navigator.platform))
+  const atalho = rotuloDoAtalho(apple)
+  // Ctrl+Enter calcula de qualquer ponto da página, como o botão: o requestSubmit valida o formulário
+  // antes. Com uma janela modal aberta (Cálculos salvos, Salvar), o atalho fica com ela.
+  useEffect(() => {
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (!ehAtalhoDeCalcular(evento, apple) || document.querySelector('dialog[open]')) return
+      evento.preventDefault()
+      formulario.current?.requestSubmit()
+    }
+    document.addEventListener('keydown', aoTeclar)
+    return () => document.removeEventListener('keydown', aoTeclar)
+  }, [apple])
+
   function enviar(evento: FormEvent) {
     evento.preventDefault()
     cancelarEspera()
@@ -320,6 +346,23 @@ function App() {
     cancelarEspera()
     void executar(false)
   }
+
+  /**
+   * Recua a data-base para a que não depende do índice que falta e calcula. O requestSubmit espera
+   * o React aplicar a data nova: o clique é um evento discreto, que o React aplica antes do timeout.
+   */
+  function usarDataBase(novaData: string) {
+    alterar('dataBase', novaData)
+    setTimeout(() => formulario.current?.requestSubmit())
+  }
+
+  /** O botão que acompanha o erro, na faixa do demonstrativo ou abaixo do formulário. */
+  const sugerida = avisoSerie?.dataBaseSugerida
+  const acaoDoErro: AcaoDaSituacao | undefined = sugerida
+    ? { rotulo: `Usar a data-base ${data(sugerida)}`, aoClicar: () => usarDataBase(sugerida) }
+    : mensagemDeErro
+      ? { rotulo: 'Tentar de novo', aoClicar: tentarDeNovo }
+      : undefined
 
   /** Troca o formulário inteiro e o demonstrativo, sem deixar cálculo em curso nem erro do caso anterior. */
   function trocarCaso(r: Rascunho, novoCalculo: Calculo | null) {
@@ -581,11 +624,14 @@ function App() {
                 </label>
               )}
             </div>
-            <p className="dica" id="dica-data-base">
-              O débito é atualizado até a data-base. Ela começa no fim do mês anterior porque o índice de {mesFechado} só
-              sai por volta do dia 10. Depois que ele sair, avance a data-base: parada no fim do mês anterior, ela deixa de
-              fora a correção e os juros do mês corrente.
-            </p>
+            {/* O que fica de fora muda o valor, então fica à vista; só o porquê vai para o "Saiba mais". */}
+            <Dica
+              id="dica-data-base"
+              curta="O débito é atualizado até esta data: parada no fim do mês anterior, ela deixa de fora a correção e os juros do mês corrente."
+            >
+              Ela começa no fim do mês anterior porque o índice de {mesFechado} só sai por volta do dia 10. Depois que ele
+              sair, avance a data-base.
+            </Dica>
 
             {comPensao && (
               <>
@@ -661,12 +707,21 @@ function App() {
           <div ref={pe} className="enviar">
             <div className="botoes">
               {/* Depois do primeiro cálculo, o andamento aparece no demonstrativo, e o botão não pisca a cada edição. */}
-              <button type="submit" className="esperando" disabled={carregando && !calculo}>
+              <button
+                type="submit"
+                className="esperando"
+                disabled={carregando && !calculo}
+                aria-keyshortcuts={atalho.aria}
+              >
                 {carregando && !calculo ? 'Calculando…' : 'Calcular'}
               </button>
               <button type="button" className="secundario" onClick={limpar} disabled={emBranco && !calculo}>
                 Limpar
               </button>
+              {/* O leitor de tela já anuncia o atalho pelo aria-keyshortcuts do Calcular. */}
+              <span className="atalho" aria-hidden="true">
+                <kbd>{atalho.tela}</kbd> calcula de qualquer campo
+              </span>
             </div>
             {calculo && <p className="dica">O demonstrativo se atualiza sozinho a cada alteração.</p>}
             <p className="aviso" role="status">
@@ -708,8 +763,22 @@ function App() {
           formulário ainda bate com o demonstrativo, os números valem, e o erro fica aqui.
         */}
         {mensagemDeErro && !desatualizado && (
-          <p className="erro" role="alert">
-            {mensagemDeErro}
+          <p className={avisoSerie?.recente ? 'erro pendente' : 'erro'} role="alert">
+            {avisoSerie ? (
+              <>
+                <strong>{avisoSerie.fato}</strong> {avisoSerie.detalhe}
+                {sugerida && (
+                  <>
+                    {' '}
+                    <button type="button" className="secundario" onClick={() => usarDataBase(sugerida)}>
+                      Usar a data-base {data(sugerida)}
+                    </button>
+                  </>
+                )}
+              </>
+            ) : (
+              mensagemDeErro
+            )}
           </p>
         )}
 
@@ -729,11 +798,13 @@ function App() {
             motivo={
               invalido
                 ? 'Há campos a corrigir no formulário. Os valores abaixo são do cálculo anterior.'
-                : mensagemDeErro
-                  ? `O cálculo com os dados atuais falhou: ${mensagemDeErro.replace(/\.$/, '')}. Os valores abaixo são do cálculo anterior.`
-                  : null
+                : avisoSerie
+                  ? `${avisoSerie.fato} ${avisoSerie.detalhe} Os valores abaixo são do cálculo anterior.`
+                  : mensagemDeErro
+                    ? `O cálculo com os dados atuais falhou: ${mensagemDeErro.replace(/\.$/, '')}. Os valores abaixo são do cálculo anterior.`
+                    : null
             }
-            aoTentarDeNovo={mensagemDeErro && !invalido ? tentarDeNovo : undefined}
+            acao={invalido ? undefined : acaoDoErro}
             idSalvo={idSalvo}
             aoSalvar={() => setSalvarAberta(true)}
           />

@@ -38,7 +38,7 @@ A faixa de `Situacao` fica acima de todos.
 - O botão diz o que acontece: "Calcular", "Limpar", "Desfazer", "Adicionar parcela", "Baixar PDF", "Copiar tabela", "Tentar de novo". Durante a ação, o rótulo vira o gerúndio com reticências: "Calculando…", "Gerando PDF…".
 - Um erro explica o que fazer, com exemplo: "Informe só números, com vírgula antes dos centavos (ex.: 1.234,56)." Nada de "valor inválido" sem dizer qual forma é a válida.
 - A situação é dita com o fato em negrito e o motivo logo depois, em texto normal: "**Demonstrativo desatualizado.**" seguido do porquê.
-- Dicas dizem para que serve o campo, não repetem o rótulo: "Opcionais: só identificam o processo no cabeçalho do PDF."
+- Dicas dizem para que serve o campo, não repetem o rótulo: "Opcionais: só identificam o processo no cabeçalho do PDF." Uma dica tem uma frase à vista; o detalhe (exceções, exemplos, o porquê) fica atrás de "Saiba mais" (`Dica`), salvo o que muda o valor do cálculo, que fica na frase à vista. O "Saiba mais" é um botão com `aria-expanded` cujo rótulo não muda. O `aria-describedby` do campo aponta só para a frase curta.
 - Critérios se escrevem como na sentença, com a fonte entre parênteses: "INPC (IBGE)", "1% ao mês, simples", "desde o vencimento de cada parcela".
 - Sem emoji, sem exclamação e sem tratamento ("você") quando a frase funciona sem ele.
 
@@ -73,7 +73,7 @@ Siga `frontend/src/formato.ts`; é a única fonte desses formatos.
 - A ação principal usa `destaque`, que é a mesma tinta de `texto`. O sistema não tem cor de marca: as únicas cores são as dos ritos, as de estado e a do foco.
 - `prisao`, `penhora` e `sem-rito` só identificam o rito (barra, amostra, marcador do título). Não servem para estado, ênfase nem texto. A mensagem de status das ações do resultado fica em `texto-suave`.
 - Os ritos diferem em luminosidade, não só em matiz: a prisão é a de maior contraste com o fundo, a penhora fica no meio e o sem rito é a mais próxima do fundo, em degraus de 1,7:1 ou mais nos dois temas. Assim o gráfico continua legível impresso em preto e branco e para quem não distingue vermelho de verde.
-- `erro` é para falha do cálculo e campo inválido; `aviso` para dado que pede atenção e para o demonstrativo desatualizado, com `aviso-fundo` na faixa.
+- `erro` é para falha do cálculo e campo inválido; `aviso` para dado que pede atenção, para o índice do mês que ainda não foi divulgado (não é falha: basta esperar ou recuar a data-base) e para o demonstrativo desatualizado, com `aviso-fundo` na faixa.
 - `foco` (azul) desenha o contorno de 2px de qualquer controle. É a única cor que não é de rito nem de estado, para o foco não ser lido como penhora; tem 5:1 ou mais sobre `fundo`, `superficie` e `aviso-fundo` nos dois temas.
 - `borda-forte` contorna campos e botões secundários com 3:1 ou mais sobre todo fundo em que eles aparecem. `borda` é decorativa e não delimita controle.
 - `veu` cobre a página atrás de uma janela modal (Cálculos salvos, Salvar cálculo): `texto` a 40% no tema claro e preto a 64% no escuro, onde um véu claro acenderia a página em vez de apagá-la. Não é cor de conteúdo: nada se escreve nem se desenha com ela. A janela fica em `superficie`, com 1px de `borda-forte` e `raio-cartao`.
@@ -142,6 +142,7 @@ Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `
 - Toda tabela tem `<caption>` com o rito e a unidade, `scope="col"` no cabeçalho e `scope="row"` na primeira coluna. A `.rolagem` em volta tem `tabIndex={0}`, `role="region"` e nome, para rolar de lado pelo teclado.
 - Mensagens de validação ficam escritas abaixo do campo (`MensagemErro`), ligadas por `aria-describedby`. `setCustomValidity` continua, mas sozinho o balão do navegador some e não é lido do mesmo jeito em todo leitor de tela. Com dois erros ou mais depois de Calcular, o resumo de erros abre o formulário e recebe o foco.
 - Alvos de clique e toque com 24 por 24px ou mais (WCAG 2.5.8): o botão `compacto` tem 29px de altura.
+- Ctrl+Enter (⌘+Enter no Mac) calcula de qualquer campo, salvo com uma janela modal aberta. O botão Calcular declara o atalho em `aria-keyshortcuts`, e o pé do formulário o mostra num `<kbd>`, escondido do leitor de tela para não ser lido duas vezes e da tela de toque (`pointer: coarse`), onde não há teclado.
 
 ## Diferenças com o código atual
 

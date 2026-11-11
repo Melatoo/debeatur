@@ -4,6 +4,7 @@ import { CampoDecimal } from './CampoDecimal'
 import { contar, mes } from './formato'
 import { lerPagamentosColados } from './pagamentosColados'
 import { erroDoDiaVencimento, type PensaoEditavel } from './pensao'
+import { Dica } from './Dica'
 
 interface Props {
   pensao: PensaoEditavel
@@ -67,10 +68,9 @@ export function EditorPensao({ pensao, onPensao }: Props) {
           />
         </label>
       </div>
-      <p className="dica" id="dica-vencimento">
-        Cada parcela vale o percentual do salário mínimo vigente no mês do vencimento. Em mês sem o dia escolhido (31
-        em fevereiro, por exemplo), a parcela vence no último dia.
-      </p>
+      <Dica id="dica-vencimento" curta="Cada parcela vale o percentual do salário mínimo do mês do vencimento.">
+        Em mês sem o dia escolhido (31 em fevereiro, por exemplo), a parcela vence no último dia.
+      </Dica>
 
       <div className="campos quatro">
         <label className="duplo">
@@ -130,9 +130,10 @@ export function EditorPensao({ pensao, onPensao }: Props) {
       >
         Adicionar pagamento
       </button>
+      {/* Sem "Saiba mais": o que não é compensado muda o valor e fica à vista. */}
       <p className="dica">
-        O valor pago é abatido da parcela do mesmo mês antes da correção. Um pagamento maior que a parcela não é
-        compensado com as outras.
+        O valor pago é abatido da parcela do mesmo mês, antes da correção; o que passar da parcela não é compensado com
+        as outras.
       </p>
       <ColarPagamentos pensao={pensao} onPagamentos={(pagamentos) => alterar({ pagamentos })} />
     </div>
@@ -207,10 +208,10 @@ function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
           }}
         />
       </label>
-      <p className="dica" id={`${id}-dica`}>
-        Selecione na planilha as duas colunas, o mês (04/2024 ou abr/24) e o valor, e cole aqui. Um cabeçalho na
-        primeira linha é ignorado. Se uma linha não for lida, nenhum pagamento entra.
-      </p>
+      <Dica id={`${id}-dica`} curta="Copie da planilha as colunas do mês e do valor e cole aqui.">
+        O mês pode vir como 04/2024 ou abr/24. Um cabeçalho na primeira linha é ignorado. Se uma linha não for lida,
+        nenhum pagamento entra.
+      </Dica>
       {erros.length > 0 && (
         <ul className="erros-colagem" id={`${id}-erros`} role="alert">
           {erros.map((erro) => (

@@ -30,6 +30,8 @@ class SalarioMinimoEmMemoriaTest {
 
         assertThatThrownBy(() -> salario.vigente(YearMonth.of(2024, 2)))
                 .isInstanceOf(SalarioMinimoIndisponivelException.class)
-                .hasMessageContaining("2024-02");
+                .hasMessageContaining("2024-02")
+                .extracting(e -> ((SalarioMinimoIndisponivelException) e).mes())
+                .isEqualTo(YearMonth.of(2024, 2));
     }
 }

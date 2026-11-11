@@ -304,7 +304,10 @@ class CalculoPensaoControllerTest {
                 """;
 
         assertThat(calcular(requisicao(pensao, null))).hasStatus(422).bodyJson()
-                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("Salário mínimo indisponível"));
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("Salário mínimo indisponível"))
+                .hasPathSatisfying("$.type", v -> v.assertThat().isEqualTo("/problemas/serie-indisponivel"))
+                .hasPathSatisfying("$.serie", v -> v.assertThat().isEqualTo("SALARIO_MINIMO"))
+                .hasPathSatisfying("$.mes", v -> v.assertThat().isEqualTo("2024-01"));
     }
 
     @Test
