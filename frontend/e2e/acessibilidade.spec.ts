@@ -50,8 +50,11 @@ for (const [tema, nome] of [
       api.calculo = { status: 422, arquivo: 'serie-indisponivel.json' }
       await page.goto('/')
       await preencherCaso(page)
+      // Uma data-base depois de outubro de 2026, o mês que falta: só assim o 422 é possível.
+      await page.getByLabel('Data-base do cálculo').fill('2026-12-31')
       await page.getByRole('button', { name: 'Calcular', exact: true }).click()
       await expect(page.getByRole('alert')).toContainText('IPCA')
+      await expect(page.getByRole('button', { name: 'Usar a data-base 31/10/2026' })).toBeVisible()
       await semViolacoes(page)
     })
 

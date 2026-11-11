@@ -13,6 +13,12 @@ if (!/^\d+\.\d+\.\d+$/.test(versao)) {
   process.exit(1)
 }
 
+// O container roda como root: no Linux, o que ele grava na pasta montada (dist, test-results,
+// playwright-report, referências novas) ficaria do root. No fim, tudo volta para o dono da pasta.
+const devolver = process.getuid
+  ? `; s=$?; find /app -path /app/node_modules -prune -o -user 0 -exec chown ${process.getuid()}:${process.getgid()} {} +; exit $s`
+  : ''
+
 const argumentos = [
   'run',
   '--rm',
@@ -32,7 +38,7 @@ const argumentos = [
   `mcr.microsoft.com/playwright:v${versao}-noble`,
   'sh',
   '-c',
-  'npm ci --no-audit --no-fund && npx playwright test "$@"',
+  `npm ci --no-audit --no-fund && npx playwright test "$@"${devolver}`,
   'sh',
   ...process.argv.slice(2),
 ]

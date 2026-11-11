@@ -10,15 +10,16 @@ test('demonstrativo impresso', async ({ page }) => {
   await expect(page).toHaveScreenshot('demonstrativo.png', { fullPage: true })
 })
 
-test.describe('com o sistema no tema escuro', () => {
-  test.use({ colorScheme: 'dark' })
-
-  // O tema `impressao` redefine todas as cores: um token esquecido levaria o valor escuro ao papel.
-  test('imprime igual ao tema claro', async ({ page }) => {
-    await calcularCaso(page)
-    await page.emulateMedia({ media: 'print' })
-    await expect(page).toHaveScreenshot('demonstrativo.png', { fullPage: true })
-  })
+// O tema `impressao` redefine todas as cores: um token esquecido levaria o valor escuro ao papel.
+// A comparação é com a impressão clara da mesma página, e não com `demonstrativo.png`: com
+// `--update-snapshots`, a captura escura regravaria a referência e o defeito passaria a ser o esperado.
+test('com o sistema no tema escuro, imprime igual ao tema claro', async ({ page }) => {
+  await calcularCaso(page)
+  await page.emulateMedia({ media: 'print', colorScheme: 'light' })
+  const claro = await page.screenshot({ fullPage: true })
+  await page.emulateMedia({ colorScheme: 'dark' })
+  const escuro = await page.screenshot({ fullPage: true })
+  expect(escuro.equals(claro), 'a impressão no tema escuro difere da do tema claro').toBe(true)
 })
 
 test('demonstrativo desatualizado impresso', async ({ page, api }) => {

@@ -109,12 +109,12 @@ const APAGADO = ".demonstrativo[data-situacao='desatualizado'] > :not(.situacao,
 /** Passa a página pelo axe; a falha lista cada regra violada e onde. */
 export async function semViolacoes(page: Page) {
   const pagina = await new AxeBuilder({ page }).withTags(CRITERIOS).exclude(APAGADO).analyze()
-  const violations = [...pagina.violations]
+  const violacoes = [...pagina.violations]
   if ((await page.locator(APAGADO).count()) > 0) {
     const apagado = await new AxeBuilder({ page }).withTags(CRITERIOS).include(APAGADO).disableRules(['color-contrast']).analyze()
-    violations.push(...apagado.violations)
+    violacoes.push(...apagado.violations)
   }
-  const resumo = violations.map(
+  const resumo = violacoes.map(
     (v) => `${v.id} (${v.impact}): ${v.help}\n${v.nodes.map((n) => `  ${n.target.join(' ')}: ${n.failureSummary}`).join('\n')}`,
   )
   expect(resumo).toEqual([])

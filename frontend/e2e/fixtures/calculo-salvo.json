@@ -1,7 +1,7 @@
 {
   "id": "a53a1473-1f7b-4621-be44-e62394ad8869",
   "titulo": "Alimentos de A. B. C. até 30/06/2025",
-  "criadoEm": "2026-11-11T23:14:52.843290Z",
+  "criadoEm": "2026-11-11T13:14:52.843290Z",
   "calculo": {
     "dataBase": "2025-06-30",
     "aplicarArt523": true,
@@ -451,7 +451,7 @@
         "serie": "IPCA",
         "descricao": "IPCA (IBGE)",
         "fonte": "SGS/BCB, série 433",
-        "capturadaEm": "2026-11-11T23:14:52.843290Z",
+        "capturadaEm": "2026-11-11T13:14:52.843290Z",
         "snapshot": true,
         "valores": [
           {
@@ -528,7 +528,7 @@
         "serie": "INPC",
         "descricao": "INPC (IBGE)",
         "fonte": "SGS/BCB, série 188",
-        "capturadaEm": "2026-11-11T23:14:52.843290Z",
+        "capturadaEm": "2026-11-11T13:14:52.843290Z",
         "snapshot": true,
         "valores": [
           {
@@ -605,7 +605,7 @@
         "serie": "TAXA_LEGAL",
         "descricao": "Taxa legal do art. 406 do CC (BCB, Res. CMN 5.171/2024)",
         "fonte": "SGS/BCB, série 29543",
-        "capturadaEm": "2026-11-11T23:14:52.843290Z",
+        "capturadaEm": "2026-11-11T13:14:52.843290Z",
         "snapshot": true,
         "valores": [
           {
