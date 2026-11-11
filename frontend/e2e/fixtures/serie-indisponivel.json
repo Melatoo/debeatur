@@ -1,0 +1,10 @@
+{
+  "detail": "IPCA (IBGE) indisponível para 10/2026.",
+  "instance": "/api/calculos",
+  "status": 422,
+  "title": "Série indisponível",
+  "type": "/problemas/serie-indisponivel",
+  "serie": "IPCA",
+  "descricao": "IPCA (IBGE)",
+  "mes": "2026-10"
+}

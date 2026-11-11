@@ -41,6 +41,29 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # Acessibilidade (axe) e comparação visual da impressão, na imagem oficial do Playwright: é nela
+  # que as imagens de referência foram geradas. A versão da imagem sai do package.json.
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: npm run e2e
+      - name: Relatório do Playwright
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 14
+
   docker:
     runs-on: ubuntu-latest
     steps:

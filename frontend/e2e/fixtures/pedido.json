@@ -1,0 +1,30 @@
+{
+  "dataBase": "2025-06-30",
+  "aplicarArt523": true,
+  "parcelas": [],
+  "pensao": {
+    "percentual": "30",
+    "diaVencimento": 10,
+    "primeiroMes": "2024-01",
+    "ultimoMes": "2025-06",
+    "inicioJuros": "VENCIMENTO",
+    "citacao": null,
+    "pagamentos": [
+      {
+        "mes": "2024-03",
+        "valor": "200.00"
+      },
+      {
+        "mes": "2024-11",
+        "valor": "300.00"
+      }
+    ],
+    "ajuizamento": "2024-09-15"
+  },
+  "processo": {
+    "numero": "5001234-56.2024.8.13.0024",
+    "juizo": "2ª Vara de Família de Belo Horizonte",
+    "exequente": "A. B. C., representada por D. B. C.",
+    "executado": "E. F. C."
+  }
+}

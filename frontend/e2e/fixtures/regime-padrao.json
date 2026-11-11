@@ -1,0 +1,32 @@
+{
+  "nome": "Cível padrão TJMG (tabela CGJ: INPC até 07/2024; Lei 14.905/2024)",
+  "regras": [
+    {
+      "inicio": "1994-07",
+      "fim": "2024-07",
+      "correcao": "INPC",
+      "juros": "TAXA_FIXA",
+      "percentualJurosMensal": 1,
+      "ultimoDiaTaxaFixa": null,
+      "descricaoJuros": "1% a.m."
+    },
+    {
+      "inicio": "2024-08",
+      "fim": "2024-08",
+      "correcao": "IPCA",
+      "juros": "TRANSICAO_TAXA_LEGAL",
+      "percentualJurosMensal": 1,
+      "ultimoDiaTaxaFixa": "2024-08-29",
+      "descricaoJuros": "1% a.m. até 29/08/2024 e taxa legal pro rata nos dias seguintes"
+    },
+    {
+      "inicio": "2024-09",
+      "fim": null,
+      "correcao": "IPCA",
+      "juros": "TAXA_LEGAL",
+      "percentualJurosMensal": null,
+      "ultimoDiaTaxaFixa": null,
+      "descricaoJuros": "Taxa legal (Res. CMN 5.171/2024)"
+    }
+  ]
+}

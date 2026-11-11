@@ -1,0 +1,655 @@
+{
+  "id": "a53a1473-1f7b-4621-be44-e62394ad8869",
+  "titulo": "Alimentos de A. B. C. até 30/06/2025",
+  "criadoEm": "2026-11-11T13:14:52.843290Z",
+  "calculo": {
+    "dataBase": "2025-06-30",
+    "aplicarArt523": true,
+    "parcelas": [],
+    "pensao": {
+      "percentual": 30,
+      "diaVencimento": 10,
+      "primeiroMes": "2024-01",
+      "ultimoMes": "2025-06",
+      "inicioJuros": "VENCIMENTO",
+      "citacao": null,
+      "pagamentos": [
+        {
+          "mes": "2024-03",
+          "valor": 200
+        },
+        {
+          "mes": "2024-11",
+          "valor": 300
+        }
+      ],
+      "ajuizamento": "2024-09-15"
+    },
+    "regime": {
+      "nome": "Cível padrão TJMG (tabela CGJ: INPC até 07/2024; Lei 14.905/2024)",
+      "regras": [
+        {
+          "inicio": "1994-07",
+          "fim": "2024-07",
+          "correcao": "INPC",
+          "juros": "TAXA_FIXA",
+          "percentualJurosMensal": 1,
+          "ultimoDiaTaxaFixa": null,
+          "descricaoJuros": "1% a.m."
+        },
+        {
+          "inicio": "2024-08",
+          "fim": "2024-08",
+          "correcao": "IPCA",
+          "juros": "TRANSICAO_TAXA_LEGAL",
+          "percentualJurosMensal": 1,
+          "ultimoDiaTaxaFixa": "2024-08-29",
+          "descricaoJuros": "1% a.m. até 29/08/2024 e taxa legal pro rata nos dias seguintes"
+        },
+        {
+          "inicio": "2024-09",
+          "fim": null,
+          "correcao": "IPCA",
+          "juros": "TAXA_LEGAL",
+          "percentualJurosMensal": null,
+          "ultimoDiaTaxaFixa": null,
+          "descricaoJuros": "Taxa legal (Res. CMN 5.171/2024)"
+        }
+      ]
+    },
+    "processo": {
+      "numero": "5001234-56.2024.8.13.0024",
+      "juizo": "2ª Vara de Família de Belo Horizonte",
+      "exequente": "A. B. C., representada por D. B. C.",
+      "executado": "E. F. C."
+    }
+  },
+  "demonstrativo": {
+    "dataBase": "2025-06-30",
+    "regime": {
+      "nome": "Cível padrão TJMG (tabela CGJ: INPC até 07/2024; Lei 14.905/2024)",
+      "regras": [
+        {
+          "inicio": "1994-07",
+          "fim": "2024-07",
+          "correcao": "INPC",
+          "juros": "TAXA_FIXA",
+          "percentualJurosMensal": 1,
+          "ultimoDiaTaxaFixa": null,
+          "descricaoJuros": "1% a.m."
+        },
+        {
+          "inicio": "2024-08",
+          "fim": "2024-08",
+          "correcao": "IPCA",
+          "juros": "TRANSICAO_TAXA_LEGAL",
+          "percentualJurosMensal": 1,
+          "ultimoDiaTaxaFixa": "2024-08-29",
+          "descricaoJuros": "1% a.m. até 29/08/2024 e taxa legal pro rata nos dias seguintes"
+        },
+        {
+          "inicio": "2024-09",
+          "fim": null,
+          "correcao": "IPCA",
+          "juros": "TAXA_LEGAL",
+          "percentualJurosMensal": null,
+          "ultimoDiaTaxaFixa": null,
+          "descricaoJuros": "Taxa legal (Res. CMN 5.171/2024)"
+        }
+      ]
+    },
+    "linhas": [
+      {
+        "descricao": "Alimentos 01/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-01-10",
+        "inicioJuros": "2024-01-10",
+        "fatorCorrecao": 1.077846002050284,
+        "valorCorrigido": 456.58,
+        "percentualJuros": 12.380823,
+        "valorJuros": 56.53,
+        "subtotal": 513.11,
+        "rito": "PENHORA",
+        "pensao": {
+          "mes": "2024-01",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 02/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-02-10",
+        "inicioJuros": "2024-02-10",
+        "fatorCorrecao": 1.0717371005769951,
+        "valorCorrigido": 453.99,
+        "percentualJuros": 11.380823,
+        "valorJuros": 51.67,
+        "subtotal": 505.66,
+        "rito": "PENHORA",
+        "pensao": {
+          "mes": "2024-02",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 03/2024 (saldo após pagamento parcial)",
+        "valorOriginal": 223.6,
+        "inicioCorrecao": "2024-03-10",
+        "inicioJuros": "2024-03-10",
+        "fatorCorrecao": 1.0631257817448618,
+        "valorCorrigido": 237.71,
+        "percentualJuros": 10.380823,
+        "valorJuros": 24.68,
+        "subtotal": 262.39,
+        "rito": "PENHORA",
+        "pensao": {
+          "mes": "2024-03",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 200
+        }
+      },
+      {
+        "descricao": "Alimentos 04/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-04-10",
+        "inicioJuros": "2024-04-10",
+        "fatorCorrecao": 1.0611096733654672,
+        "valorCorrigido": 449.49,
+        "percentualJuros": 9.380823,
+        "valorJuros": 42.17,
+        "subtotal": 491.66,
+        "rito": "PENHORA",
+        "pensao": {
+          "mes": "2024-04",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 05/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-05-10",
+        "inicioJuros": "2024-05-10",
+        "fatorCorrecao": 1.057198040615191,
+        "valorCorrigido": 447.83,
+        "percentualJuros": 8.380823,
+        "valorJuros": 37.53,
+        "subtotal": 485.36,
+        "rito": "PENHORA",
+        "pensao": {
+          "mes": "2024-05",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 06/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-06-10",
+        "inicioJuros": "2024-06-10",
+        "fatorCorrecao": 1.0523571975066606,
+        "valorCorrigido": 445.78,
+        "percentualJuros": 7.380823,
+        "valorJuros": 32.9,
+        "subtotal": 478.68,
+        "rito": "PENHORA",
+        "pensao": {
+          "mes": "2024-06",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 07/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-07-10",
+        "inicioJuros": "2024-07-10",
+        "fatorCorrecao": 1.0497328653433022,
+        "valorCorrigido": 444.67,
+        "percentualJuros": 6.380823,
+        "valorJuros": 28.37,
+        "subtotal": 473.04,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2024-07",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 08/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-08-10",
+        "inicioJuros": "2024-08-10",
+        "fatorCorrecao": 1.0470106376853203,
+        "valorCorrigido": 443.51,
+        "percentualJuros": 5.380823,
+        "valorJuros": 23.86,
+        "subtotal": 467.37,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2024-08",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 09/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-09-10",
+        "inicioJuros": "2024-09-10",
+        "fatorCorrecao": 1.0472200817016608,
+        "valorCorrigido": 443.6,
+        "percentualJuros": 4.375071,
+        "valorJuros": 19.41,
+        "subtotal": 463.01,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2024-09",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 10/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-10-10",
+        "inicioJuros": "2024-10-10",
+        "fatorCorrecao": 1.0426324987073483,
+        "valorCorrigido": 441.66,
+        "percentualJuros": 3.698844,
+        "valorJuros": 16.34,
+        "subtotal": 458,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2024-10",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 11/2024 (saldo após pagamento parcial)",
+        "valorOriginal": 123.6,
+        "inicioCorrecao": "2024-11-10",
+        "inicioJuros": "2024-11-10",
+        "fatorCorrecao": 1.0368262715864642,
+        "valorCorrigido": 128.15,
+        "percentualJuros": 2.994603,
+        "valorJuros": 3.84,
+        "subtotal": 131.99,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2024-11",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 300
+        }
+      },
+      {
+        "descricao": "Alimentos 12/2024",
+        "valorOriginal": 423.6,
+        "inicioCorrecao": "2024-12-10",
+        "inicioJuros": "2024-12-10",
+        "fatorCorrecao": 1.032798357990302,
+        "valorCorrigido": 437.49,
+        "percentualJuros": 2.608729,
+        "valorJuros": 11.41,
+        "subtotal": 448.9,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2024-12",
+          "salarioMinimo": 1412,
+          "valorDevido": 423.6,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 01/2025",
+        "valorOriginal": 455.4,
+        "inicioCorrecao": "2025-01-10",
+        "inicioJuros": "2025-01-10",
+        "fatorCorrecao": 1.0274555889278771,
+        "valorCorrigido": 467.9,
+        "percentualJuros": 2.436805,
+        "valorJuros": 11.4,
+        "subtotal": 479.3,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2025-01",
+          "salarioMinimo": 1518,
+          "valorDevido": 455.4,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 02/2025",
+        "valorOriginal": 455.4,
+        "inicioCorrecao": "2025-02-10",
+        "inicioJuros": "2025-02-10",
+        "fatorCorrecao": 1.025814286070165,
+        "valorCorrigido": 467.16,
+        "percentualJuros": 1.847378,
+        "valorJuros": 8.63,
+        "subtotal": 475.79,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2025-02",
+          "salarioMinimo": 1518,
+          "valorDevido": 455.4,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 03/2025",
+        "valorOriginal": 455.4,
+        "inicioCorrecao": "2025-03-10",
+        "inicioJuros": "2025-03-10",
+        "fatorCorrecao": 1.012549882608,
+        "valorCorrigido": 461.12,
+        "percentualJuros": 0.945169,
+        "valorJuros": 4.36,
+        "subtotal": 465.48,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2025-03",
+          "salarioMinimo": 1518,
+          "valorDevido": 455.4,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 04/2025",
+        "valorOriginal": 455.4,
+        "inicioCorrecao": "2025-04-10",
+        "inicioJuros": "2025-04-10",
+        "fatorCorrecao": 1.00691118,
+        "valorCorrigido": 458.55,
+        "percentualJuros": 0.945169,
+        "valorJuros": 4.33,
+        "subtotal": 462.88,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2025-04",
+          "salarioMinimo": 1518,
+          "valorDevido": 455.4,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 05/2025",
+        "valorOriginal": 455.4,
+        "inicioCorrecao": "2025-05-10",
+        "inicioJuros": "2025-05-10",
+        "fatorCorrecao": 1.0026,
+        "valorCorrigido": 456.58,
+        "percentualJuros": 0.6232,
+        "valorJuros": 2.85,
+        "subtotal": 459.43,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2025-05",
+          "salarioMinimo": 1518,
+          "valorDevido": 455.4,
+          "valorPago": 0
+        }
+      },
+      {
+        "descricao": "Alimentos 06/2025",
+        "valorOriginal": 455.4,
+        "inicioCorrecao": "2025-06-10",
+        "inicioJuros": "2025-06-10",
+        "fatorCorrecao": 1,
+        "valorCorrigido": 455.4,
+        "percentualJuros": 0,
+        "valorJuros": 0,
+        "subtotal": 455.4,
+        "rito": "PRISAO",
+        "pensao": {
+          "mes": "2025-06",
+          "salarioMinimo": 1518,
+          "valorDevido": 455.4,
+          "valorPago": 0
+        }
+      }
+    ],
+    "totalCorrigido": 7597.17,
+    "totalJuros": 380.28,
+    "debitoAtualizado": 7977.45,
+    "multaArt523": 273.69,
+    "honorariosArt523": 273.69,
+    "total": 8524.83,
+    "ritos": {
+      "ajuizamento": "2024-09-15",
+      "prisao": {
+        "parcelas": 12,
+        "totalCorrigido": 5105.79,
+        "totalJuros": 134.8,
+        "debitoAtualizado": 5240.59
+      },
+      "penhora": {
+        "parcelas": 6,
+        "totalCorrigido": 2491.38,
+        "totalJuros": 245.48,
+        "debitoAtualizado": 2736.86
+      },
+      "totalPenhora": 3284.24
+    },
+    "series": [
+      {
+        "serie": "IPCA",
+        "descricao": "IPCA (IBGE)",
+        "fonte": "SGS/BCB, série 433",
+        "capturadaEm": "2026-11-11T13:14:52.843290Z",
+        "snapshot": true,
+        "valores": [
+          {
+            "mes": "2024-01",
+            "valor": 0.42
+          },
+          {
+            "mes": "2024-02",
+            "valor": 0.83
+          },
+          {
+            "mes": "2024-03",
+            "valor": 0.16
+          },
+          {
+            "mes": "2024-04",
+            "valor": 0.38
+          },
+          {
+            "mes": "2024-05",
+            "valor": 0.46
+          },
+          {
+            "mes": "2024-06",
+            "valor": 0.21
+          },
+          {
+            "mes": "2024-07",
+            "valor": 0.38
+          },
+          {
+            "mes": "2024-08",
+            "valor": -0.02
+          },
+          {
+            "mes": "2024-09",
+            "valor": 0.44
+          },
+          {
+            "mes": "2024-10",
+            "valor": 0.56
+          },
+          {
+            "mes": "2024-11",
+            "valor": 0.39
+          },
+          {
+            "mes": "2024-12",
+            "valor": 0.52
+          },
+          {
+            "mes": "2025-01",
+            "valor": 0.16
+          },
+          {
+            "mes": "2025-02",
+            "valor": 1.31
+          },
+          {
+            "mes": "2025-03",
+            "valor": 0.56
+          },
+          {
+            "mes": "2025-04",
+            "valor": 0.43
+          },
+          {
+            "mes": "2025-05",
+            "valor": 0.26
+          }
+        ]
+      },
+      {
+        "serie": "INPC",
+        "descricao": "INPC (IBGE)",
+        "fonte": "SGS/BCB, série 188",
+        "capturadaEm": "2026-11-11T13:14:52.843290Z",
+        "snapshot": true,
+        "valores": [
+          {
+            "mes": "2024-01",
+            "valor": 0.57
+          },
+          {
+            "mes": "2024-02",
+            "valor": 0.81
+          },
+          {
+            "mes": "2024-03",
+            "valor": 0.19
+          },
+          {
+            "mes": "2024-04",
+            "valor": 0.37
+          },
+          {
+            "mes": "2024-05",
+            "valor": 0.46
+          },
+          {
+            "mes": "2024-06",
+            "valor": 0.25
+          },
+          {
+            "mes": "2024-07",
+            "valor": 0.26
+          },
+          {
+            "mes": "2024-08",
+            "valor": -0.14
+          },
+          {
+            "mes": "2024-09",
+            "valor": 0.48
+          },
+          {
+            "mes": "2024-10",
+            "valor": 0.61
+          },
+          {
+            "mes": "2024-11",
+            "valor": 0.33
+          },
+          {
+            "mes": "2024-12",
+            "valor": 0.48
+          },
+          {
+            "mes": "2025-01",
+            "valor": 0
+          },
+          {
+            "mes": "2025-02",
+            "valor": 1.48
+          },
+          {
+            "mes": "2025-03",
+            "valor": 0.51
+          },
+          {
+            "mes": "2025-04",
+            "valor": 0.48
+          },
+          {
+            "mes": "2025-05",
+            "valor": 0.35
+          }
+        ]
+      },
+      {
+        "serie": "TAXA_LEGAL",
+        "descricao": "Taxa legal do art. 406 do CC (BCB, Res. CMN 5.171/2024)",
+        "fonte": "SGS/BCB, série 29543",
+        "capturadaEm": "2026-11-11T13:14:52.843290Z",
+        "snapshot": true,
+        "valores": [
+          {
+            "mes": "2024-08",
+            "valor": 0.605306
+          },
+          {
+            "mes": "2024-09",
+            "valor": 0.676227
+          },
+          {
+            "mes": "2024-10",
+            "valor": 0.704241
+          },
+          {
+            "mes": "2024-11",
+            "valor": 0.385874
+          },
+          {
+            "mes": "2024-12",
+            "valor": 0.171924
+          },
+          {
+            "mes": "2025-01",
+            "valor": 0.589427
+          },
+          {
+            "mes": "2025-02",
+            "valor": 0.902209
+          },
+          {
+            "mes": "2025-03",
+            "valor": 0
+          },
+          {
+            "mes": "2025-04",
+            "valor": 0.321969
+          },
+          {
+            "mes": "2025-05",
+            "valor": 0.6232
+          }
+        ]
+      }
+    ]
+  }
+}
