@@ -38,7 +38,7 @@ A faixa de `Situacao` fica acima de todos.
 - O botão diz o que acontece: "Calcular", "Limpar", "Desfazer", "Adicionar parcela", "Baixar PDF", "Copiar tabela", "Tentar de novo". Durante a ação, o rótulo vira o gerúndio com reticências: "Calculando…", "Gerando PDF…".
 - Um erro explica o que fazer, com exemplo: "Informe só números, com vírgula antes dos centavos (ex.: 1.234,56)." Nada de "valor inválido" sem dizer qual forma é a válida.
 - A situação é dita com o fato em negrito e o motivo logo depois, em texto normal: "**Demonstrativo desatualizado.**" seguido do porquê.
-- Dicas dizem para que serve o campo, não repetem o rótulo: "Opcionais: só identificam o processo no cabeçalho do PDF."
+- Dicas dizem para que serve o campo, não repetem o rótulo: "Opcionais: só identificam o processo no cabeçalho do PDF." Uma dica tem uma frase à vista; o detalhe (exceções, exemplos, o porquê) fica atrás de "Saiba mais" (`Dica`), salvo o que muda o valor do cálculo, que fica na frase à vista. O "Saiba mais" é um botão com `aria-expanded` cujo rótulo não muda. O `aria-describedby` do campo aponta só para a frase curta.
 - Critérios se escrevem como na sentença, com a fonte entre parênteses: "INPC (IBGE)", "1% ao mês, simples", "desde o vencimento de cada parcela".
 - Sem emoji, sem exclamação e sem tratamento ("você") quando a frase funciona sem ele.
 
@@ -142,6 +142,7 @@ Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `
 - Toda tabela tem `<caption>` com o rito e a unidade, `scope="col"` no cabeçalho e `scope="row"` na primeira coluna. A `.rolagem` em volta tem `tabIndex={0}`, `role="region"` e nome, para rolar de lado pelo teclado.
 - Mensagens de validação ficam escritas abaixo do campo (`MensagemErro`), ligadas por `aria-describedby`. `setCustomValidity` continua, mas sozinho o balão do navegador some e não é lido do mesmo jeito em todo leitor de tela. Com dois erros ou mais depois de Calcular, o resumo de erros abre o formulário e recebe o foco.
 - Alvos de clique e toque com 24 por 24px ou mais (WCAG 2.5.8): o botão `compacto` tem 29px de altura.
+- Ctrl+Enter (⌘+Enter no Mac) calcula de qualquer campo, salvo com uma janela modal aberta. O botão Calcular declara o atalho em `aria-keyshortcuts`, e o pé do formulário o mostra num `<kbd>`, escondido do leitor de tela para não ser lido duas vezes e da tela de toque (`pointer: coarse`), onde não há teclado.
 
 ## Diferenças com o código atual
 
