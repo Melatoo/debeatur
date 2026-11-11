@@ -23,10 +23,24 @@ describe('lerSerieIndisponivel', () => {
 describe('avisoDeSerie', () => {
   it('sugere o último dia do mês que falta como data-base', () => {
     expect(avisoDeSerie(ipca('2026-10'), '2026-11-30', hoje)).toEqual({
-      fato: 'IPCA (IBGE) de 10/2026 ainda não divulgado.',
+      fato: 'IPCA (IBGE) ainda sem valor para 10/2026.',
       detalhe:
-        'Os índices de um mês saem por volta do dia 10 do mês seguinte. Com a data-base até 31/10/2026, o cálculo não depende dele.',
+        'O IBGE divulga o índice de um mês por volta do dia 10 do mês seguinte. Com a data-base até 31/10/2026, o cálculo não depende dele.',
       recente: true,
+      dataBaseSugerida: '2026-10-31',
+    })
+  })
+
+  it('concorda com a taxa e não promete o dia 10 fora do IBGE', () => {
+    const taxaLegal: SerieIndisponivel = {
+      serie: 'TAXA_LEGAL',
+      descricao: 'Taxa legal do art. 406 do CC (BCB, Res. CMN 5.171/2024)',
+      mes: '2026-10',
+    }
+    expect(avisoDeSerie(taxaLegal, '2026-11-30', hoje)).toMatchObject({
+      fato: 'Taxa legal do art. 406 do CC (BCB, Res. CMN 5.171/2024) ainda sem valor para 10/2026.',
+      detalhe:
+        'O valor do mês ainda não está na série do Banco Central. Com a data-base até 31/10/2026, o cálculo não depende dele.',
       dataBaseSugerida: '2026-10-31',
     })
   })

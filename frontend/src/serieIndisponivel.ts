@@ -72,12 +72,20 @@ export function avisoDeSerie(s: SerieIndisponivel, dataBase: string, hoje = new 
   }
   const sugestao = ultimoDia(s.mes)
   const recuar = sugestao < dataBase
+  const quandoSai = DIVULGADOS_DIA_10.has(s.serie)
+    ? 'O IBGE divulga o índice de um mês por volta do dia 10 do mês seguinte.'
+    : 'O valor do mês ainda não está na série do Banco Central.'
   return {
-    fato: `${s.descricao} de ${mes(s.mes)} ainda não divulgado.`,
-    detalhe: recuar
-      ? `Os índices de um mês saem por volta do dia 10 do mês seguinte. Com a data-base até ${data(sugestao)}, o cálculo não depende dele.`
-      : 'Os índices de um mês saem por volta do dia 10 do mês seguinte.',
+    // "sem valor" concorda com qualquer série: "IPCA (IBGE)", "Taxa SELIC…", "Taxa legal…".
+    fato: `${s.descricao} ainda sem valor para ${mes(s.mes)}.`,
+    detalhe: recuar ? `${quandoSai} Com a data-base até ${data(sugestao)}, o cálculo não depende dele.` : quandoSai,
     recente,
     dataBaseSugerida: recuar ? sugestao : null,
   }
 }
+
+/**
+ * Os índices do IBGE que saem por volta do dia 10 do mês seguinte. A SELIC, a taxa legal e o
+ * IPCA-E têm outro calendário, e o aviso não promete data para eles.
+ */
+const DIVULGADOS_DIA_10 = new Set(['IPCA', 'INPC'])
