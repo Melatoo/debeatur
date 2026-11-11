@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { Demonstrativo, LinhaDemonstrativo, SerieUsada } from './api'
-import { Janela } from './CalculosSalvos'
+import { Janela } from './Janela'
 import { contar, dataHora, fator, mes, variacao } from './formato'
 import { mesesDoFator, seriesDosMeses } from './serieDoFator'
 

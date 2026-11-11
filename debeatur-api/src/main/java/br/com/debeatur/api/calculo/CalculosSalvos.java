@@ -49,10 +49,10 @@ public class CalculosSalvos {
                 pedido.dataBase(), demonstrativo.regime().nome(), demonstrativo.total(), agora());
         SnapshotSeries snapshot = gravacao.snapshot();
         repositorio.inserir(ESCRITORIO_PADRAO, resumo, json.writeValueAsString(pedido), snapshot);
-        // O mesmo demonstrativo que a reabertura dará: os números são os de agora, e as séries passam
-        // a dizer que são as guardadas com o cálculo.
-        DemonstrativoResponse guardado = calculos.calcular(pedido,
-                new SnapshotSeries(snapshot.valores(), resumo.criadoEm()));
+        // O mesmo demonstrativo que a reabertura dará: os números e os valores das séries são os de
+        // agora, e as séries passam a dizer que são as guardadas com o cálculo.
+        DemonstrativoResponse guardado = demonstrativo.comSeries(DemonstrativoResponse.SerieUsada.de(snapshot,
+                new SnapshotSeries(snapshot.valores(), resumo.criadoEm())));
         return new CalculoSalvoDtos.CalculoSalvo(resumo.id(), resumo.titulo(), resumo.criadoEm(), pedido, guardado);
     }
 

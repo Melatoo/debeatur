@@ -40,6 +40,12 @@ public record DemonstrativoResponse(
         Ritos ritos,
         List<SerieUsada> series) {
 
+    /** O mesmo demonstrativo, com as séries descritas de outra forma (de onde e de quando vieram). */
+    DemonstrativoResponse comSeries(List<SerieUsada> outras) {
+        return new DemonstrativoResponse(dataBase, regime, linhas, totalCorrigido, totalJuros, debitoAtualizado,
+                multaArt523, honorariosArt523, total, ritos, outras);
+    }
+
     /**
      * @param rito   nulo se o cálculo não separa os ritos
      * @param pensao de onde veio a parcela da pensão; nulo nas parcelas avulsas

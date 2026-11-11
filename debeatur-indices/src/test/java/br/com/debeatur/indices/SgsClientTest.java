@@ -46,6 +46,14 @@ class SgsClientTest {
         return new SgsClient(HttpClient.newHttpClient(), base);
     }
 
+    /** Todo demonstrativo diz a série do SGS de cada índice: um índice sem código derrubaria o cálculo. */
+    @Test
+    void todoIndiceTemCodigoNoSgs() {
+        for (Indice indice : Indice.values()) {
+            assertThat(SgsClient.codigo(indice)).as(indice.name()).isPositive();
+        }
+    }
+
     @Test
     void interpretaRespostaDoSgs() {
         String corpo = """
