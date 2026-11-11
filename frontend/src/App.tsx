@@ -597,10 +597,13 @@ function App() {
                 </label>
               )}
             </div>
-            <Dica id="dica-data-base" curta="O débito é atualizado até esta data.">
+            {/* O que fica de fora muda o valor, então fica à vista; só o porquê vai para o "Saiba mais". */}
+            <Dica
+              id="dica-data-base"
+              curta="O débito é atualizado até esta data: parada no fim do mês anterior, ela deixa de fora a correção e os juros do mês corrente."
+            >
               Ela começa no fim do mês anterior porque o índice de {mesFechado} só sai por volta do dia 10. Depois que ele
-              sair, avance a data-base: parada no fim do mês anterior, ela deixa de fora a correção e os juros do mês
-              corrente.
+              sair, avance a data-base.
             </Dica>
 
             {comPensao && (

@@ -130,9 +130,11 @@ export function EditorPensao({ pensao, onPensao }: Props) {
       >
         Adicionar pagamento
       </button>
-      <Dica curta="O valor pago é abatido da parcela do mesmo mês, antes da correção.">
-        Um pagamento maior que a parcela não é compensado com as outras.
-      </Dica>
+      {/* Sem "Saiba mais": o que não é compensado muda o valor e fica à vista. */}
+      <p className="dica">
+        O valor pago é abatido da parcela do mesmo mês, antes da correção; o que passar da parcela não é compensado com
+        as outras.
+      </p>
       <ColarPagamentos pensao={pensao} onPagamentos={(pagamentos) => alterar({ pagamentos })} />
     </div>
   )

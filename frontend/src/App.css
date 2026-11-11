@@ -209,6 +209,13 @@ button.saiba-mais:hover {
   color: var(--texto-suave);
 }
 
+/* Sem teclado físico, o atalho não serve. */
+@media (pointer: coarse) {
+  .atalho {
+    display: none;
+  }
+}
+
 kbd {
   font: inherit;
   font-weight: 600;
