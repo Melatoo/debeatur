@@ -6,6 +6,11 @@ Cálculo de cumprimento de sentença (art. 524 do CPC). Escopo do MVP em `docs/r
 
 - Backend: `./mvnw verify` (exige JDK 25; o enforcer falha com versões anteriores)
 - Frontend: `cd frontend && npm ci && npm run lint && npm test && npm run build`
+- Ponta a ponta: `cd frontend && npm run e2e` (Playwright + axe, com a API simulada pelas
+  respostas de `frontend/e2e/fixtures`). Roda na imagem oficial do Playwright via Docker, onde
+  ficam as referências da impressão; depois de mudança visual intencional,
+  `npm run e2e -- --update-snapshots` e confira as imagens no diff. `npx playwright test` roda
+  na máquina, sem a comparação visual.
 - Tudo junto: `docker compose up -d --build` (http://localhost:3000)
 
 ## Regras do domínio
