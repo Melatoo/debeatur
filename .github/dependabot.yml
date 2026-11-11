@@ -17,6 +17,11 @@ updates:
       npm:
         patterns: ["*"]
         update-types: [minor, patch]
+    # Os tipos do Node acompanham o major do runtime (Node 24 no CI e na imagem); um major novo
+    # dos tipos deixaria usar APIs que não existem nele. A troca é feita à mão, junto com o CI.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # As imagens base acompanham o JDK 25 e o Node 24 do CI e do enforcer; a troca de versão
   # major é feita à mão, junto com o CI.
