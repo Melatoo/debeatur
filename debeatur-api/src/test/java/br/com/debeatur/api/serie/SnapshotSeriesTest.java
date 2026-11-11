@@ -9,8 +9,10 @@ import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.YearMonth;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,5 +83,40 @@ class SnapshotSeriesTest {
         SerieIndicesEmMemoria serie = snapshot.carregar(Set.of(Indice.IPCA), FEV, FEV);
 
         assertThatThrownBy(() -> serie.variacaoMensal(Indice.IPCA, JAN)).isInstanceOf(IndiceIndisponivelException.class);
+    }
+
+    @Test
+    void aCapturaDoSnapshotEOSalvamento() {
+        Instant salvoEm = Instant.parse("2024-04-05T12:00:00Z");
+        SnapshotSeries snapshot = new SnapshotSeries(Map.of("IPCA", Map.of(JAN, new BigDecimal("0.42"))), salvoEm);
+
+        assertThat(snapshot.captura("IPCA")).contains(new FonteSeries.Captura(salvoEm, true));
+        assertThat(snapshot.captura("INPC")).as("série fora do snapshot").isEmpty();
+        assertThat(new SnapshotSeries(Map.of("IPCA", Map.of(JAN, BigDecimal.ONE))).captura("IPCA"))
+                .as("snapshot ainda não gravado").isEmpty();
+    }
+
+    @Test
+    void aGravacaoRepassaACapturaDaOrigem() {
+        Instant consultadoEm = Instant.parse("2024-04-01T09:00:00Z");
+        FonteSeries comCaptura = new FonteSeries() {
+            @Override
+            public SerieIndicesEmMemoria carregar(Set<Indice> indices, YearMonth de, YearMonth ate) {
+                return origem.carregar(indices, de, ate);
+            }
+
+            @Override
+            public SalarioMinimoEmMemoria carregarSalarioMinimo(YearMonth de, YearMonth ate) {
+                return origem.carregarSalarioMinimo(de, ate);
+            }
+
+            @Override
+            public Optional<Captura> captura(String serie) {
+                return Optional.of(new Captura(consultadoEm, false));
+            }
+        };
+
+        assertThat(SnapshotSeries.gravando(comCaptura).captura("IPCA"))
+                .contains(new FonteSeries.Captura(consultadoEm, false));
     }
 }

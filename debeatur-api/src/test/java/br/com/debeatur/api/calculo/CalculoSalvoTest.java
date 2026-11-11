@@ -29,6 +29,8 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.util.EnumMap;
 import java.util.Map;
@@ -164,8 +166,51 @@ class CalculoSalvoTest {
 
         String salvo = salvar(null, PEDIDO);
 
-        assertThat(demonstrativo(salvo)).isEqualTo(json.readValue(
-                calculado.getResponse().getContentAsString(StandardCharsets.UTF_8), DemonstrativoResponse.class));
+        DemonstrativoResponse semSalvar = json.readValue(
+                calculado.getResponse().getContentAsString(StandardCharsets.UTF_8), DemonstrativoResponse.class);
+
+        // Os números e os valores das séries são os mesmos; só a captura passa a ser a do salvamento.
+        assertThat(demonstrativo(salvo)).usingRecursiveComparison().ignoringFields("series").isEqualTo(semSalvar);
+        assertThat(demonstrativo(salvo).series()).extracting(DemonstrativoResponse.SerieUsada::valores)
+                .isEqualTo(semSalvar.series().stream().map(DemonstrativoResponse.SerieUsada::valores).toList());
+    }
+
+    @Test
+    void asSeriesDoCalculoSalvoSaoAsGuardadasNoSalvamento() throws Exception {
+        String salvo = salvar(null, PEDIDO);
+        String id = JsonPath.read(salvo, "$.id");
+        String criadoEm = JsonPath.read(salvo, "$.criadoEm");
+
+        DemonstrativoResponse reaberto = demonstrativo(obter("/api/calculos/salvos/" + id));
+
+        // INPC, IPCA e taxa legal, na ordem do Indice; o salário mínimo vem nas linhas da pensão
+        assertThat(reaberto.series()).extracting(DemonstrativoResponse.SerieUsada::serie)
+                .containsExactly("IPCA", "INPC", "TAXA_LEGAL");
+        assertThat(reaberto.series()).allSatisfy(serie -> {
+            assertThat(serie.snapshot()).isTrue();
+            assertThat(serie.capturadaEm()).isEqualTo(Instant.parse(criadoEm));
+        });
+        DemonstrativoResponse.SerieUsada inpc = reaberto.series().get(1);
+        assertThat(inpc.fonte()).isEqualTo("SGS/BCB, série 188");
+        assertThat(inpc.valores()).hasSize(7);
+        assertThat(inpc.valores().getFirst())
+                .isEqualTo(new DemonstrativoResponse.ValorMensal(YearMonth.of(2024, 3), new BigDecimal("0.37")));
+    }
+
+    @Test
+    void semSalvarAsSeriesDizemQuandoOCacheConsultouOSgs() throws Exception {
+        MvcTestResult calculado = mvc.post().uri("/api/calculos").contentType(MediaType.APPLICATION_JSON)
+                .content(PEDIDO).exchange();
+        assertThat(calculado).hasStatusOk();
+        Instant consultadoEm = jdbc.sql("SELECT consultado_em FROM serie_consulta WHERE serie = 'INPC'")
+                .query(OffsetDateTime.class).single().toInstant();
+
+        DemonstrativoResponse.SerieUsada inpc = json.readValue(
+                calculado.getResponse().getContentAsString(StandardCharsets.UTF_8), DemonstrativoResponse.class)
+                .series().stream().filter(s -> s.serie().equals("INPC")).findFirst().orElseThrow();
+
+        assertThat(inpc.snapshot()).isFalse();
+        assertThat(inpc.capturadaEm()).isEqualTo(consultadoEm);
     }
 
     @Test

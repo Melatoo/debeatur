@@ -67,6 +67,12 @@ public class CacheSeries implements FonteSeries {
         return new SalarioMinimoEmMemoria().comTodos(buscar(SALARIO_MINIMO, de, ate, sgs::buscarSalarioMinimo));
     }
 
+    /** A última consulta ao SGS da série, que é de quando são os valores do cache. */
+    @Override
+    public Optional<Captura> captura(String serie) {
+        return repositorio.consulta(serie).map(c -> new Captura(c.consultadoEm(), false));
+    }
+
     /**
      * Relê no SGS os últimos {@link PropriedadesSeries#mesesRevisao()} meses de cada série já
      * consultada, até o mês corrente. Uma série que falha não impede as outras.

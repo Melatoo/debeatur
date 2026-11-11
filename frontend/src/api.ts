@@ -109,6 +109,22 @@ export interface Ritos {
   totalPenhora: number
 }
 
+/** Um índice que o cálculo leu, com o valor de cada mês, de onde veio e de quando é. */
+export interface SerieUsada {
+  /** `IPCA`, `INPC`, `IPCA_E`, `SELIC` ou `TAXA_LEGAL`. */
+  serie: string
+  /** "INPC (IBGE)" */
+  descricao: string
+  /** "SGS/BCB, série 188" */
+  fonte: string
+  /** Instante ISO 8601: a última consulta ao SGS, ou o salvamento se `snapshot`; nulo se a fonte não sabe. */
+  capturadaEm: string | null
+  /** Se os valores são os guardados com um cálculo salvo. */
+  snapshot: boolean
+  /** Variação de cada mês (AAAA-MM), em pontos percentuais, em ordem. */
+  valores: { mes: string; valor: number }[]
+}
+
 export interface Demonstrativo {
   dataBase: string
   regime: Regime
@@ -120,6 +136,8 @@ export interface Demonstrativo {
   honorariosArt523: number
   total: number
   ritos: Ritos | null
+  /** Os índices que o cálculo leu, mês a mês; o salário mínimo vem nas linhas da pensão. */
+  series: SerieUsada[]
 }
 
 /** Erro devolvido pela API, com o problem+json inteiro para quem quiser mais que a mensagem. */

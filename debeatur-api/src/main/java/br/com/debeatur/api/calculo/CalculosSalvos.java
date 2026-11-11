@@ -47,8 +47,13 @@ public class CalculosSalvos {
         CalculoRequest pedido = request.calculo().comRegime(demonstrativo.regime());
         RepositorioCalculos.Resumo resumo = new RepositorioCalculos.Resumo(UUID.randomUUID(), titulo(request),
                 pedido.dataBase(), demonstrativo.regime().nome(), demonstrativo.total(), agora());
-        repositorio.inserir(ESCRITORIO_PADRAO, resumo, json.writeValueAsString(pedido), gravacao.snapshot());
-        return new CalculoSalvoDtos.CalculoSalvo(resumo.id(), resumo.titulo(), resumo.criadoEm(), pedido, demonstrativo);
+        SnapshotSeries snapshot = gravacao.snapshot();
+        repositorio.inserir(ESCRITORIO_PADRAO, resumo, json.writeValueAsString(pedido), snapshot);
+        // O mesmo demonstrativo que a reabertura dará: os números e os valores das séries são os de
+        // agora, e as séries passam a dizer que são as guardadas com o cálculo.
+        DemonstrativoResponse guardado = demonstrativo.comSeries(DemonstrativoResponse.SerieUsada.de(snapshot,
+                new SnapshotSeries(snapshot.valores(), resumo.criadoEm())));
+        return new CalculoSalvoDtos.CalculoSalvo(resumo.id(), resumo.titulo(), resumo.criadoEm(), pedido, guardado);
     }
 
     List<CalculoSalvoDtos.Resumo> listar() {

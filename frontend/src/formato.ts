@@ -35,3 +35,8 @@ export const mesCurto = (iso: string) => {
 }
 
 export const contar = (n: number, singular: string, plural: string) => `${n} ${n === 1 ? singular : plural}`
+
+const variacaoBr = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+
+/** Variação mensal de um índice, em %, com as casas que a série publicou (até seis). */
+export const variacao = (valor: number) => `${variacaoBr.format(valor)}%`

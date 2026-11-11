@@ -74,7 +74,14 @@ class CalculoControllerTest {
                 .hasPathSatisfying("$.linhas[0].valorCorrigido", v -> v.assertThat().asNumber().isEqualTo(1017.08))
                 .hasPathSatisfying("$.linhas[0].percentualJuros", v -> v.assertThat().asNumber().isEqualTo(1.0))
                 .hasPathSatisfying("$.linhas[0].valorJuros", v -> v.assertThat().asNumber().isEqualTo(10.17))
-                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(1027.25));
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(1027.25))
+                // a série que o motor leu, para conferir o fator mês a mês
+                .hasPathSatisfying("$.series[0].serie", v -> v.assertThat().isEqualTo("IPCA_E"))
+                .hasPathSatisfying("$.series[0].descricao", v -> v.assertThat().isEqualTo("IPCA-E (IBGE)"))
+                .hasPathSatisfying("$.series[0].fonte", v -> v.assertThat().isEqualTo("SGS/BCB, série 10764"))
+                .hasPathSatisfying("$.series[0].valores[0].mes", v -> v.assertThat().isEqualTo("2024-01"))
+                .hasPathSatisfying("$.series[0].valores[2].valor", v -> v.assertThat().asNumber().isEqualTo(0.20))
+                .hasPathSatisfying("$.series.length()", v -> v.assertThat().asNumber().isEqualTo(1));
     }
 
     @Test
