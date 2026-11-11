@@ -235,6 +235,24 @@ class CalculoControllerTest {
                 .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("30/08/2024"));
     }
 
+    @Test
+    void indiceDoMesQueNaoSaiuDevolve422ComASerieEOMes() {
+        // Janeiro e fevereiro saíram; março, o último mês antes da data-base, ainda não.
+        when(series.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+                .com(Indice.IPCA_E, YearMonth.of(2024, 1), "1.00")
+                .com(Indice.IPCA_E, YearMonth.of(2024, 2), "0.50"));
+        String regime = """
+                {"regras": [{"inicio": "2023-01", "correcao": "IPCA_E", "juros": "TAXA_FIXA", "percentualJurosMensal": 0.5}]}
+                """;
+
+        assertThat(calcular(requisicao(regime))).hasStatus(422).bodyJson()
+                .hasPathSatisfying("$.type", v -> v.assertThat().isEqualTo("/problemas/serie-indisponivel"))
+                .hasPathSatisfying("$.serie", v -> v.assertThat().isEqualTo("IPCA_E"))
+                .hasPathSatisfying("$.descricao", v -> v.assertThat().isEqualTo("IPCA-E (IBGE)"))
+                .hasPathSatisfying("$.mes", v -> v.assertThat().isEqualTo("2024-03"))
+                .hasPathSatisfying("$.detail", v -> v.assertThat().isEqualTo("IPCA-E (IBGE) indisponível para 03/2024."));
+    }
+
     private static String corpo(MockMvcTester.MockMvcRequestBuilder requisicao) throws Exception {
         MvcTestResult resultado = requisicao.exchange();
         assertThat(resultado).hasStatusOk();
