@@ -210,7 +210,10 @@ export async function buscarSessao(): Promise<Sessao | null> {
   return resposta.json()
 }
 
-/** @throws ErroDaApi com "E-mail ou senha incorretos." (401) se as credenciais não conferem */
+/**
+ * @throws ErroDaApi com "E-mail ou senha incorretos." (401) se as credenciais não conferem, ou
+ * "Muitas tentativas de entrar..." (429) depois de muitas falhas
+ */
 export async function entrar(email: string, senha: string): Promise<Sessao> {
   const resposta = await fetch('/api/sessao', {
     method: 'POST',

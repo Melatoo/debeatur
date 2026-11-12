@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -36,7 +37,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(Seguranca.SESSAO)
 class SessaoController {
 
-    record Credenciais(@NotBlank String email, @NotBlank String senha) {
+    /** O e-mail tem teto (o da RFC 5321) porque também vira chave da contagem de tentativas. */
+    record Credenciais(@NotBlank @Size(max = 254) String email, @NotBlank String senha) {
     }
 
     record Sessao(String email) {
@@ -69,18 +71,19 @@ class SessaoController {
     Sessao entrar(@Valid @RequestBody Credenciais credenciais, HttpServletRequest pedido, HttpServletResponse resposta) {
         String email = credenciais.email().strip();
         String ip = pedido.getRemoteAddr();
-        tentativas.verificar(email, ip);
         Authentication autenticado;
-        try {
-            autenticado = autenticacao.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(email, credenciais.senha()));
-        } catch (AuthenticationServiceException e) {
-            // o banco fora do ar não é senha errada
-            throw e;
-        } catch (AuthenticationException e) {
-            tentativas.falhou(email, ip);
-            throw e;
+        try (TentativasDeLogin.Tentativa tentativa = tentativas.reservar(email, ip)) {
+            try {
+                autenticado = autenticacao.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(email, credenciais.senha()));
+            } catch (AuthenticationServiceException e) {
+                // o banco fora do ar não é senha errada: o close() só libera a reserva
+                throw e;
+            } catch (AuthenticationException e) {
+                tentativa.falhou();
+                throw e;
+            }
+            tentativa.entrou();
         }
-        tentativas.entrou(email);
         aoEntrar.onAuthentication(autenticado, pedido, resposta);
         SecurityContext contexto = SecurityContextHolder.getContextHolderStrategy().createEmptyContext();
         contexto.setAuthentication(autenticado);

@@ -63,7 +63,7 @@ escritório ainda não tiver um. Depois disso, as variáveis não mudam a senha 
 | Endpoint | O que faz |
 |---|---|
 | `GET /api/sessao` | `200` com `{"email"}` se há sessão, `401` se não; sempre grava o cookie `XSRF-TOKEN` |
-| `POST /api/sessao` | `{"email", "senha"}`: entra; `401` com a mesma mensagem para e-mail ou senha errados, `503` se a consulta ao usuário falhar |
+| `POST /api/sessao` | `{"email", "senha"}`: entra; `401` com a mesma mensagem para e-mail ou senha errados, `429` com `Retry-After` (segundos) depois de muitas falhas, `503` se a consulta ao usuário falhar |
 | `DELETE /api/sessao` | sai (`204`, com ou sem sessão) e apaga o cookie `XSRF-TOKEN` |
 
 A sessão vai num cookie HttpOnly (`JSESSIONID`, `SameSite=Lax`) e expira após 4 horas sem uso.
@@ -73,6 +73,15 @@ a cada login; depois de sair, um novo `GET /api/sessao` traz outro.
 Os cookies saem com `Secure` quando o acesso é por HTTPS. O nginx do frontend repassa à API o
 `X-Forwarded-Proto` do proxy que terminar a TLS à frente dele (sem proxy, vale o dele mesmo). Se
 o proxy for outro, ele precisa mandar esse cabeçalho.
+
+Cinco falhas de login em 15 minutos bloqueiam novas tentativas por 15 minutos, contadas por
+e-mail (exista a conta ou não) e por IP (IPv6 pelo prefixo /64). A contagem fica na memória da
+API: zera ao reiniciar e não vale com mais de uma instância. Quem sabe o e-mail de um escritório
+consegue bloquear o login dele assim; é o preço de não deixar testar senhas sem parar. O IP é o
+que o nginx acrescenta ao `X-Forwarded-For`. Com um proxy à frente do nginx, ele precisa
+acrescentar o IP do cliente a esse cabeçalho e estar numa rede interna (ou em
+`server.tomcat.remoteip.internal-proxies`); senão todos os usuários aparecem com o IP do proxy e
+dividem o mesmo limite.
 
 Exemplo de chamada:
 

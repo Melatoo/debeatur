@@ -26,6 +26,8 @@ export interface ApiSimulada {
   falhaSessao: number | null
   /** O status do DELETE /api/sessao quando não é o normal. */
   falhaSair: number | null
+  /** Se o POST /api/sessao responde 429, como depois de muitas falhas. */
+  bloquearLogin: boolean
   /** A resposta do POST /api/calculos; o teste a troca para simular uma falha. */
   calculo: { status: number; arquivo: string }
   /** Os pedidos de cálculo recebidos, na ordem. */
@@ -47,6 +49,7 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
     expirar: false,
     falhaSessao: null,
     falhaSair: null,
+    bloquearLogin: false,
     calculo: { status: 200, arquivo: 'demonstrativo.json' },
     pedidos: [],
     inesperadas: [],
@@ -87,6 +90,14 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
         return api.logado ? route.fulfill({ json: { email: EMAIL } }) : naoAutenticado(route)
       case 'POST /api/sessao': {
         const { email, senha } = pedido.postDataJSON()
+        if (api.bloquearLogin) {
+          return route.fulfill({
+            status: 429,
+            headers: { 'Retry-After': '840' },
+            contentType: 'application/problem+json',
+            json: { status: 429, detail: 'Muitas tentativas de entrar. Tente de novo em 14 minutos.' },
+          })
+        }
         if (email !== EMAIL || senha !== SENHA) {
           return route.fulfill({
             status: 401,
