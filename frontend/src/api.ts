@@ -153,7 +153,43 @@ export class ErroDaApi extends Error {
   }
 }
 
+/** Quem está logado. */
+export interface Sessao {
+  email: string
+}
+
+const SESSAO_EXPIRADA = 'A sessão expirou. Entre de novo e repita o que estava fazendo.'
+
+const aoExpirar = new Set<() => void>()
+
+/**
+ * Avisa quando a API responde 401 no meio do uso: a sessão expirou ou foi encerrada em outra aba.
+ * @returns a função que cancela o aviso
+ */
+export function aoExpirarSessao(aviso: () => void): () => void {
+  aoExpirar.add(aviso)
+  return () => aoExpirar.delete(aviso)
+}
+
+/** O token CSRF que a API grava no cookie `XSRF-TOKEN` e confere no cabeçalho de todo POST e DELETE. */
+export function tokenCsrf(cookies: string = document.cookie): string | null {
+  for (const par of cookies.split(';')) {
+    const [nome, ...valor] = par.trim().split('=')
+    if (nome === 'XSRF-TOKEN') return decodeURIComponent(valor.join('='))
+  }
+  return null
+}
+
+function comCsrf(cabecalhos: Record<string, string>): Record<string, string> {
+  const token = tokenCsrf()
+  return token ? { ...cabecalhos, 'X-XSRF-TOKEN': token } : cabecalhos
+}
+
 async function lerResposta<T>(resposta: Response, acao: string): Promise<T> {
+  if (resposta.status === 401) {
+    aoExpirar.forEach((aviso) => aviso())
+    throw new ErroDaApi(SESSAO_EXPIRADA, 401, null)
+  }
   if (!resposta.ok) {
     const problema = await resposta.json().catch(() => null)
     throw new ErroDaApi(problema?.detail ?? `Erro ${resposta.status} ao ${acao}`, resposta.status, problema)
@@ -161,11 +197,42 @@ async function lerResposta<T>(resposta: Response, acao: string): Promise<T> {
   return resposta.json()
 }
 
+/** Quem está logado, ou `null`. Também entrega o cookie do token CSRF, que o login exige. */
+export async function buscarSessao(): Promise<Sessao | null> {
+  const resposta = await fetch('/api/sessao')
+  if (resposta.status === 401) return null
+  if (!resposta.ok) throw new ErroDaApi(`Erro ${resposta.status} ao verificar a sessão`, resposta.status, null)
+  return resposta.json()
+}
+
+/** @throws ErroDaApi com "E-mail ou senha incorretos." (401) se as credenciais não conferem */
+export async function entrar(email: string, senha: string): Promise<Sessao> {
+  // depois de sair, o cookie do token foi apagado; o GET da sessão grava um novo
+  if (!tokenCsrf()) await buscarSessao()
+  const resposta = await fetch('/api/sessao', {
+    method: 'POST',
+    headers: comCsrf({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ email, senha }),
+  })
+  if (!resposta.ok) {
+    const problema = await resposta.json().catch(() => null)
+    throw new ErroDaApi(problema?.detail ?? `Erro ${resposta.status} ao entrar`, resposta.status, problema)
+  }
+  return resposta.json()
+}
+
+export async function sair(): Promise<void> {
+  const resposta = await fetch('/api/sessao', { method: 'DELETE', headers: comCsrf({}) })
+  if (!resposta.ok && resposta.status !== 401) {
+    throw new ErroDaApi(`Erro ${resposta.status} ao sair`, resposta.status, null)
+  }
+}
+
 /** @param sinal cancela o pedido quando o formulário muda antes da resposta */
 export async function calcular(request: CalculoRequest, sinal?: AbortSignal): Promise<Demonstrativo> {
   const resposta = await fetch('/api/calculos', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: comCsrf({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(request),
     signal: sinal,
   })
@@ -200,7 +267,7 @@ export async function gerarPdf(request: CalculoRequest): Promise<Anexo> {
   const resposta = await fetch('/api/calculos/pdf', {
     method: 'POST',
     // sem o problem+json, o erro do cálculo viria como 406, sem a mensagem
-    headers: { 'Content-Type': 'application/json', Accept: 'application/pdf, application/problem+json' },
+    headers: comCsrf({ 'Content-Type': 'application/json', Accept: 'application/pdf, application/problem+json' }),
     body: JSON.stringify(request),
   })
   if (!resposta.ok) await lerResposta(resposta, 'gerar o PDF')
@@ -238,7 +305,7 @@ export interface CalculoSalvo {
 export async function salvarCalculo(titulo: string, calculo: CalculoRequest): Promise<CalculoSalvo> {
   const resposta = await fetch('/api/calculos/salvos', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: comCsrf({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ titulo: titulo.trim() || null, calculo }),
   })
   return lerResposta(resposta, 'salvar o cálculo')

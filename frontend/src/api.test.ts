@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { nomeDoAnexo } from './api'
+import { nomeDoAnexo, tokenCsrf } from './api'
+
+describe('tokenCsrf', () => {
+  it('lê o cookie XSRF-TOKEN entre os outros', () => {
+    expect(tokenCsrf('tema=escuro; XSRF-TOKEN=abc-123; outro=x')).toBe('abc-123')
+    expect(tokenCsrf('XSRF-TOKEN=abc-123')).toBe('abc-123')
+  })
+
+  it('decodifica o valor e mantém o "=" do meio', () => {
+    expect(tokenCsrf('XSRF-TOKEN=a%2Fb=c')).toBe('a/b=c')
+  })
+
+  it('sem o cookie, ou com nome só parecido, não há token', () => {
+    expect(tokenCsrf('')).toBeNull()
+    expect(tokenCsrf('MEU-XSRF-TOKEN=abc')).toBeNull()
+  })
+})
 
 describe('nomeDoAnexo', () => {
   it('prefere o filename* em UTF-8', () => {

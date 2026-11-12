@@ -14,7 +14,14 @@ export const fixture = <T>(nome: string): T => JSON.parse(readFileSync(caminho(n
 
 const ID_SALVO = fixture<{ id: string }>('calculo-salvo.json').id
 
+export const EMAIL = 'ana@escritorio.adv.br'
+export const SENHA = 'uma senha longa'
+
 export interface ApiSimulada {
+  /** Se há sessão; começa logado, e o teste de login o desliga antes de abrir a página. */
+  logado: boolean
+  /** Se a próxima chamada fora de /api/sessao responde 401, como quando a sessão expira. */
+  expirar: boolean
   /** A resposta do POST /api/calculos; o teste a troca para simular uma falha. */
   calculo: { status: number; arquivo: string }
   /** Os pedidos de cálculo recebidos, na ordem. */
@@ -24,17 +31,46 @@ export interface ApiSimulada {
 }
 
 async function simularApi(page: Page): Promise<ApiSimulada> {
-  const api: ApiSimulada = { calculo: { status: 200, arquivo: 'demonstrativo.json' }, pedidos: [], inesperadas: [] }
+  const api: ApiSimulada = {
+    logado: true,
+    expirar: false,
+    calculo: { status: 200, arquivo: 'demonstrativo.json' },
+    pedidos: [],
+    inesperadas: [],
+  }
   const responder = (route: Route, arquivo: string, status = 200) =>
     route.fulfill({
       status,
       contentType: status < 400 ? 'application/json' : 'application/problem+json',
       path: caminho(arquivo),
     })
-  await page.route('**/api/**', (route) => {
+  const naoAutenticado = (route: Route) => route.fulfill({ status: 401, body: '' })
+  await page.route('**/api/**', async (route) => {
     const pedido = route.request()
     const chave = `${pedido.method()} ${new URL(pedido.url()).pathname}`
+    if (!chave.endsWith(' /api/sessao') && (!api.logado || api.expirar)) {
+      api.expirar = false
+      api.logado = false
+      return naoAutenticado(route)
+    }
     switch (chave) {
+      case 'GET /api/sessao':
+        return api.logado ? route.fulfill({ json: { email: EMAIL } }) : naoAutenticado(route)
+      case 'POST /api/sessao': {
+        const { email, senha } = pedido.postDataJSON()
+        if (email !== EMAIL || senha !== SENHA) {
+          return route.fulfill({
+            status: 401,
+            contentType: 'application/problem+json',
+            json: { status: 401, detail: 'E-mail ou senha incorretos.' },
+          })
+        }
+        api.logado = true
+        return route.fulfill({ json: { email: EMAIL } })
+      }
+      case 'DELETE /api/sessao':
+        api.logado = false
+        return route.fulfill({ status: 204, body: '' })
       case 'GET /api/regimes/padrao':
         return responder(route, 'regime-padrao.json')
       case 'POST /api/calculos':

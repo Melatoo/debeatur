@@ -21,6 +21,7 @@ import { armazenamentoDoNavegador } from './armazenamento'
 import { estaVazia, fimDoMesAnterior, paraPedido, paraProcesso, parcelaVazia, rascunhoVazio } from './caso'
 import { novaDataBase, paraRascunho, regimeSalvo, tituloPadrao, type RegimeSalvo } from './calculoSalvo'
 import { ListaCalculosSalvos, SalvarCalculo, type AcaoSalvo } from './CalculosSalvos'
+import { useSessao } from './sessao'
 import {
   ESPERA_RASCUNHO_MS,
   apagarRascunho,
@@ -77,6 +78,7 @@ interface Troca {
 }
 
 function App() {
+  const sessao = useSessao()
   // Lido uma vez, na carga: o caso em que a pessoa estava antes de recarregar ou fechar a aba.
   const [inicio] = useState(() => {
     const salvo = lerRascunho(armazenamentoDoNavegador())
@@ -548,9 +550,21 @@ function App() {
             <h1>Debeatur</h1>
             <p>Execução de alimentos, do título ao demonstrativo.</p>
           </div>
-          <button type="button" className="secundario" onClick={() => setListaAberta(true)}>
-            Cálculos salvos
-          </button>
+          <div className="acoes-topo">
+            <button type="button" className="secundario" onClick={() => setListaAberta(true)}>
+              Cálculos salvos
+            </button>
+            {sessao && (
+              <button
+                type="button"
+                className="secundario"
+                title={`Logado como ${sessao.email}`}
+                onClick={() => void sessao.sair().catch(() => undefined)}
+              >
+                Sair
+              </button>
+            )}
+          </div>
         </header>
 
         <form ref={formulario} onSubmit={enviar}>
