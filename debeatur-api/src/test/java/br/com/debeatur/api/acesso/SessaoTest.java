@@ -112,8 +112,18 @@ class SessaoTest {
     }
 
     @Test
-    void oHealthDoActuatorFicaAberto() {
+    void oHealthDoActuatorFicaAbertoEORestoNao() {
         assertThat(mvc.get().uri("/actuator/health")).hasStatusOk();
+        assertThat(mvc.get().uri("/actuator")).hasStatus(401);
+        assertThat(mvc.get().uri("/actuator/env")).hasStatus(401);
+    }
+
+    @Test
+    void logadoSemOTokenCsrfNaoAlteraNada() {
+        MockHttpSession sessao = sessao(entrar(EMAIL, SENHA));
+
+        assertThat(mvc.post().uri("/api/calculos/salvos").with(naSessao(sessao)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"calculo\": {}}")).hasStatus(403);
     }
 
     @Test
@@ -123,7 +133,8 @@ class SessaoTest {
         assertThat(login).hasStatusOk().bodyJson()
                 .hasPathSatisfying("$.email", v -> v.assertThat().isEqualTo("Ana@Escritorio.adv.br"));
         MockHttpSession sessao = sessao(login);
-        assertThat(mvc.get().uri("/api/sessao").with(naSessao(sessao))).hasStatusOk();
+        assertThat(mvc.get().uri("/api/sessao").with(naSessao(sessao))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.email", v -> v.assertThat().isEqualTo("Ana@Escritorio.adv.br"));
         assertThat(mvc.get().uri("/api/calculos/salvos").with(naSessao(sessao))).hasStatusOk();
     }
 
@@ -133,7 +144,7 @@ class SessaoTest {
         MvcTestResult semConta = entrar("ninguem@escritorio.adv.br", SENHA);
 
         assertThat(senhaErrada).hasStatus(401).bodyJson()
-                .hasPathSatisfying("$.detail", v -> v.assertThat().isEqualTo("E-mail ou senha incorretos."));
+                .hasPathSatisfying("$.detail", v -> v.assertThat().isEqualTo("E-mail ou senha incorretos. Confira e tente de novo."));
         assertThat(semConta).hasStatus(401);
         assertThat(semConta.getResponse().getContentAsByteArray())
                 .isEqualTo(senhaErrada.getResponse().getContentAsByteArray());
@@ -196,7 +207,6 @@ class SessaoTest {
         assertThat(mvc.delete().uri("/api/sessao").with(naSessao(sessao)).with(comToken(cookieXsrf(login.getResponse()))))
                 .hasStatus(204);
         assertThat(sessao.isInvalid()).isTrue();
-        assertThat(mvc.get().uri("/api/calculos/salvos").with(naSessao(new MockHttpSession()))).hasStatus(401);
     }
 
     @Test

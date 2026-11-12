@@ -57,18 +57,22 @@ npm run dev
 Toda a API exige login, menos `POST`/`GET /api/sessao` e `/actuator/health`. No MVP cada
 escritório tem um usuário. Na subida, a API cria o usuário do escritório padrão (o dono dos
 cálculos salvos antes do login) a partir de `DEBEATUR_USUARIO_EMAIL` e `DEBEATUR_USUARIO_SENHA`
-(8 caracteres ou mais), se o escritório ainda não tiver um. Depois disso, as variáveis não mudam
-a senha de quem já existe.
+(de 8 caracteres a 72 bytes em UTF-8, o limite do bcrypt; letra acentuada conta 2), se o
+escritório ainda não tiver um. Depois disso, as variáveis não mudam a senha de quem já existe.
 
 | Endpoint | O que faz |
 |---|---|
 | `GET /api/sessao` | `200` com `{"email"}` se há sessão, `401` se não; sempre grava o cookie `XSRF-TOKEN` |
-| `POST /api/sessao` | `{"email", "senha"}`: entra; `401` com a mesma mensagem para e-mail ou senha errados |
-| `DELETE /api/sessao` | sai (`204`) |
+| `POST /api/sessao` | `{"email", "senha"}`: entra; `401` com a mesma mensagem para e-mail ou senha errados, `503` se a consulta ao usuário falhar |
+| `DELETE /api/sessao` | sai (`204`, com ou sem sessão) e apaga o cookie `XSRF-TOKEN` |
 
-A sessão vai num cookie HttpOnly (`JSESSIONID`, `SameSite=Lax`, `Secure` quando o acesso é por
-HTTPS) e expira após 4 horas sem uso. Todo `POST` e `DELETE` leva no cabeçalho `X-XSRF-TOKEN`
-o valor do cookie `XSRF-TOKEN`, renovado a cada login.
+A sessão vai num cookie HttpOnly (`JSESSIONID`, `SameSite=Lax`) e expira após 4 horas sem uso.
+Todo `POST` e `DELETE` leva no cabeçalho `X-XSRF-TOKEN` o valor do cookie `XSRF-TOKEN`, renovado
+a cada login; depois de sair, um novo `GET /api/sessao` traz outro.
+
+Os cookies saem com `Secure` quando o acesso é por HTTPS. O nginx do frontend repassa à API o
+`X-Forwarded-Proto` do proxy que terminar a TLS à frente dele (sem proxy, vale o dele mesmo). Se
+o proxy for outro, ele precisa mandar esse cabeçalho.
 
 Exemplo de chamada:
 

@@ -7,7 +7,10 @@ import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -41,6 +44,8 @@ class SessaoController {
             return new Sessao(usuario.email());
         }
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(SessaoController.class);
 
     private final AuthenticationManager autenticacao;
     private final SessionAuthenticationStrategy aoEntrar;
@@ -84,6 +89,17 @@ class SessaoController {
     /** A mesma resposta para e-mail inexistente e senha errada, para não revelar quem tem conta. */
     @ExceptionHandler(AuthenticationException.class)
     ProblemDetail naoAutenticado(AuthenticationException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "E-mail ou senha incorretos.");
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "E-mail ou senha incorretos. Confira e tente de novo.");
+    }
+
+    /**
+     * Falha ao consultar o usuário (o banco fora do ar, por exemplo): o provedor a embrulha numa
+     * {@code AuthenticationException}, mas não é credencial errada, e precisa aparecer no log.
+     */
+    @ExceptionHandler(AuthenticationServiceException.class)
+    ProblemDetail falhaAoAutenticar(AuthenticationServiceException e) {
+        LOG.error("Falha ao autenticar", e);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "Não foi possível entrar agora. Tente de novo em instantes.");
     }
 }

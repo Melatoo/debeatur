@@ -8,6 +8,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -23,6 +24,9 @@ class UsuarioInicial implements ApplicationRunner {
 
     /** O mínimo recomendado pelo NIST SP 800-63B para senha escolhida pelo usuário. */
     static final int TAMANHO_MINIMO_DA_SENHA = 8;
+
+    /** O bcrypt só considera 72 bytes, e o encoder do Spring recusa senha maior. */
+    static final int BYTES_MAXIMOS_DA_SENHA = 72;
 
     private static final Logger LOG = LoggerFactory.getLogger(UsuarioInicial.class);
 
@@ -52,6 +56,10 @@ class UsuarioInicial implements ApplicationRunner {
         if (senha.length() < TAMANHO_MINIMO_DA_SENHA) {
             throw new IllegalStateException(
                     "DEBEATUR_USUARIO_SENHA precisa de ao menos " + TAMANHO_MINIMO_DA_SENHA + " caracteres.");
+        }
+        if (senha.getBytes(StandardCharsets.UTF_8).length > BYTES_MAXIMOS_DA_SENHA) {
+            throw new IllegalStateException("DEBEATUR_USUARIO_SENHA pode ter até " + BYTES_MAXIMOS_DA_SENHA
+                    + " bytes em UTF-8, o limite do bcrypt (letra acentuada conta 2).");
         }
         usuarios.inserir(ESCRITORIO_PADRAO, email, senhas.encode(senha));
         LOG.info("Usuário {} criado para o escritório padrão.", email.strip());
