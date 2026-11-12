@@ -19,7 +19,7 @@ class SessaoControllerTest {
 
     private final AuthenticationManager autenticacao = mock(AuthenticationManager.class);
     private final MockMvcTester mvc = MockMvcTester.of(new SessaoController(autenticacao,
-            new NullAuthenticatedSessionStrategy(), new HttpSessionSecurityContextRepository()));
+            new NullAuthenticatedSessionStrategy(), new HttpSessionSecurityContextRepository(), new TentativasDeLogin()));
 
     private MockMvcTester.MockMvcRequestBuilder entrar() {
         return mvc.post().uri("/api/sessao").contentType(MediaType.APPLICATION_JSON)
@@ -43,5 +43,16 @@ class SessaoControllerTest {
 
         assertThat(entrar()).hasStatus(503).bodyJson()
                 .hasPathSatisfying("$.detail", v -> v.assertThat().asString().startsWith("Não foi possível entrar agora"));
+    }
+
+    /** Com o banco fora do ar ninguém errou a senha: não conta para o bloqueio. */
+    @Test
+    void falhaAoConsultarOUsuarioNaoContaComoTentativa() {
+        when(autenticacao.authenticate(any()))
+                .thenThrow(new InternalAuthenticationServiceException("conexão recusada"));
+
+        for (int i = 0; i < TentativasDeLogin.FALHAS + 1; i++) {
+            assertThat(entrar()).hasStatus(503);
+        }
     }
 }

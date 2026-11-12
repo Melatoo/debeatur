@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -50,18 +51,36 @@ class SessaoController {
     private final AuthenticationManager autenticacao;
     private final SessionAuthenticationStrategy aoEntrar;
     private final SecurityContextRepository contextos;
+    private final TentativasDeLogin tentativas;
 
     SessaoController(AuthenticationManager autenticacao, SessionAuthenticationStrategy aoEntrar,
-                     SecurityContextRepository contextos) {
+                     SecurityContextRepository contextos, TentativasDeLogin tentativas) {
         this.autenticacao = autenticacao;
         this.aoEntrar = aoEntrar;
         this.contextos = contextos;
+        this.tentativas = tentativas;
     }
 
+    /**
+     * O IP é o do {@code X-Forwarded-For} do nginx, que o Tomcat já aplica no endereço remoto
+     * ({@code forward-headers-strategy: native}).
+     */
     @PostMapping
     Sessao entrar(@Valid @RequestBody Credenciais credenciais, HttpServletRequest pedido, HttpServletResponse resposta) {
-        Authentication autenticado = autenticacao.authenticate(
-                UsernamePasswordAuthenticationToken.unauthenticated(credenciais.email().strip(), credenciais.senha()));
+        String email = credenciais.email().strip();
+        String ip = pedido.getRemoteAddr();
+        tentativas.verificar(email, ip);
+        Authentication autenticado;
+        try {
+            autenticado = autenticacao.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(email, credenciais.senha()));
+        } catch (AuthenticationServiceException e) {
+            // o banco fora do ar não é senha errada
+            throw e;
+        } catch (AuthenticationException e) {
+            tentativas.falhou(email, ip);
+            throw e;
+        }
+        tentativas.entrou(email);
         aoEntrar.onAuthentication(autenticado, pedido, resposta);
         SecurityContext contexto = SecurityContextHolder.getContextHolderStrategy().createEmptyContext();
         contexto.setAuthentication(autenticado);
@@ -101,5 +120,17 @@ class SessaoController {
         LOG.error("Falha ao autenticar", e);
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
                 "Não foi possível entrar agora. Tente de novo em instantes.");
+    }
+
+    /** Excesso de falhas: a mesma resposta exista o e-mail ou não. */
+    @ExceptionHandler(TentativasDeLogin.Bloqueado.class)
+    ResponseEntity<ProblemDetail> bloqueado(TentativasDeLogin.Bloqueado e) {
+        long segundos = Math.max(1, e.restante().plusNanos(999_999_999).toSeconds());
+        long minutos = (segundos + 59) / 60;
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(segundos))
+                .body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
+                        "Muitas tentativas de entrar. Tente de novo em %d %s."
+                                .formatted(minutos, minutos == 1 ? "minuto" : "minutos")));
     }
 }
