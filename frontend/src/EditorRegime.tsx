@@ -4,9 +4,9 @@ import { Dica } from './Dica'
 import {
   INDICES,
   TIPOS_JUROS,
+  agostoNaViradaDaSelic,
   mesSeguinte,
   regraVazia,
-  selicNaViradaDaLei14905,
   usaPercentual,
   type RegraEditavel,
 } from './regime'
@@ -118,11 +118,16 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
               A SELIC já engloba correção e juros (Tema 1368/STJ). Só some outra taxa se o título mandar.
             </p>
           )}
-          {selicNaViradaDaLei14905(r) && (
+          {agostoNaViradaDaSelic(r) === 'selic' && (
             <p className="aviso">
-              Os períodos valem por mês inteiro, então agosto/2024 fica todo{' '}
-              {r.fim === '2024-07' ? 'com o critério da regra seguinte' : 'com a SELIC'}. A Lei 14.905/2024 vale desde
-              30/08/2024, e a divisão do mês por dias ainda não é feita: confira esse mês no cálculo.
+              Agosto/2024 fica inteiro com a SELIC, como no Manual de Cálculos da Justiça Federal. O CADEJ do TJMG deixa
+              agosto com a taxa legal (SELIC até 07/2024): confira o critério do título.
+            </p>
+          )}
+          {agostoNaViradaDaSelic(r) === 'regra-seguinte' && (
+            <p className="aviso">
+              Agosto/2024 fica inteiro com o critério da regra seguinte, como no CADEJ do TJMG. O Manual de Cálculos da
+              Justiça Federal mantém a SELIC até 08/2024: confira o critério do título.
             </p>
           )}
         </fieldset>

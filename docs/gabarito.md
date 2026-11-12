@@ -78,11 +78,11 @@ relatório. Ele não passa em branco.
 | Meses do termo inicial (inclusive) até o mês da data-base (exclusive) | Confirmada para correção e juros pela tabela da CGJ (#18) e pelos cinco casos do CADEJ |
 | Fator sem arredondamento, acumulando as variações do SGS | Divergência de até 3 × 10⁻⁷ contra a CGJ e o CADEJ; os valores corrigidos batem (ver abaixo) |
 | Taxa legal | Confirmada: usa a série 29543 do BCB, que reproduz a Res. CMN 5.171/2024 (#19) |
-| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). Ainda falta cálculo homologado. A exceção é o mês da virada da Lei 14.905/2024, dividido como na planilha da DPMG (#3) |
+| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). Ainda falta cálculo homologado. A exceção é o mês da virada no regime padrão, dividido como na planilha da DPMG (#3). No critério do Tema 1368, agosto/2024 vai inteiro para um critério só, e o Manual da Justiça Federal e o CADEJ divergem sobre qual (divergência 4) |
 | Juros simples sobre o valor corrigido | Confirmada pelo CADEJ (casos 1, 3, 4 e 5) |
 | HALF_UP em duas casas a cada valor monetário | Confirmada pelo CADEJ em todas as linhas dos cinco casos |
 | Multa de 10% sobre o débito atualizado | Confirmada pelo CADEJ (casos 1, 3 e 4) |
-| Honorários de 10% sobre o débito atualizado | **Diverge** do CADEJ (ver divergência 5) |
+| Honorários de 10% sobre o débito atualizado, sem a multa | Segue o STJ pela ementa do REsp 1.757.033/DF (inteiro teor pendente); **diverge** do CADEJ (ver divergência 5) |
 | Virada da Lei 14.905/2024 e taxa legal no demonstrativo | Pendente: o CADEJ simplificado não cobre; precisa de cálculo homologado |
 
 ## Divergências registradas
@@ -100,13 +100,61 @@ relatório. Ele não passa em branco.
    da DPMG (#3): 29/30 de 1% (0,9667%, arredondado a quatro casas) mais 2/31 da taxa legal de
    agosto (Res. CMN 5.171/2024, arts. 6º e 8º, parágrafo único), total de 1,005752%. Os 2/31 da
    taxa legal são norma; os 29/30 do mês comercial são convenção da planilha.
-4. **O critério anterior à lei varia no próprio TJMG.** Na apelação 1.0000.25.153453-3/001, a
-   maioria aplicou a SELIC até 30/08/2024 (REsp 1.795.982); o voto vencido aplicou a tabela da
-   CGJ e 1% a.m. Isso reforça que o regime precisa vir do título (#3), e cada caso deve
-   transcrever o critério que o próprio cálculo usou.
+4. **Critério anterior à lei: SELIC pelo Tema 1368, salvo coisa julgada (#28).** O TJMG
+   divergia: na apelação 1.0000.25.153453-3/001, a maioria aplicou a SELIC até 30/08/2024
+   (REsp 1.795.982), e o voto vencido aplicou a tabela da CGJ e 1% a.m. A Corte Especial do STJ
+   fixou em repetitivo que a taxa do art. 406 do CC, antes da Lei 14.905/2024, é a SELIC
+   (Tema 1368, REsp 2.199.164/PR, julgado em 15/10/2025, sem modulação). A SELIC engloba
+   correção e juros e não se cumula com a tabela da CGJ ou com o INPC. Daí:
+   - **título omisso ou "juros legais":** SELIC até 29/08/2024; a partir de 30/08/2024, IPCA +
+     taxa legal;
+   - **título que fixou a tabela da CGJ + 1% a.m.:** a coisa julgada prevalece, e vale o
+     `civelPadrao()`, igual à planilha da DPMG.
+
+   As datas acima são o critério jurídico, em dias. Como o motor trabalha por mês inteiro, o
+   mês de agosto/2024 é uma convenção à parte, tratada logo abaixo. O regime continua vindo do
+   título (#3), e cada caso deve transcrever o critério que o próprio cálculo usou.
+
+   **Agosto/2024 no critério do Tema 1368: as fontes de fora divergem (#32).** Nenhuma delas
+   divide o mês, mas cada uma o entrega a um critério diferente:
+   - o Manual de Cálculos da Justiça Federal (ed. 2026, item 4.2, devedor não enquadrado como
+     Fazenda Pública) aplica a SELIC até ago./2024 e a taxa legal desde set./2024, sem fração
+     de mês, e o Projef Web segue a mesma regra. No editor, é a SELIC até 08/2024;
+   - o CADEJ conta meses inteiros, do mês do termo inicial até o mês anterior ao da data-base.
+     Com a SELIC, uma parcela de 15/01/2024 atualizada até 29/08/2024 leva os meses de janeiro
+     a julho, **sem agosto** (o fator da divergência 6 é o produto dos dias úteis até 31/07).
+     Com a taxa legal (índice TXLGLJ), uma parcela de 30/08/2024 atualizada até 30/09/2024 leva
+     **agosto inteiro** (1,0060531), e não os 2/31 da Res. CMN 5.171/2024. Encadeando as duas
+     simulações (SELIC até 29/08, taxa legal desde 30/08), agosto fica com a taxa legal. No
+     editor, é a SELIC até 07/2024. As duas simulações foram feitas em 11/11/2026, na versão
+     1.9.12S;
+   - os acórdãos do TJMG fixam o corte em 29 ou 30/08/2024, mas não dizem como se calcula o
+     mês.
+
+   O tribunal de referência é o TJMG, o que pesa a favor do CADEJ, mas o CADEJ é uma
+   ferramenta de simulação, não um cálculo homologado. Até que um cálculo homologado ou a
+   contadoria do TJMG decida, o editor não recomenda nenhum dos dois: avisa, nos dois casos,
+   para onde vai agosto e que as fontes divergem.
+
+   A divisão por dias do regime padrão (29/30 de 1% + 2/31 da taxa legal) continua, porque
+   reproduz a planilha da DPMG, que é o gabarito dele. São convenções diferentes para critérios
+   diferentes.
 5. **Base dos honorários do art. 523, §1º.** O CADEJ calcula os honorários de 10% sobre o
    débito já acrescido da multa (casos 1 e 4: R$ 1.771,65 sobre R$ 17.716,53). O motor calcula
-   sobre o débito atualizado (R$ 1.610,59 sobre R$ 16.105,94). O motor **não** foi alterado:
-   a base dos honorários é uma questão jurídica e precisa de decisão de quem responde pelo
-   domínio, de preferência confirmada por um cálculo homologado. Enquanto isso, os casos do
-   CADEJ registram a divergência nos honorários e no total.
+   sobre o débito atualizado (R$ 1.610,59 sobre R$ 16.105,94), como o STJ: a multa não integra a
+   base dos honorários, porque as duas incidem sobre o débito (REsp 1.757.033/DF, 3ª Turma,
+   rel. Min. Ricardo Villas Bôas Cueva, julgado em 09/10/2018, DJe 15/10/2018, unânime). O
+   precedente foi conferido pela ementa e pelos informativos, e falta ler o inteiro teor. É
+   acórdão de turma, não repetitivo, então o motor fica como está e os casos do CADEJ seguem
+   registrando a divergência nos honorários e no total. Um cálculo homologado do TJMG ainda
+   confirmaria a prática local.
+6. **SELIC: série mensal do SGS × SELIC diária do CADEJ (#28).** O CADEJ multiplica a SELIC
+   diária (SGS 11) dos dias úteis. A parcela de 15/01/2024 atualizada até 29/08/2024 dá fator
+   1,0617101, que é o produto exato dos 147 dias úteis de 01/01 a 31/07/2024. O motor multiplica
+   a SELIC mensal (SGS 4390), publicada com duas casas, e chega a 1,0617743: R$ 0,64 a mais em
+   R$ 10.000,00. A forma de acumular é a mesma (produto de fatores); a diferença vem só do
+   arredondamento da série mensal. O Manual de Cálculos da Justiça Federal, ao contrário,
+   **soma** as taxas mensais ("capitalizada de forma simples") e conta do mês seguinte ao
+   termo inicial até o mês anterior ao pagamento, mais 1% no mês do pagamento, como nos
+   tributos federais. Como o tribunal de referência é o TJMG, o caminho é seguir o CADEJ:
+   montar o fator mensal a partir da SGS 11 e transcrever esse caso em `CasosCadej`.
