@@ -2,6 +2,7 @@ package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
+import br.com.debeatur.api.acesso.ComUsuarioLogado;
 import br.com.debeatur.api.serie.FonteSeries;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ import static org.mockito.Mockito.when;
  * chegar ao motor, não os valores do motor, que têm gabarito próprio no core.
  */
 @WebMvcTest({CalculoController.class, RegimeController.class})
-@Import(CalculoService.class)
+@Import({CalculoService.class, ComUsuarioLogado.class})
 class CalculoControllerTest {
 
     @Autowired

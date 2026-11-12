@@ -1,10 +1,12 @@
 package br.com.debeatur.api.calculo;
 
+import br.com.debeatur.api.acesso.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,21 +35,22 @@ public class CalculoSalvoController {
     }
 
     @PostMapping
-    ResponseEntity<CalculoSalvoDtos.CalculoSalvo> salvar(@Valid @RequestBody CalculoSalvoDtos.SalvarRequest request) {
-        CalculoSalvoDtos.CalculoSalvo salvo = calculos.salvar(request);
+    ResponseEntity<CalculoSalvoDtos.CalculoSalvo> salvar(@AuthenticationPrincipal UsuarioAutenticado usuario,
+                                                         @Valid @RequestBody CalculoSalvoDtos.SalvarRequest request) {
+        CalculoSalvoDtos.CalculoSalvo salvo = calculos.salvar(usuario.escritorio(), request);
         return ResponseEntity.created(URI.create("/api/calculos/salvos/" + salvo.id())).body(salvo);
     }
 
     /** Os cálculos do escritório, do mais recente para o mais antigo. */
     @GetMapping
-    List<CalculoSalvoDtos.Resumo> listar() {
-        return calculos.listar();
+    List<CalculoSalvoDtos.Resumo> listar(@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return calculos.listar(usuario.escritorio());
     }
 
     /** O pedido salvo e o demonstrativo refeito com o snapshot das séries. */
     @GetMapping("/{id}")
-    CalculoSalvoDtos.CalculoSalvo reabrir(@PathVariable UUID id) {
-        return calculos.reabrir(id);
+    CalculoSalvoDtos.CalculoSalvo reabrir(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
+        return calculos.reabrir(usuario.escritorio(), id);
     }
 
     /**
@@ -55,8 +58,8 @@ public class CalculoSalvoController {
      * do dia em que foi salvo, ainda que o BCB tenha revisado uma série depois.
      */
     @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    ResponseEntity<byte[]> pdf(@PathVariable UUID id) {
-        CalculoSalvoDtos.CalculoSalvo salvo = calculos.reabrir(id);
+    ResponseEntity<byte[]> pdf(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
+        CalculoSalvoDtos.CalculoSalvo salvo = calculos.reabrir(usuario.escritorio(), id);
         byte[] pdf = DemonstrativoPdf.gerarSalvo(salvo.calculo(), salvo.demonstrativo(), emBrasilia(relogio.instant()),
                 emBrasilia(salvo.criadoEm()));
         return CalculoController.anexo(salvo.calculo(), pdf);

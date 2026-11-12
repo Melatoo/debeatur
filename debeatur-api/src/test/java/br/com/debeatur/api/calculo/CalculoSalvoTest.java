@@ -1,6 +1,7 @@
 package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.api.PostgresDeTeste;
+import br.com.debeatur.api.acesso.ComUsuarioLogado;
 import br.com.debeatur.api.serie.CacheSeries;
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.indices.SgsClient;
@@ -47,7 +48,7 @@ import static org.mockito.Mockito.when;
  */
 @SpringBootTest(properties = "debeatur.series.atualizacao=-")
 @AutoConfigureMockMvc
-@Import(PostgresDeTeste.class)
+@Import({PostgresDeTeste.class, ComUsuarioLogado.class})
 @Testcontainers(disabledWithoutDocker = true)
 @Transactional
 class CalculoSalvoTest {
@@ -352,6 +353,29 @@ class CalculoSalvoTest {
     @Test
     void calculoInexistenteDevolve404() {
         assertThat(mvc.get().uri("/api/calculos/salvos/" + UUID.randomUUID())).hasStatus(404);
+    }
+
+    @Test
+    void umEscritorioNaoEnxergaOsCalculosDeOutro() throws Exception {
+        UUID outro = UUID.randomUUID();
+        jdbc.sql("INSERT INTO escritorio (id, nome) VALUES (?, 'Outro escritório')").param(outro).update();
+        String id = JsonPath.read(salvar("Do escritório padrão", PEDIDO), "$.id");
+
+        assertThat(mvc.get().uri("/api/calculos/salvos").with(ComUsuarioLogado.logadoNo(outro)))
+                .hasStatusOk().bodyJson().isLenientlyEqualTo("[]");
+        assertThat(mvc.get().uri("/api/calculos/salvos/" + id).with(ComUsuarioLogado.logadoNo(outro))).hasStatus(404);
+        assertThat(mvc.get().uri("/api/calculos/salvos/" + id + "/pdf").with(ComUsuarioLogado.logadoNo(outro))
+                .accept(MediaType.APPLICATION_PDF, MediaType.APPLICATION_PROBLEM_JSON)).hasStatus(404);
+
+        // e o que o outro salva fica no escritório dele
+        MvcTestResult doOutro = mvc.post().uri("/api/calculos/salvos").with(ComUsuarioLogado.logadoNo(outro))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"calculo\": %s}".formatted(PEDIDO)).exchange();
+        assertThat(doOutro).hasStatus(201);
+        assertThat(jdbc.sql("SELECT escritorio_id FROM calculo WHERE id = ?")
+                .param(UUID.fromString(JsonPath.read(doOutro.getResponse().getContentAsString(), "$.id")))
+                .query(UUID.class).single()).isEqualTo(outro);
+        assertThat(mvc.get().uri("/api/calculos/salvos")).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$", v -> v.assertThat().asArray().hasSize(1));
     }
 
     @Test
