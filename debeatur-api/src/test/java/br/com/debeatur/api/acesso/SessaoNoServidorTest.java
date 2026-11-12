@@ -50,4 +50,35 @@ class SessaoNoServidorTest {
     void semLoginOServidorResponde401() throws Exception {
         assertThat(enviar(HttpRequest.newBuilder(uri("/api/calculos/salvos"))).statusCode()).isEqualTo(401);
     }
+
+    private HttpResponse<String> entrar(String token, String xForwardedFor, String email) throws Exception {
+        return enviar(HttpRequest.newBuilder(uri("/api/sessao"))
+                .header("Content-Type", "application/json")
+                .header("Cookie", "XSRF-TOKEN=" + token)
+                .header("X-XSRF-TOKEN", token)
+                .header("X-Forwarded-For", xForwardedFor)
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"email\": \"%s\", \"senha\": \"senha errada\"}".formatted(email))));
+    }
+
+    /**
+     * O IP das tentativas é o que o nginx acrescenta à direita do {@code X-Forwarded-For}
+     * ({@code $proxy_add_x_forwarded_for}); o que o cliente pôs à esquerda não conta.
+     */
+    @Test
+    void contaAsTentativasPeloIpQueONginxAcrescenta() throws Exception {
+        String token = enviar(HttpRequest.newBuilder(uri("/api/sessao"))).headers().allValues("Set-Cookie").stream()
+                .filter(cookie -> cookie.startsWith("XSRF-TOKEN="))
+                .map(cookie -> cookie.substring("XSRF-TOKEN=".length(), cookie.indexOf(';')))
+                .findFirst().orElseThrow();
+        for (int i = 1; i <= TentativasDeLogin.FALHAS; i++) {
+            assertThat(entrar(token, "10.9.9." + i + ", 203.0.113.9", "conta" + i + "@escritorio.adv.br").statusCode())
+                    .isEqualTo(401);
+        }
+
+        HttpResponse<String> bloqueado = entrar(token, "10.9.9.99, 203.0.113.9", "outra@escritorio.adv.br");
+        assertThat(bloqueado.statusCode()).isEqualTo(429);
+        assertThat(bloqueado.headers().firstValue("Retry-After")).isPresent();
+        assertThat(entrar(token, "203.0.113.10", "outra@escritorio.adv.br").statusCode()).isEqualTo(401);
+    }
 }

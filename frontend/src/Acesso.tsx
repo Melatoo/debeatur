@@ -160,9 +160,10 @@ function FormularioEntrar({ rotulo, email: emailFixo, aoEntrar }: PropsEntrar) {
     try {
       aoEntrar(await entrar(email.trim(), senha))
     } catch (e) {
-      // a API já diz o que houve num 401 (credencial) ou 503 (falha dela); o resto é a rede
+      // a API já diz o que houve num 401 (credencial), 429 (muitas falhas) ou 503 (falha dela);
+      // o resto é a rede
       setErro(
-        e instanceof ErroDaApi && (e.status === 401 || e.status === 503)
+        e instanceof ErroDaApi && (e.status === 401 || e.status === 429 || e.status === 503)
           ? e.message
           : `Não foi possível entrar. ${mensagem(e)}`,
       )

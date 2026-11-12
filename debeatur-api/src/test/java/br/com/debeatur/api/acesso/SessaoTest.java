@@ -20,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.Arrays;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,6 +41,8 @@ class SessaoTest {
     static final String SENHA = "uma senha longa o bastante";
 
     private static final String EMAIL = "ana@escritorio.adv.br";
+
+    private static final AtomicInteger IPS = new AtomicInteger();
 
     @Autowired
     private MockMvcTester mvc;
@@ -81,9 +84,22 @@ class SessaoTest {
         };
     }
 
+    /**
+     * Cada chamada de um IP próprio: o contexto (e a contagem de tentativas) é o mesmo para
+     * todos os testes, e as falhas de um não podem bloquear o login de outro.
+     */
     private MvcTestResult entrar(String email, String senha) {
-        return mvc.post().uri("/api/sessao").with(comToken(token())).contentType(MediaType.APPLICATION_JSON)
-                .content(credenciais(email, senha)).exchange();
+        int n = IPS.incrementAndGet();
+        return entrar(email, senha, "192.0.2." + n);
+    }
+
+    /** Do IP que o Tomcat tira do {@code X-Forwarded-For} do nginx; o MockMvc não passa por ele. */
+    private MvcTestResult entrar(String email, String senha, String ip) {
+        return mvc.post().uri("/api/sessao").with(comToken(token())).with(pedido -> {
+                    pedido.setRemoteAddr(ip);
+                    return pedido;
+                })
+                .contentType(MediaType.APPLICATION_JSON).content(credenciais(email, senha)).exchange();
     }
 
     private static MockHttpSession sessao(MvcTestResult resultado) {
@@ -148,6 +164,49 @@ class SessaoTest {
         assertThat(semConta).hasStatus(401);
         assertThat(semConta.getResponse().getContentAsByteArray())
                 .isEqualTo(senhaErrada.getResponse().getContentAsByteArray());
+    }
+
+    /**
+     * Cinco falhas de um IP bloqueiam o login dele por 15 minutos, até com a senha certa, e a
+     * resposta é a mesma para quem tem conta e quem não tem.
+     */
+    @Test
+    void cincoFalhasDoMesmoIpBloqueiamComRetryAfterSemRevelarQuemTemConta() {
+        String ip = "203.0.113.10";
+        for (int i = 1; i <= TentativasDeLogin.FALHAS; i++) {
+            assertThat(entrar("tentativa" + i + "@escritorio.adv.br", "senha errada", ip)).hasStatus(401);
+        }
+
+        MvcTestResult comConta = entrar(EMAIL, SENHA, ip);
+        MvcTestResult semConta = entrar("ninguem@outro.adv.br", SENHA, ip);
+
+        // o valor exato do tempo, com o relógio parado, fica no TentativasDeLoginTest
+        assertThat(comConta).hasStatus(429).bodyJson().hasPathSatisfying("$.detail",
+                v -> v.assertThat().asString().matches("Muitas tentativas de entrar\\. Tente de novo em \\d+ minutos?\\."));
+        assertThat(Long.parseLong(comConta.getResponse().getHeader("Retry-After"))).isBetween(1L, 900L);
+        assertThat(semConta).hasStatus(429);
+        assertThat(semConta.getResponse().getContentAsByteArray())
+                .isEqualTo(comConta.getResponse().getContentAsByteArray());
+        assertThat(sessao(comConta)).isNull();
+        assertThat(entrar(EMAIL, SENHA, "203.0.113.11")).as("de outro IP").hasStatusOk();
+    }
+
+    /** Quem troca de IP a cada tentativa esbarra na contagem do e-mail. */
+    @Test
+    void cincoFalhasNoMesmoEmailBloqueiamDeQualquerIp() {
+        String email = "alvo@escritorio.adv.br";
+        for (int i = 1; i <= TentativasDeLogin.FALHAS; i++) {
+            assertThat(entrar(email, "senha errada " + i, "198.51.100." + i)).hasStatus(401);
+        }
+
+        assertThat(entrar(" Alvo@Escritorio.adv.br", "outra", "198.51.100.99")).hasStatus(429)
+                .headers().containsHeader("Retry-After");
+    }
+
+    /** O e-mail vira chave da contagem em memória: um enorme nem chega a ela. */
+    @Test
+    void emailLongoDemaisDa400() {
+        assertThat(entrar("a".repeat(250) + "@b.br", SENHA)).hasStatus(400);
     }
 
     @Test

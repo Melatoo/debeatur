@@ -41,6 +41,18 @@ test('a senha errada apaga a senha, mantém o e-mail e volta o foco à senha', a
   await expect(page.getByLabel('Senha')).toBeFocused()
 })
 
+test('depois de muitas falhas, mostra só o aviso da API com o tempo de espera', async ({ page, api }) => {
+  api.logado = false
+  api.bloquearLogin = true
+  await page.goto('/')
+
+  await page.getByLabel('E-mail').fill(EMAIL)
+  await page.getByLabel('Senha').fill(SENHA)
+  await page.getByRole('button', { name: 'Entrar' }).click()
+
+  await expect(page.getByRole('alert')).toHaveText('Muitas tentativas de entrar. Tente de novo em 14 minutos.')
+})
+
 test('sair volta ao login, e dá para entrar de novo com o token renovado', async ({ page }) => {
   await page.goto('/')
 
