@@ -67,8 +67,9 @@ export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
  * <p>
  * As regras valem por mês inteiro, e o mês da virada não se divide (#32). Com a SELIC até 08/2024,
  * o cálculo segue o Manual de Cálculos da Justiça Federal (devedor privado: SELIC até ago./2024,
- * taxa legal desde set./2024) e o CADEJ do TJMG, que conta meses inteiros. Até 07/2024, agosto
- * inteiro passa para o critério da regra seguinte, o que nenhuma das duas fontes faz.
+ * taxa legal desde set./2024). Até 07/2024, agosto inteiro passa para o critério da regra
+ * seguinte, como no CADEJ do TJMG, que deixa agosto com a taxa legal. As fontes divergem
+ * (divergência 4 do docs/gabarito.md), então o editor avisa nos dois casos.
  */
 export function agostoNaViradaDaSelic(regra: RegraEditavel): 'selic' | 'regra-seguinte' | null {
   if (regra.correcao !== 'SELIC') return null
