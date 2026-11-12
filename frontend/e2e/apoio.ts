@@ -14,27 +14,95 @@ export const fixture = <T>(nome: string): T => JSON.parse(readFileSync(caminho(n
 
 const ID_SALVO = fixture<{ id: string }>('calculo-salvo.json').id
 
+export const EMAIL = 'ana@escritorio.adv.br'
+export const SENHA = 'uma senha longa'
+
 export interface ApiSimulada {
+  /** Se há sessão; começa logado, e o teste de login o desliga antes de abrir a página. */
+  logado: boolean
+  /** Se a próxima chamada fora de /api/sessao responde 401, como quando a sessão expira. */
+  expirar: boolean
+  /** O status do GET /api/sessao quando não é o normal (500 simula a API fora do ar). */
+  falhaSessao: number | null
+  /** O status do DELETE /api/sessao quando não é o normal. */
+  falhaSair: number | null
   /** A resposta do POST /api/calculos; o teste a troca para simular uma falha. */
   calculo: { status: number; arquivo: string }
   /** Os pedidos de cálculo recebidos, na ordem. */
   pedidos: unknown[]
   /** Chamadas que nenhuma rota simulada atendeu; o teste falha se sobrar alguma. */
   inesperadas: string[]
+  /** POST e DELETE sem o token CSRF do cookie no cabeçalho; o teste falha se sobrar algum. */
+  semToken: string[]
 }
 
+/**
+ * A API simulada faz o CSRF como o Spring: o GET da sessão grava o cookie XSRF-TOKEN se não houver
+ * um, o login troca o token, sair o apaga, e POST e DELETE sem o mesmo valor no cabeçalho
+ * X-XSRF-TOKEN levam 403.
+ */
 async function simularApi(page: Page): Promise<ApiSimulada> {
-  const api: ApiSimulada = { calculo: { status: 200, arquivo: 'demonstrativo.json' }, pedidos: [], inesperadas: [] }
+  const api: ApiSimulada = {
+    logado: true,
+    expirar: false,
+    falhaSessao: null,
+    falhaSair: null,
+    calculo: { status: 200, arquivo: 'demonstrativo.json' },
+    pedidos: [],
+    inesperadas: [],
+    semToken: [],
+  }
+  let emitidos = 0
   const responder = (route: Route, arquivo: string, status = 200) =>
     route.fulfill({
       status,
       contentType: status < 400 ? 'application/json' : 'application/problem+json',
       path: caminho(arquivo),
     })
-  await page.route('**/api/**', (route) => {
+  const naoAutenticado = (route: Route) => route.fulfill({ status: 401, body: '' })
+  const tokenNoCookie = async () =>
+    (await page.context().cookies()).find((c) => c.name === 'XSRF-TOKEN')?.value ?? null
+  const gravarToken = (origem: string) =>
+    page.context().addCookies([{ name: 'XSRF-TOKEN', value: `token-${++emitidos}`, url: origem }])
+  await page.route('**/api/**', async (route) => {
     const pedido = route.request()
-    const chave = `${pedido.method()} ${new URL(pedido.url()).pathname}`
+    const url = new URL(pedido.url())
+    const chave = `${pedido.method()} ${url.pathname}`
+    if (pedido.method() !== 'GET') {
+      const token = await tokenNoCookie()
+      if (!token || (await pedido.headerValue('x-xsrf-token')) !== token) {
+        api.semToken.push(chave)
+        return route.fulfill({ status: 403, body: '' })
+      }
+    }
+    if (!chave.endsWith(' /api/sessao') && (!api.logado || api.expirar)) {
+      api.expirar = false
+      api.logado = false
+      return naoAutenticado(route)
+    }
     switch (chave) {
+      case 'GET /api/sessao':
+        if (api.falhaSessao) return route.fulfill({ status: api.falhaSessao, body: '' })
+        if (!(await tokenNoCookie())) await gravarToken(url.origin)
+        return api.logado ? route.fulfill({ json: { email: EMAIL } }) : naoAutenticado(route)
+      case 'POST /api/sessao': {
+        const { email, senha } = pedido.postDataJSON()
+        if (email !== EMAIL || senha !== SENHA) {
+          return route.fulfill({
+            status: 401,
+            contentType: 'application/problem+json',
+            json: { status: 401, detail: 'E-mail ou senha incorretos. Confira e tente de novo.' },
+          })
+        }
+        api.logado = true
+        await gravarToken(url.origin)
+        return route.fulfill({ json: { email: EMAIL } })
+      }
+      case 'DELETE /api/sessao':
+        if (api.falhaSair) return route.fulfill({ status: api.falhaSair, body: '' })
+        api.logado = false
+        await page.context().clearCookies({ name: 'XSRF-TOKEN' })
+        return route.fulfill({ status: 204, body: '' })
       case 'GET /api/regimes/padrao':
         return responder(route, 'regime-padrao.json')
       case 'POST /api/calculos':
@@ -62,6 +130,7 @@ export const test = base.extend<{ api: ApiSimulada }>({
       const api = await simularApi(page)
       await use(api)
       expect(api.inesperadas, 'chamadas à API sem simulação').toEqual([])
+      expect(api.semToken, 'POST e DELETE sem o token CSRF').toEqual([])
     },
     { auto: true },
   ],

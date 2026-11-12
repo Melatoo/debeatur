@@ -110,7 +110,7 @@ Os raios são três: `raio-amostra` (3px) nas amostras e barras, `raio-controle`
 
 - **Foco:** contorno `foco` de 2px. Campos também trocam a borda para `foco`.
 - **Campo inválido:** `aria-invalid="true"`, borda em `erro` e a `MensagemErro` logo abaixo, ligada por `aria-describedby`. A mensagem fica na tela até o dado ser corrigido.
-- **Desabilitado:** `opacity: 0.6`. Só o botão que espera uma resposta (Calcular, Baixar PDF, Salvar e o Abrir, Atualizar ou Duplicar de um cálculo salvo) mostra `cursor: progress`; os outros, `not-allowed`.
+- **Desabilitado:** `opacity: 0.6`. Só o botão que espera uma resposta (Calcular, Baixar PDF, Salvar, Entrar, Sair e o Abrir, Atualizar ou Duplicar de um cálculo salvo) mostra `cursor: progress`; os outros, `not-allowed`.
 - **Situação do demonstrativo** (`data-situacao`): `atual` não mostra faixa; `atualizando` apaga os números a 0.6 e mostra "Atualizando o demonstrativo…"; `desatualizado` apaga a 0.4 e mostra a faixa em `aviso-fundo` com borda `aviso`. A faixa acompanha a rolagem e é uma região `role="status"`.
 - **Hover em linha de tabela:** `borda` a 35%, para seguir a linha com o olho. Some na impressão.
 

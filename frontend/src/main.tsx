@@ -4,9 +4,12 @@ import '@fontsource-variable/atkinson-hyperlegible-next'
 import './estilo/tokens.css'
 import './index.css'
 import App from './App.tsx'
+import { Acesso } from './Acesso.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Acesso>
+      <App />
+    </Acesso>
   </StrictMode>,
 )

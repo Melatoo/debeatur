@@ -1,4 +1,4 @@
-import { calcularCaso, expect, fixture, preencherCaso, semViolacoes, test } from './apoio.ts'
+import { calcularCaso, EMAIL, expect, fixture, preencherCaso, semViolacoes, test } from './apoio.ts'
 
 test('o formulário monta o pedido das respostas gravadas', async ({ page, api }) => {
   await calcularCaso(page)
@@ -13,6 +13,24 @@ for (const [tema, nome] of [
 ] as const) {
   test.describe(`acessibilidade no tema ${nome}`, () => {
     test.use({ colorScheme: tema })
+
+    test('login com a senha errada', async ({ page, api }) => {
+      api.logado = false
+      await page.goto('/')
+      await page.getByLabel('E-mail').fill(EMAIL)
+      await page.getByLabel('Senha').fill('errada')
+      await page.getByRole('button', { name: 'Entrar' }).click()
+      await expect(page.getByRole('alert')).toHaveText('E-mail ou senha incorretos. Confira e tente de novo.')
+      await semViolacoes(page)
+    })
+
+    test('janela de entrar de novo', async ({ page, api }) => {
+      await page.goto('/')
+      api.expirar = true
+      await page.getByRole('button', { name: 'Cálculos salvos' }).click()
+      await expect(page.getByRole('dialog', { name: 'Entrar de novo' })).toBeVisible()
+      await semViolacoes(page)
+    })
 
     test('formulário em branco', async ({ page }) => {
       await page.goto('/')

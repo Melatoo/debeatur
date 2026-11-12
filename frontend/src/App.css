@@ -29,6 +29,25 @@ main {
   font-size: 0.9rem;
 }
 
+.acoes-topo {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+/* Quem está logado, embaixo do título: uma linha que não disputa espaço com os botões. */
+.topo .sessao-email {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.topo .erro {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .topo h1 {
   margin: 0;
   font-size: 1.75rem;
@@ -1100,6 +1119,45 @@ tfoot .total td {
 .formulario-salvar .botoes {
   display: flex;
   gap: 8px;
+}
+
+/* ---------- Login ---------- */
+
+/* Uma coluna estreita: nem a grade do formulário com o demonstrativo, nem a rolagem própria. */
+main.acesso {
+  display: block;
+  max-width: 400px;
+  padding-top: 15vh;
+  padding-bottom: 80px;
+}
+
+.acesso h2 {
+  margin: 40px 0 0;
+}
+
+.formulario-entrar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: none;
+  margin: 16px 0 0;
+  padding: 0;
+  overflow: visible;
+  scrollbar-gutter: auto;
+  container: none;
+}
+
+.formulario-entrar .erro,
+.acesso > .erro {
+  margin: 0;
+}
+
+.acesso > .erro {
+  margin-block: 24px 16px;
+}
+
+.janela:has(.formulario-entrar) {
+  width: min(440px, calc(100% - 32px));
 }
 
 /* ---------- Colunas estreitas ---------- */
