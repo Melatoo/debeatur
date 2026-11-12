@@ -8,8 +8,22 @@ spring:
 
 server:
   port: 8080
+  # a API só é alcançada pelo proxy do frontend; com o X-Forwarded-Proto dele, o cookie de
+  # sessão sai com Secure quando o acesso é por HTTPS
+  forward-headers-strategy: native
+  servlet:
+    session:
+      # inatividade tolerada antes de pedir login de novo
+      timeout: 4h
+      cookie:
+        http-only: true
+        same-site: lax
 
 debeatur:
+  # usuário do escritório padrão, criado na subida se o escritório ainda não tem um
+  usuario-inicial:
+    email: ${DEBEATUR_USUARIO_EMAIL:}
+    senha: ${DEBEATUR_USUARIO_SENHA:}
   series:
     # intervalo mínimo entre consultas ao SGS em busca de um mês ainda não publicado
     reconsulta: PT1H

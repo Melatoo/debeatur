@@ -3,6 +3,7 @@ package br.com.debeatur.api.calculo;
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.indice.SalarioMinimoEmMemoria;
 import br.com.debeatur.core.indice.SerieIndicesEmMemoria;
+import br.com.debeatur.api.acesso.ComUsuarioLogado;
 import br.com.debeatur.api.serie.FonteSeries;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
@@ -46,7 +47,7 @@ import static org.mockito.Mockito.when;
  * cálculo devolveu, e os totais vêm da resposta JSON do mesmo pedido, não de contas aqui.
  */
 @WebMvcTest(CalculoController.class)
-@Import(CalculoService.class)
+@Import({CalculoService.class, ComUsuarioLogado.class})
 class CalculoPdfControllerTest {
 
     private static final DecimalFormat REAIS = new DecimalFormat("#,##0.00",

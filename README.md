@@ -27,6 +27,7 @@ O Maven vem pelo wrapper (`./mvnw`), fixado na versão usada pelo CI.
 ### Com Docker
 
 ```bash
+export DEBEATUR_USUARIO_EMAIL=voce@escritorio.adv.br DEBEATUR_USUARIO_SENHA='uma senha longa'
 docker compose up -d --build   # http://localhost:3000
 docker compose down
 ```
@@ -51,10 +52,38 @@ npm ci
 npm run dev
 ```
 
+### Login
+
+Toda a API exige login, menos `POST`/`GET /api/sessao` e `/actuator/health`. No MVP cada
+escritório tem um usuário. Na subida, a API cria o usuário do escritório padrão (o dono dos
+cálculos salvos antes do login) a partir de `DEBEATUR_USUARIO_EMAIL` e `DEBEATUR_USUARIO_SENHA`
+(de 8 caracteres a 72 bytes em UTF-8, o limite do bcrypt; letra acentuada conta 2), se o
+escritório ainda não tiver um. Depois disso, as variáveis não mudam a senha de quem já existe.
+
+| Endpoint | O que faz |
+|---|---|
+| `GET /api/sessao` | `200` com `{"email"}` se há sessão, `401` se não; sempre grava o cookie `XSRF-TOKEN` |
+| `POST /api/sessao` | `{"email", "senha"}`: entra; `401` com a mesma mensagem para e-mail ou senha errados, `503` se a consulta ao usuário falhar |
+| `DELETE /api/sessao` | sai (`204`, com ou sem sessão) e apaga o cookie `XSRF-TOKEN` |
+
+A sessão vai num cookie HttpOnly (`JSESSIONID`, `SameSite=Lax`) e expira após 4 horas sem uso.
+Todo `POST` e `DELETE` leva no cabeçalho `X-XSRF-TOKEN` o valor do cookie `XSRF-TOKEN`, renovado
+a cada login; depois de sair, um novo `GET /api/sessao` traz outro.
+
+Os cookies saem com `Secure` quando o acesso é por HTTPS. O nginx do frontend repassa à API o
+`X-Forwarded-Proto` do proxy que terminar a TLS à frente dele (sem proxy, vale o dele mesmo). Se
+o proxy for outro, ele precisa mandar esse cabeçalho.
+
 Exemplo de chamada:
 
 ```bash
-curl -X POST http://localhost:8080/api/calculos -H "Content-Type: application/json" -d '{
+curl -c sessao -b sessao http://localhost:8080/api/sessao
+token=$(awk '$6 == "XSRF-TOKEN" {print $7}' sessao)
+curl -c sessao -b sessao -X POST http://localhost:8080/api/sessao -H "X-XSRF-TOKEN: $token" \
+  -H "Content-Type: application/json" -d '{"email": "voce@escritorio.adv.br", "senha": "uma senha longa"}'
+token=$(awk '$6 == "XSRF-TOKEN" {print $7}' sessao)
+curl -b sessao -X POST http://localhost:8080/api/calculos -H "X-XSRF-TOKEN: $token" \
+  -H "Content-Type: application/json" -d '{
   "dataBase": "2026-10-01",
   "aplicarArt523": true,
   "parcelas": [
@@ -68,7 +97,7 @@ curl -X POST http://localhost:8080/api/calculos -H "Content-Type: application/js
 | Endpoint | O que faz |
 |---|---|
 | `POST /api/calculos/salvos` | `{"titulo": "...", "calculo": <pedido de POST /api/calculos>}`: calcula, salva e devolve `201` com o id |
-| `GET /api/calculos/salvos` | lista os cálculos do escritório, do mais recente para o mais antigo |
+| `GET /api/calculos/salvos` | lista os cálculos do escritório logado, do mais recente para o mais antigo |
 | `GET /api/calculos/salvos/{id}` | devolve o pedido salvo e o demonstrativo refeito com o snapshot |
 
 Cada cálculo salvo guarda o pedido, com o regime usado já resolvido, e o snapshot dos valores

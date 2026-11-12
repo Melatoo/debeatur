@@ -28,6 +28,9 @@ services:
       DEBEATUR_DB_URL: jdbc:postgresql://db:5432/debeatur
       DEBEATUR_DB_USUARIO: debeatur
       DEBEATUR_DB_SENHA: ${DEBEATUR_DB_SENHA:-debeatur}
+      # usuário do escritório padrão, criado na primeira subida (ver o README)
+      DEBEATUR_USUARIO_EMAIL: ${DEBEATUR_USUARIO_EMAIL:-}
+      DEBEATUR_USUARIO_SENHA: ${DEBEATUR_USUARIO_SENHA:-}
     depends_on:
       db:
         condition: service_healthy
