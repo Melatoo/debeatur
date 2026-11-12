@@ -2,7 +2,15 @@ import { createContext, useContext } from 'react'
 
 export interface SessaoAtual {
   email: string
-  /** Encerra a sessão e volta à tela de login; o rascunho fica no navegador. */
+  /**
+   * Conta os logins desta página: muda quando a pessoa entra de novo depois de a sessão expirar,
+   * para o que falhou com a sessão vencida (a lista dos cálculos salvos) buscar de novo.
+   */
+  geracao: number
+  /**
+   * Encerra a sessão e volta à tela de login; o rascunho fica no navegador.
+   * @throws Error se o servidor não respondeu; a sessão continua, e quem chamou mostra a falha
+   */
   sair: () => Promise<void>
 }
 

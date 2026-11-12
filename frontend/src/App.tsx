@@ -79,6 +79,21 @@ interface Troca {
 
 function App() {
   const sessao = useSessao()
+  const [saindo, setSaindo] = useState(false)
+  const [erroSair, setErroSair] = useState<string | null>(null)
+
+  /** Sem resposta do servidor, a sessão continua e o erro fica escrito no topo. */
+  async function sairDaSessao() {
+    if (!sessao) return
+    setErroSair(null)
+    setSaindo(true)
+    try {
+      await sessao.sair()
+    } catch (e) {
+      setErroSair(`Não foi possível sair. ${e instanceof Error ? e.message : String(e)}`)
+      setSaindo(false)
+    }
+  }
   // Lido uma vez, na carga: o caso em que a pessoa estava antes de recarregar ou fechar a aba.
   const [inicio] = useState(() => {
     const salvo = lerRascunho(armazenamentoDoNavegador())
@@ -200,7 +215,10 @@ function App() {
     let novas: RegraEditavel[]
     try {
       novas = paraEditavel((await buscarRegimePadrao()).regras)
-    } catch {
+    } catch (e) {
+      // Com a sessão vencida, o login abre por cima e a busca fica pendente: o recálculo segue
+      // esperando, e ela recomeça quando a pessoa entra de novo.
+      if (e instanceof ErroDaApi && e.status === 401) return
       novas = [regraVazia()]
     }
     // Um "Limpar" ou "Desfazer" durante a busca trocou o formulário inteiro: as regras chegaram tarde,
@@ -223,6 +241,15 @@ function App() {
     if (faltamRegras(inicio.rascunho)) void buscarRegras()
   })
   useEffect(() => buscarRegrasDoInicio(), [])
+
+  // De volta depois de a sessão expirar: a busca das regras que levou 401 recomeça.
+  const retomarRegras = useEffectEvent(() => {
+    if (buscandoRegime && faltamRegras(rascunho)) void buscarRegras()
+  })
+  const geracao = sessao?.geracao ?? 0
+  useEffect(() => {
+    if (geracao > 0) retomarRegras()
+  }, [geracao])
 
   /**
    * O formulário como pedido de cálculo, sem o processo, que só identifica o PDF. Refeito só quando
@@ -557,14 +584,25 @@ function App() {
             {sessao && (
               <button
                 type="button"
-                className="secundario"
-                title={`Logado como ${sessao.email}`}
-                onClick={() => void sessao.sair().catch(() => undefined)}
+                className={saindo ? 'secundario esperando' : 'secundario'}
+                aria-describedby="sessao-email"
+                disabled={saindo}
+                onClick={() => void sairDaSessao()}
               >
-                Sair
+                {saindo ? 'Saindo…' : 'Sair'}
               </button>
             )}
           </div>
+          {sessao && (
+            <p className="sessao-email" id="sessao-email">
+              {sessao.email}
+            </p>
+          )}
+          {erroSair && (
+            <p className="erro" role="alert">
+              {erroSair}
+            </p>
+          )}
         </header>
 
         <form ref={formulario} onSubmit={enviar}>

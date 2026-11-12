@@ -35,6 +35,19 @@ main {
   gap: 8px;
 }
 
+/* Quem está logado, embaixo do título: uma linha que não disputa espaço com os botões. */
+.topo .sessao-email {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.topo .erro {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .topo h1 {
   margin: 0;
   font-size: 1.75rem;
@@ -1115,14 +1128,14 @@ main.acesso {
   display: block;
   max-width: 400px;
   padding-top: 15vh;
+  padding-bottom: 80px;
 }
 
 .acesso h2 {
   margin: 40px 0 0;
 }
 
-.formulario-entrar,
-.janela .formulario-entrar {
+.formulario-entrar {
   display: flex;
   flex-direction: column;
   gap: 16px;

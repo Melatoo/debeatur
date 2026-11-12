@@ -20,7 +20,7 @@ for (const [tema, nome] of [
       await page.getByLabel('E-mail').fill(EMAIL)
       await page.getByLabel('Senha').fill('errada')
       await page.getByRole('button', { name: 'Entrar' }).click()
-      await expect(page.getByRole('alert')).toHaveText('E-mail ou senha incorretos.')
+      await expect(page.getByRole('alert')).toHaveText('E-mail ou senha incorretos. Confira e tente de novo.')
       await semViolacoes(page)
     })
 

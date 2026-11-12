@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Janela } from './Janela'
 import { listarCalculos, type ResumoCalculo } from './api'
 import { novaDataBase } from './calculoSalvo'
+import { useSessao } from './sessao'
 import { data, dataHora, moeda } from './formato'
 
 const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -47,16 +48,22 @@ function ConteudoLista({ aoEscolher }: Pick<PropsLista, 'aoEscolher'>) {
     return () => controle.abort()
   }, [])
 
+  // De novo quando a pessoa entra outra vez: a lista que levou 401 com a sessão vencida aparece.
+  const geracao = useSessao()?.geracao ?? 0
   useEffect(() => {
     let vale = true
     listarCalculos().then(
-      (l) => vale && setLista(l),
+      (l) => {
+        if (!vale) return
+        setErro(null)
+        setLista(l)
+      },
       (e) => vale && setErro(mensagem(e)),
     )
     return () => {
       vale = false
     }
-  }, [])
+  }, [geracao])
 
   async function escolher(acao: AcaoSalvo, resumo: ResumoCalculo) {
     const s = sinal.current

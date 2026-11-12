@@ -180,7 +180,12 @@ export function tokenCsrf(cookies: string = document.cookie): string | null {
   return null
 }
 
-function comCsrf(cabecalhos: Record<string, string>): Record<string, string> {
+/**
+ * Os cabeçalhos com o token CSRF. Sem o cookie (outra aba saiu, ou os cookies foram apagados), o
+ * GET da sessão grava um novo antes: sem token, o POST levaria 403, e não o 401 que pede login.
+ */
+async function comCsrf(cabecalhos: Record<string, string>): Promise<Record<string, string>> {
+  if (!tokenCsrf()) await fetch('/api/sessao').catch(() => undefined)
   const token = tokenCsrf()
   return token ? { ...cabecalhos, 'X-XSRF-TOKEN': token } : cabecalhos
 }
@@ -207,11 +212,9 @@ export async function buscarSessao(): Promise<Sessao | null> {
 
 /** @throws ErroDaApi com "E-mail ou senha incorretos." (401) se as credenciais não conferem */
 export async function entrar(email: string, senha: string): Promise<Sessao> {
-  // depois de sair, o cookie do token foi apagado; o GET da sessão grava um novo
-  if (!tokenCsrf()) await buscarSessao()
   const resposta = await fetch('/api/sessao', {
     method: 'POST',
-    headers: comCsrf({ 'Content-Type': 'application/json' }),
+    headers: await comCsrf({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ email, senha }),
   })
   if (!resposta.ok) {
@@ -222,7 +225,7 @@ export async function entrar(email: string, senha: string): Promise<Sessao> {
 }
 
 export async function sair(): Promise<void> {
-  const resposta = await fetch('/api/sessao', { method: 'DELETE', headers: comCsrf({}) })
+  const resposta = await fetch('/api/sessao', { method: 'DELETE', headers: await comCsrf({}) })
   if (!resposta.ok && resposta.status !== 401) {
     throw new ErroDaApi(`Erro ${resposta.status} ao sair`, resposta.status, null)
   }
@@ -232,7 +235,7 @@ export async function sair(): Promise<void> {
 export async function calcular(request: CalculoRequest, sinal?: AbortSignal): Promise<Demonstrativo> {
   const resposta = await fetch('/api/calculos', {
     method: 'POST',
-    headers: comCsrf({ 'Content-Type': 'application/json' }),
+    headers: await comCsrf({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(request),
     signal: sinal,
   })
@@ -267,7 +270,7 @@ export async function gerarPdf(request: CalculoRequest): Promise<Anexo> {
   const resposta = await fetch('/api/calculos/pdf', {
     method: 'POST',
     // sem o problem+json, o erro do cálculo viria como 406, sem a mensagem
-    headers: comCsrf({ 'Content-Type': 'application/json', Accept: 'application/pdf, application/problem+json' }),
+    headers: await comCsrf({ 'Content-Type': 'application/json', Accept: 'application/pdf, application/problem+json' }),
     body: JSON.stringify(request),
   })
   if (!resposta.ok) await lerResposta(resposta, 'gerar o PDF')
@@ -305,7 +308,7 @@ export interface CalculoSalvo {
 export async function salvarCalculo(titulo: string, calculo: CalculoRequest): Promise<CalculoSalvo> {
   const resposta = await fetch('/api/calculos/salvos', {
     method: 'POST',
-    headers: comCsrf({ 'Content-Type': 'application/json' }),
+    headers: await comCsrf({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ titulo: titulo.trim() || null, calculo }),
   })
   return lerResposta(resposta, 'salvar o cálculo')

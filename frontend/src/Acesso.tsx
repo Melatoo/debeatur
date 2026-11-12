@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { aoExpirarSessao, buscarSessao, entrar, ErroDaApi, sair, type Sessao } from './api'
 import { Janela } from './Janela'
 import { ContextoSessao, type SessaoAtual } from './sessao'
@@ -7,9 +7,9 @@ const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 type Estado =
   | { tipo: 'verificando' }
-  | { tipo: 'falhou'; erro: string }
+  | { tipo: 'falhou' }
   | { tipo: 'anonimo' }
-  | { tipo: 'logado'; sessao: Sessao; expirou: boolean }
+  | { tipo: 'logado'; sessao: Sessao; expirou: boolean; geracao: number }
 
 /**
  * Sem sessão, mostra o login no lugar da aplicação. Se a sessão expira no meio do uso, o login
@@ -23,8 +23,9 @@ export function Acesso({ children }: { children: ReactNode }) {
   useEffect(() => {
     let vale = true
     buscarSessao().then(
-      (sessao) => vale && setEstado(sessao ? { tipo: 'logado', sessao, expirou: false } : { tipo: 'anonimo' }),
-      (e) => vale && setEstado({ tipo: 'falhou', erro: mensagem(e) }),
+      (sessao) =>
+        vale && setEstado(sessao ? { tipo: 'logado', sessao, expirou: false, geracao: 0 } : { tipo: 'anonimo' }),
+      () => vale && setEstado({ tipo: 'falhou' }),
     )
     return () => {
       vale = false
@@ -39,7 +40,10 @@ export function Acesso({ children }: { children: ReactNode }) {
     [],
   )
 
-  const logado = (sessao: Sessao) => setEstado({ tipo: 'logado', sessao, expirou: false })
+  function tentarDeNovo() {
+    setEstado({ tipo: 'verificando' })
+    setTentativa((n) => n + 1)
+  }
 
   switch (estado.tipo) {
     case 'verificando':
@@ -49,9 +53,9 @@ export function Acesso({ children }: { children: ReactNode }) {
         <main className="acesso">
           <Marca />
           <p className="erro" role="alert">
-            Não foi possível verificar a sessão. {estado.erro}
+            Não foi possível verificar a sessão. Confira a conexão e tente de novo.
           </p>
-          <button type="button" onClick={() => setTentativa((n) => n + 1)}>
+          <button type="button" onClick={tentarDeNovo}>
             Tentar de novo
           </button>
         </main>
@@ -61,14 +65,23 @@ export function Acesso({ children }: { children: ReactNode }) {
         <main className="acesso">
           <Marca />
           <h2 id="titulo-entrar">Entrar</h2>
-          <FormularioEntrar aoEntrar={logado} />
+          <FormularioEntrar
+            rotulo="titulo-entrar"
+            aoEntrar={(sessao) => setEstado({ tipo: 'logado', sessao, expirou: false, geracao: 0 })}
+          />
         </main>
       )
     case 'logado': {
       const atual: SessaoAtual = {
         email: estado.sessao.email,
+        geracao: estado.geracao,
         sair: async () => {
-          await sair()
+          try {
+            await sair()
+          } catch (e) {
+            // 401 ou 403: a sessão já não vale no servidor, então sair aqui também é o certo
+            if (!(e instanceof ErroDaApi && (e.status === 401 || e.status === 403))) throw e
+          }
           setEstado({ tipo: 'anonimo' })
         },
       }
@@ -82,7 +95,13 @@ export function Acesso({ children }: { children: ReactNode }) {
             aoFechar={() => setEstado({ ...estado, expirou: false })}
           >
             <p className="dica">A sessão expirou. Entre de novo; o caso da tela continua aqui.</p>
-            <FormularioEntrar emailInicial={estado.sessao.email} aoEntrar={logado} />
+            <FormularioEntrar
+              rotulo="titulo-sessao-expirada"
+              email={estado.sessao.email}
+              aoEntrar={(sessao) =>
+                setEstado({ tipo: 'logado', sessao, expirou: false, geracao: estado.geracao + 1 })
+              }
+            />
           </Janela>
         </ContextoSessao.Provider>
       )
@@ -102,20 +121,38 @@ function Marca() {
 }
 
 interface PropsEntrar {
-  emailInicial?: string
+  /** O id do título que nomeia o formulário. */
+  rotulo: string
+  /**
+   * Fixo ao entrar de novo: o caso da tela é deste usuário, e outra conta (de outro escritório)
+   * não pode herdá-lo.
+   */
+  email?: string
   aoEntrar: (sessao: Sessao) => void
 }
 
-function FormularioEntrar({ emailInicial = '', aoEntrar }: PropsEntrar) {
-  const [email, setEmail] = useState(emailInicial)
+function FormularioEntrar({ rotulo, email: emailFixo, aoEntrar }: PropsEntrar) {
+  const [email, setEmail] = useState(emailFixo ?? '')
   const [senha, setSenha] = useState('')
   const [entrando, setEntrando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const campoEmail = useRef<HTMLInputElement>(null)
+  const campoSenha = useRef<HTMLInputElement>(null)
+  /** O campo que recebe o foco quando o erro aparece; o botão fica desabilitado e o perde. */
+  const focarDepois = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (!entrando && focarDepois.current) {
+      focarDepois.current.focus()
+      focarDepois.current = null
+    }
+  }, [entrando, erro])
 
   async function enviar(evento: FormEvent) {
     evento.preventDefault()
     if (!email.trim() || !senha) {
       setErro('Informe o e-mail e a senha.')
+      ;(email.trim() ? campoSenha : campoEmail).current?.focus()
       return
     }
     setErro(null)
@@ -123,23 +160,28 @@ function FormularioEntrar({ emailInicial = '', aoEntrar }: PropsEntrar) {
     try {
       aoEntrar(await entrar(email.trim(), senha))
     } catch (e) {
-      // a API já diz "E-mail ou senha incorretos."; o resto é falha de rede ou do servidor
-      setErro(e instanceof ErroDaApi && e.status === 401 ? e.message : `Não foi possível entrar. ${mensagem(e)}`)
+      // a API já diz o que houve num 401 (credencial) ou 503 (falha dela); o resto é a rede
+      setErro(
+        e instanceof ErroDaApi && (e.status === 401 || e.status === 503)
+          ? e.message
+          : `Não foi possível entrar. ${mensagem(e)}`,
+      )
       setSenha('')
-    } finally {
+      focarDepois.current = campoSenha.current
       setEntrando(false)
     }
   }
 
   return (
-    <form className="formulario-entrar" onSubmit={enviar} noValidate>
+    <form className="formulario-entrar" aria-labelledby={rotulo} onSubmit={enviar} noValidate>
       <label>
         E-mail
         <input
+          ref={campoEmail}
           type="email"
           autoComplete="username"
-          data-foco-inicial={emailInicial ? undefined : true}
-          autoFocus={!emailInicial}
+          readOnly={emailFixo !== undefined}
+          autoFocus={emailFixo === undefined}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -147,9 +189,10 @@ function FormularioEntrar({ emailInicial = '', aoEntrar }: PropsEntrar) {
       <label>
         Senha
         <input
+          ref={campoSenha}
           type="password"
           autoComplete="current-password"
-          data-foco-inicial={emailInicial ? true : undefined}
+          data-foco-inicial={emailFixo !== undefined ? true : undefined}
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
         />
