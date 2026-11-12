@@ -62,11 +62,20 @@ export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
 })
 
 /**
- * Se a regra é a SELIC terminando junto à virada da Lei 14.905/2024 (30/08/2024). Como as
- * regras valem por mês inteiro, agosto/2024 fica todo com um critério só (#32).
+ * Quem fica com agosto/2024 quando a regra é a SELIC terminando junto à virada da Lei 14.905/2024
+ * (30/08/2024), ou {@code null} se a regra não é essa.
+ * <p>
+ * As regras valem por mês inteiro, e o mês da virada não se divide (#32). Com a SELIC até 08/2024,
+ * o cálculo segue o Manual de Cálculos da Justiça Federal (devedor privado: SELIC até ago./2024,
+ * taxa legal desde set./2024) e o CADEJ do TJMG, que conta meses inteiros. Até 07/2024, agosto
+ * inteiro passa para o critério da regra seguinte, o que nenhuma das duas fontes faz.
  */
-export const selicNaViradaDaLei14905 = (regra: RegraEditavel) =>
-  regra.correcao === 'SELIC' && (regra.fim === '2024-07' || regra.fim === '2024-08')
+export function agostoNaViradaDaSelic(regra: RegraEditavel): 'selic' | 'regra-seguinte' | null {
+  if (regra.correcao !== 'SELIC') return null
+  if (regra.fim === '2024-08') return 'selic'
+  if (regra.fim === '2024-07') return 'regra-seguinte'
+  return null
+}
 
 /** Ano e mês (1 a 12) no formato AAAA-MM. */
 export const anoMes = (ano: number, mes: number) => `${ano}-${String(mes).padStart(2, '0')}`
