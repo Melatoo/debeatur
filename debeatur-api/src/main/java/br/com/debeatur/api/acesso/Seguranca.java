@@ -1,5 +1,6 @@
 package br.com.debeatur.api.acesso;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -43,6 +44,8 @@ class Seguranca {
                                 SecurityContextRepository contextos) throws Exception {
         return http
                 .authorizeHttpRequests(pedidos -> pedidos
+                        // sem isto, o 403 do CSRF (e todo erro de quem não entrou) vira 401 ao passar pelo /error
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.POST, SESSAO).permitAll()
                         .requestMatchers(HttpMethod.GET, SESSAO).permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
