@@ -198,7 +198,7 @@ class CalculoPdfControllerTest {
         String fator = numero(json, "$.linhas[0].fatorCorrecao").setScale(7, RoundingMode.HALF_UP).toPlainString()
                 .replace('.', ',');
         assertThat(pdf).containsIgnoringWhitespaces("396,00 — " + fator + " " + reais(json, "$.linhas[0].valorCorrigido")
-                + " 8,000000% " + reais(json, "$.linhas[0].valorJuros") + " " + reais(json, "$.linhas[0].subtotal"));
+                + " 8,0000% " + reais(json, "$.linhas[0].valorJuros") + " " + reais(json, "$.linhas[0].subtotal"));
         // o pagamento de 02/2024 aparece na coluna do pago
         assertThat(pdf).containsIgnoringWhitespaces("02/2024 10/02/2024 10/02/2024 1.412,00 423,60 200,00");
         assertThat(pdf).containsIgnoringWhitespaces("Rito da prisão").containsIgnoringWhitespaces("Rito da penhora");
@@ -319,6 +319,91 @@ class CalculoPdfControllerTest {
     }
 
     /**
+     * O caso da avaliação da issue #72, o mesmo dos testes de ponta a ponta do frontend: pensão de
+     * 30% do salário mínimo de 01/2024 a 06/2025, ritos separados, dois pagamentos e o regime padrão.
+     */
+    private static final String CASO_DA_AVALIACAO = """
+            {"dataBase": "2025-06-30", "aplicarArt523": true, "parcelas": [],
+             "processo": {"numero": "5001234-56.2024.8.13.0024", "juizo": "2ª Vara de Família de Belo Horizonte",
+                          "exequente": "A. B. C., representada por D. B. C.", "executado": "E. F. C."},
+             "pensao": {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2025-06",
+                        "inicioJuros": "VENCIMENTO", "ajuizamento": "2024-09-15",
+                        "pagamentos": [{"mes": "2024-03", "valor": 200.00}, {"mes": "2024-11", "valor": 300.00}]}}
+            """;
+
+    private void indicesDoRegimePadrao() {
+        SerieIndicesEmMemoria serie = new SerieIndicesEmMemoria();
+        SalarioMinimoEmMemoria salario = new SalarioMinimoEmMemoria();
+        for (YearMonth mes = YearMonth.of(2024, 1); mes.isBefore(YearMonth.of(2025, 7)); mes = mes.plusMonths(1)) {
+            serie.com(Indice.INPC, mes, "0.40").com(Indice.IPCA, mes, "0.40").com(Indice.TAXA_LEGAL, mes, "0.512345");
+            salario.com(mes, mes.getYear() == 2024 ? "1412.00" : "1518.00");
+        }
+        when(series.carregar(any(), any(), any())).thenReturn(serie);
+        when(series.carregarSalarioMinimo(any(), any())).thenReturn(salario);
+    }
+
+    /** Art. 189, II, do CPC: uma folha avulsa do demonstrativo também diz que o processo é sigiloso. */
+    @Test
+    void todaPaginaTrazOSegredoDeJustica() throws IOException {
+        indicesDoRegimePadrao();
+
+        List<String> paginas = paginas(post("/api/calculos/pdf", CASO_DA_AVALIACAO).getResponse().getContentAsByteArray());
+
+        assertThat(paginas).hasSizeGreaterThan(1);
+        for (int p = 1; p <= paginas.size(); p++) {
+            assertThat(paginas.get(p - 1)).as("página %d", p)
+                    .containsIgnoringWhitespaces("Segredo de justiça (art. 189, II, do CPC)");
+        }
+    }
+
+    /** Quem abre o PDF acha o total sem passar pela memória: o resumo vem na primeira página. */
+    @Test
+    void primeiraPaginaTrazOResumoComOTotal() throws IOException {
+        indicesDoRegimePadrao();
+        MvcTestResult json = post("/api/calculos", CASO_DA_AVALIACAO);
+
+        String primeira = paginas(post("/api/calculos/pdf", CASO_DA_AVALIACAO).getResponse().getContentAsByteArray())
+                .getFirst();
+
+        assertThat(primeira)
+                .containsIgnoringWhitespaces("Rito da prisão: débito atualizado (")
+                .containsIgnoringWhitespaces(reais(json, "$.ritos.prisao.debitoAtualizado"))
+                .containsIgnoringWhitespaces("Rito da penhora: total com os acréscimos R$ " + reais(json, "$.ritos.totalPenhora"))
+                .containsIgnoringWhitespaces("Total da execução R$ " + reais(json, "$.total"));
+    }
+
+    /** A procedência das séries fecha a última página da memória, e não abre uma página só para ela. */
+    @Test
+    void fontesNaoFicamSozinhasNaUltimaPagina() throws IOException {
+        indicesDoRegimePadrao();
+
+        List<String> paginas = paginas(post("/api/calculos/pdf", CASO_DA_AVALIACAO).getResponse().getContentAsByteArray());
+
+        assertThat(paginas.getLast()).containsIgnoringWhitespaces("Fontes dos índices").contains("Subtotal,");
+    }
+
+    /**
+     * Quatro casas, como na tela; a taxa legal, que o BCB publica com seis, sai com as seis, para
+     * quem confere os juros a partir do percentual não errar o centavo.
+     */
+    @Test
+    void jurosDaTaxaLegalSaemComAsCasasDoBcb() throws IOException {
+        when(series.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
+                .com(Indice.IPCA, YearMonth.of(2024, 10), "0.56")
+                .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 10), "0.512345"));
+        String pedido = """
+                {"dataBase": "2024-11-15", "aplicarArt523": false,
+                 "regime": {"nome": "Sentença", "regras": [{"inicio": "2024-09", "correcao": "IPCA", "juros": "TAXA_LEGAL"}]},
+                 "parcelas": [{"descricao": "Reembolso", "valor": 1000.00, "inicioCorrecao": "2024-10-01",
+                               "inicioJuros": "2024-10-01"}]}
+                """;
+
+        String pdf = texto(post("/api/calculos/pdf", pedido).getResponse().getContentAsByteArray());
+
+        assertThat(pdf).containsIgnoringWhitespaces(" 0,512345% ");
+    }
+
+    /**
      * Com cada quantidade de parcelas, a quebra cai num ponto diferente da tabela: o fechamento
      * nunca fica sem o cabeçalho das colunas, toda página diz "Página X de Y" e o arquivo fica
      * bem abaixo do limite de upload do PJe do TJMG (1,5 MB).
@@ -349,6 +434,10 @@ class CalculoPdfControllerTest {
                         .containsIgnoringWhitespaces("Página " + p + " de");
             }
             assertThat(totalDePaginasDoRodape(pdf)).as("%d parcelas", n).isEqualTo(paginas.size());
+            // a procedência nunca abre uma página sozinha: no mínimo, o total da execução vai com ela
+            assertThat(paginas.getLast()).as("%d parcelas", n)
+                    .containsIgnoringWhitespaces("Total da execução R$")
+                    .containsIgnoringWhitespaces("Fontes dos índices");
             String comFechamento = paginas.stream().filter(t -> t.contains("Subtotal,")).findFirst().orElseThrow();
             assertThat(comFechamento).as("%d parcelas", n).contains("Correção desde");
             if (!comFechamento.contains("Aluguel")) {
