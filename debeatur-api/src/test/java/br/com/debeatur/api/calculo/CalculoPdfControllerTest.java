@@ -383,14 +383,15 @@ class CalculoPdfControllerTest {
     }
 
     /**
-     * Quatro casas, como na tela; a taxa legal, que o BCB publica com seis, sai com as seis, para
-     * quem confere os juros a partir do percentual não errar o centavo.
+     * Quatro casas, como na tela, e até seis quando a taxa as tem: a taxa legal, que o BCB publica
+     * com seis, sai com as casas dela, para quem confere os juros a partir do percentual não errar
+     * o centavo, mas sem os zeros que as seis fixas acrescentariam ("0,51234%", e não "0,512340%").
      */
     @Test
     void jurosDaTaxaLegalSaemComAsCasasDoBcb() throws IOException {
         when(series.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
                 .com(Indice.IPCA, YearMonth.of(2024, 10), "0.56")
-                .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 10), "0.512345"));
+                .com(Indice.TAXA_LEGAL, YearMonth.of(2024, 10), "0.51234"));
         String pedido = """
                 {"dataBase": "2024-11-15", "aplicarArt523": false,
                  "regime": {"nome": "Sentença", "regras": [{"inicio": "2024-09", "correcao": "IPCA", "juros": "TAXA_LEGAL"}]},
@@ -400,7 +401,8 @@ class CalculoPdfControllerTest {
 
         String pdf = texto(post("/api/calculos/pdf", pedido).getResponse().getContentAsByteArray());
 
-        assertThat(pdf).containsIgnoringWhitespaces(" 0,512345% ");
+        // o número inteiro, sem dígito colado antes ("10,51234%") nem zero sobrando depois
+        assertThat(pdf).containsPattern("(?<![\\d,])0,51234%");
     }
 
     /**

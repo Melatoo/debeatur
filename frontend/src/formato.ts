@@ -7,7 +7,7 @@ const seteCasas = numeroBr(7)
  * Quatro casas, e até seis quando a taxa as tem: o BCB publica a taxa legal com seis, e com menos
  * quem confere os juros a partir do percentual pode errar o centavo. O PDF usa a mesma regra.
  */
-const taxa = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 6 })
+const taxa = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 6, useGrouping: false })
 
 export const moeda = (valor: number) => moedaBr.format(valor)
 /** Valor com duas casas e sem o símbolo, para colar em planilha. */

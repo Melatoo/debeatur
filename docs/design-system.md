@@ -53,7 +53,7 @@ Siga `frontend/src/formato.ts`; é a única fonte desses formatos.
 | Valor em reais, isolado | moeda pt-BR | R$ 1.523,40 |
 | Valor em reais, na tabela | duas casas, sem símbolo (cola em planilha) | 1.523,40 |
 | Valor negativo ou dedução | hífen-menos antes do número, sem parênteses nem cor | -1.412,00 |
-| Taxa de juros | quatro casas, até seis quando a taxa as tem (o BCB publica a taxa legal com seis), e % | 1,0000% · 0,512345% |
+| Taxa de juros | quatro casas e até seis quando a taxa as tem (o BCB publica a taxa legal com seis), sem zeros à direita além da quarta nem separador de milhar, e % | 1,0000% · 0,512345% · 0,51234% |
 | Fator de correção | sete casas | 1,0482371 |
 | Data | dd/mm/aaaa | 05/03/2025 |
 | Competência | mm/aaaa (mm/aa no eixo estreito) | 03/2025 |

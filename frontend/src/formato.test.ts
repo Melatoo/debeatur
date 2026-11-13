@@ -16,4 +16,8 @@ describe('percentual', () => {
     expect(percentual(0.512345)).toBe('0,512345%')
     expect(percentual(6.61086)).toBe('6,61086%')
   })
+
+  it('não agrupa milhar, como o PDF', () => {
+    expect(percentual(1234.5)).toBe('1234,5000%')
+  })
 })
