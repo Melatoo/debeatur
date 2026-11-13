@@ -12,7 +12,7 @@ import {
 } from './api'
 import { lerColunasOcultas, salvarColunasOcultas, type ColunaOpcional } from './colunas'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
-import { parcelasAntigas, textoDoAviso } from './prescricao'
+import { competenciasQuitadas, parcelasAntigas, textoDoAviso } from './prescricao'
 import { FatorMesAMes } from './FatorMesAMes'
 import { LinhaDoTempo } from './LinhaDoTempo'
 import { useAlturaFixa } from './alturaFixa'
@@ -124,7 +124,8 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
   const fatorDe = fatorAberto?.de === resultado ? fatorAberto.linha : null
   const { linhas, ritos } = resultado
   const pensao = pedido.pensao
-  const antigas = pensao && parcelasAntigas(pensao, pensao.ajuizamento, pedido.dataBase)
+  const antigas =
+    pensao && parcelasAntigas(pensao, pensao.ajuizamento, pedido.dataBase, competenciasQuitadas(resultado.linhas))
   const avisoPrescricao = antigas && textoDoAviso(antigas)
   const comSalarioMinimo = linhas.some((l) => l.pensao)
   // o valor abatido pelo servidor, o mesmo da coluna "Pago", e não o digitado no pedido

@@ -1,6 +1,6 @@
 import { expect, preencherCaso, semViolacoes, test } from './apoio.ts'
 
-const FATO = '9 parcelas de 01/2022 a 09/2022 podem estar prescritas.'
+const FATO = '9 parcelas (01/2022 a 09/2022) podem estar prescritas.'
 
 test('avisa das parcelas vencidas mais de dois anos antes do ajuizamento, sem levar o aviso ao papel', async ({ page }) => {
   await page.goto('/')
@@ -28,6 +28,6 @@ test('sem os ritos separados, conta da data-base e diz isso', async ({ page }) =
   await page.getByLabel('Primeira parcela').fill('2023-05')
   // Data-base 30/06/2025: vencidas até 10/06/2023.
   await expect(page.locator('form .aviso-prescricao')).toContainText(
-    '2 parcelas de 05/2023 a 06/2023 podem estar prescritas. Venceram mais de dois anos antes da data-base (30/06/2025)',
+    'Se a execução ainda não foi proposta, 2 parcelas (05/2023 a 06/2023) podem estar prescritas. Venceram mais de dois anos antes da data-base (30/06/2025)',
   )
 })
