@@ -31,6 +31,7 @@ import {
   type Rascunho,
 } from './rascunho'
 import { EditorRegime } from './EditorRegime'
+import { competenciasQuitadas, parcelasAntigas, textoDoAviso } from './prescricao'
 import { Dica } from './Dica'
 import { ehApple, ehAtalhoDeCalcular, rotuloDoAtalho } from './atalho'
 import { ESPERA_RECALCULO_MS, chaveDoPedido, formularioValido } from './recalculo'
@@ -155,6 +156,20 @@ function App() {
   const versaoDoFormulario = useRef(0)
 
   const ritosAtivos = comPensao && separarRitos
+
+  /**
+   * Parcelas da pensão vencidas há mais de dois anos: só avisa, e o cálculo segue com elas. As
+   * quitadas vêm do último demonstrativo: o formulário não sabe o salário mínimo de cada mês.
+   */
+  const antigas = comPensao
+    ? parcelasAntigas(
+        { primeiroMes: pensao.primeiroMes, ultimoMes: pensao.ultimoMes, diaVencimento: Number(pensao.diaVencimento) },
+        ritosAtivos ? pensao.ajuizamento : null,
+        dataBase,
+        calculo ? competenciasQuitadas(calculo.resultado.linhas) : undefined,
+      )
+    : null
+  const avisoPrescricao = antigas && textoDoAviso(antigas)
 
   const emBranco = useMemo(() => ehRascunhoVazio(rascunho, rascunhoVazio()), [rascunho])
 
@@ -613,6 +628,14 @@ function App() {
               Alimentos fixados em percentual do salário mínimo
             </label>
             {comPensao && <EditorPensao pensao={pensao} onPensao={(p) => alterar('pensao', p)} />}
+            {/* A região fica sempre na página, para o leitor de tela anunciar o aviso quando ele aparece. */}
+            <div role="status">
+              {avisoPrescricao && (
+                <p className="aviso aviso-prescricao">
+                  <strong>{avisoPrescricao.fato}</strong> {avisoPrescricao.detalhe}
+                </p>
+              )}
+            </div>
           </section>
 
           <section className="bloco" aria-labelledby="bloco-processo">
