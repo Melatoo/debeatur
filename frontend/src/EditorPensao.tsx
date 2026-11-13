@@ -1,5 +1,7 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useContext, useEffect, useId, useRef, useState } from 'react'
 import type { InicioJuros, PagamentoRequest } from './api'
+import { Campo, MensagemErro } from './Campo'
+import { Validacao } from './validacao'
 import { CampoDecimal } from './CampoDecimal'
 import { contar, mes } from './formato'
 import { lerPagamentosColados } from './pagamentosColados'
@@ -13,19 +15,13 @@ interface Props {
 
 export function EditorPensao({ pensao, onPensao }: Props) {
   const alterar = (campos: Partial<PensaoEditavel>) => onPensao({ ...pensao, ...campos })
-  // Campo de texto, como os outros números do formulário; a faixa de 1 a 31 vem daqui, e não de min e max.
-  const campoDia = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    campoDia.current?.setCustomValidity(erroDoDiaVencimento(pensao.diaVencimento))
-  }, [pensao.diaVencimento])
   const alterarPagamento = (indice: number, campos: Partial<PagamentoRequest>) =>
     alterar({ pagamentos: pensao.pagamentos.map((p, i) => (i === indice ? { ...p, ...campos } : p)) })
 
   return (
     <div className="editor-pensao">
       <div className="campos quatro">
-        <label>
-          % do salário mínimo
+        <Campo rotulo="% do salário mínimo" seVazio="Informe o percentual da sentença (ex.: 30 ou 33,33).">
           <CampoDecimal
             casas={2}
             milhar={false}
@@ -33,11 +29,14 @@ export function EditorPensao({ pensao, onPensao }: Props) {
             value={pensao.percentual}
             onValor={(v) => alterar({ percentual: v })}
           />
-        </label>
-        <label>
-          Dia do vencimento
+        </Campo>
+        {/* Campo de texto, como os outros números do formulário; a faixa de 1 a 31 vem do erroProprio, e não de min e max. */}
+        <Campo
+          rotulo="Dia do vencimento"
+          seVazio="Informe o dia do vencimento (ex.: 10)."
+          erroProprio={erroDoDiaVencimento(pensao.diaVencimento)}
+        >
           <input
-            ref={campoDia}
             type="text"
             inputMode="numeric"
             autoComplete="off"
@@ -47,18 +46,16 @@ export function EditorPensao({ pensao, onPensao }: Props) {
             value={pensao.diaVencimento}
             onChange={(e) => alterar({ diaVencimento: e.target.value })}
           />
-        </label>
-        <label>
-          Primeira parcela
+        </Campo>
+        <Campo rotulo="Primeira parcela">
           <input
             type="month"
             required
             value={pensao.primeiroMes}
             onChange={(e) => alterar({ primeiroMes: e.target.value })}
           />
-        </label>
-        <label>
-          Última parcela
+        </Campo>
+        <Campo rotulo="Última parcela">
           <input
             type="month"
             required
@@ -66,7 +63,7 @@ export function EditorPensao({ pensao, onPensao }: Props) {
             value={pensao.ultimoMes}
             onChange={(e) => alterar({ ultimoMes: e.target.value })}
           />
-        </label>
+        </Campo>
       </div>
       <Dica id="dica-vencimento" curta="Cada parcela vale o percentual do salário mínimo do mês do vencimento.">
         Em mês sem o dia escolhido (31 em fevereiro, por exemplo), a parcela vence no último dia.
@@ -81,10 +78,9 @@ export function EditorPensao({ pensao, onPensao }: Props) {
           </select>
         </label>
         {pensao.inicioJuros === 'CITACAO' && (
-          <label>
-            Data da citação
+          <Campo rotulo="Data da citação">
             <input type="date" required value={pensao.citacao} onChange={(e) => alterar({ citacao: e.target.value })} />
-          </label>
+          </Campo>
         )}
       </div>
       {pensao.inicioJuros === 'CITACAO' && (
@@ -98,8 +94,7 @@ export function EditorPensao({ pensao, onPensao }: Props) {
       {pensao.pagamentos.map((p, i) => (
         <fieldset key={i} className="pagamento">
           <legend className="sr-only">Pagamento {i + 1}</legend>
-          <label>
-            Mês da parcela
+          <Campo rotulo="Mês da parcela">
             <input
               type="month"
               required
@@ -108,11 +103,10 @@ export function EditorPensao({ pensao, onPensao }: Props) {
               value={p.mes}
               onChange={(e) => alterarPagamento(i, { mes: e.target.value })}
             />
-          </label>
-          <label>
-            Valor pago (R$)
+          </Campo>
+          <Campo rotulo="Valor pago (R$)" seVazio="Informe o valor pago (ex.: 350,00).">
             <CampoDecimal casas={2} required value={p.valor} onValor={(v) => alterarPagamento(i, { valor: v })} />
-          </label>
+          </Campo>
           <button
             type="button"
             className="secundario"
@@ -145,6 +139,8 @@ interface PropsColar {
   onPagamentos: (pagamentos: PagamentoRequest[]) => void
 }
 
+const PENDENTE = 'Inclua os pagamentos colados, com "Incluir pagamentos", ou apague o texto antes de calcular.'
+
 /** Pagamentos colados de uma planilha, com o mês e o valor de cada um numa linha. */
 function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
   const [texto, setTexto] = useState('')
@@ -157,10 +153,11 @@ function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
   // Texto colado e não incluído não vai para o cálculo: o formulário fica inválido até incluí-lo ou
   // apagá-lo, senão o débito sairia sem abater pagamentos que estão na tela.
   useEffect(() => {
-    caixa.current?.setCustomValidity(
-      texto.trim() ? 'Inclua os pagamentos colados, com "Incluir pagamentos", ou apague o texto antes de calcular.' : '',
-    )
+    caixa.current?.setCustomValidity(texto.trim() ? PENDENTE : '')
   }, [texto])
+  // Depois de Calcular, o texto esquecido na caixa diz por que o cálculo não saiu. Com os erros de
+  // uma tentativa de incluir à vista, eles já dizem o que corrigir.
+  const pendente = useContext(Validacao).tentativas > 0 && texto.trim() !== '' && erros.length === 0
 
   function incluir() {
     // Uma linha em branco do "Adicionar pagamento" dá lugar aos colados, em vez de travar o envio.
@@ -185,15 +182,18 @@ function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
     <details className="colar-pagamentos" ref={painel}>
       <summary>Colar de uma planilha</summary>
       <label>
-        Mês e valor pago, um pagamento por linha
+        {/* O resumo de erros lê o nome do campo daqui. */}
+        <span className="rotulo">Mês e valor pago, um pagamento por linha</span>
+        {pendente && <MensagemErro id={`${id}-pendente`}>{PENDENTE}</MensagemErro>}
         <textarea
           ref={caixa}
+          id={`${id}-caixa`}
           rows={5}
           spellCheck={false}
           autoComplete="off"
           placeholder={'04/2024\t350,00\n05/2024\t200,00'}
-          aria-describedby={`${id}-dica`}
-          aria-invalid={erros.length > 0 || undefined}
+          aria-describedby={pendente ? `${id}-pendente ${id}-dica` : `${id}-dica`}
+          aria-invalid={erros.length > 0 || pendente || undefined}
           aria-errormessage={erros.length > 0 ? `${id}-erros` : undefined}
           value={texto}
           onChange={(e) => {

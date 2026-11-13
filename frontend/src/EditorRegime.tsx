@@ -1,4 +1,5 @@
 import type { IndiceCorrecao, TipoJuros } from './api'
+import { Campo } from './Campo'
 import { CampoDecimal } from './CampoDecimal'
 import { Dica } from './Dica'
 import {
@@ -43,12 +44,10 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
       {regras.map((r, i) => (
         <fieldset key={i} className="regra">
           <legend className="sr-only">Período {i + 1}</legend>
-          <label>
-            De
+          <Campo rotulo="De">
             <input type="month" required value={r.inicio} onChange={(e) => alterar(i, { inicio: e.target.value })} />
-          </label>
-          <label>
-            Até
+          </Campo>
+          <Campo rotulo="Até" seVazio="Informe o mês final do período (ex.: 07/2024); só o último pode ficar em branco.">
             <input
               type="month"
               value={r.fim}
@@ -56,7 +55,7 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
               title="Deixe em branco na última regra para valer até a data-base"
               onChange={(e) => alterar(i, { fim: e.target.value })}
             />
-          </label>
+          </Campo>
           <label>
             Correção
             <select value={r.correcao} onChange={(e) => alterar(i, { correcao: e.target.value as IndiceCorrecao })}>
@@ -77,8 +76,7 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
               ))}
             </select>
           </label>
-          <label>
-            % ao mês
+          <Campo rotulo="% ao mês" seVazio="Informe a taxa ao mês (ex.: 1 ou 0,5).">
             <CampoDecimal
               casas={4}
               milhar={false}
@@ -87,7 +85,7 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
               value={usaPercentual(r.juros) ? r.percentual : ''}
               onValor={(v) => alterar(i, { percentual: v })}
             />
-          </label>
+          </Campo>
           {regras.length > 1 ? (
             <button
               type="button"
@@ -101,8 +99,7 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
             <span />
           )}
           {r.juros === 'TRANSICAO_TAXA_LEGAL' && (
-            <label className="dia-corte">
-              Último dia da taxa fixa
+            <Campo className="dia-corte" rotulo="Último dia da taxa fixa">
               <input
                 type="date"
                 required
@@ -111,7 +108,7 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
                 title="A taxa fixa vale até este dia, inclusive; nos dias seguintes do mês, a taxa legal pro rata"
                 onChange={(e) => alterar(i, { ultimoDiaTaxaFixa: e.target.value })}
               />
-            </label>
+            </Campo>
           )}
           {r.correcao === 'SELIC' && r.juros !== 'SEM_JUROS' && (
             <p className="aviso">
