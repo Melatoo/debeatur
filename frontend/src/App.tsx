@@ -17,6 +17,8 @@ import { Demonstrativo, type AcaoDaSituacao } from './Demonstrativo'
 import { data, dataHora, mes } from './formato'
 import { EditorPensao } from './EditorPensao'
 import { CampoDecimal } from './CampoDecimal'
+import { Campo, ResumoErros } from './Campo'
+import { TentouCalcular, errosDoFormulario, type ErroDoResumo } from './validacao'
 import { armazenamentoDoNavegador } from './armazenamento'
 import { estaVazia, fimDoMesAnterior, paraPedido, paraProcesso, parcelaVazia, rascunhoVazio } from './caso'
 import { novaDataBase, paraRascunho, regimeSalvo, tituloPadrao, type RegimeSalvo } from './calculoSalvo'
@@ -143,6 +145,16 @@ function App() {
   /** Chave do formulário que, depois do primeiro cálculo, ficou com campo inválido e não pôde ser recalculado. */
   const [invalidoEm, setInvalidoEm] = useState<string | null>(null)
   const formulario = useRef<HTMLFormElement>(null)
+  /** Se a pessoa já tentou calcular este caso: daí em diante, todo campo inválido mostra o erro. */
+  const [tentou, setTentou] = useState(false)
+  /**
+   * Os erros do último Calcular barrado com dois campos inválidos ou mais, até o próximo Calcular;
+   * `vez` refaz o foco a cada clique. Cada campo diz na hora quando foi corrigido.
+   */
+  const [resumo, setResumo] = useState<{ erros: ErroDoResumo[]; vez: number } | null>(null)
+  const resumoRef = useRef<HTMLElement>(null)
+  /** O campo que recebe o foco depois de um Calcular barrado só por ele. */
+  const [focar, setFocar] = useState<{ campo: HTMLElement } | null>(null)
   const pe = useRef<HTMLDivElement>(null)
   useAlturaFixa(pe, '--altura-pe', formulario)
   /** O cálculo que está no servidor; um mais novo cancela o anterior, que chegaria fora de ordem. */
@@ -364,11 +376,42 @@ function App() {
     return () => document.removeEventListener('keydown', aoTeclar)
   }, [apple])
 
+  /**
+   * O formulário tem `noValidate`: em vez do balão do navegador, um erro por vez, cada campo mostra
+   * a `MensagemErro`, e com dois ou mais o resumo lista todos e recebe o foco.
+   */
   function enviar(evento: FormEvent) {
     evento.preventDefault()
     cancelarEspera()
+    setTentou(true)
+    const form = formulario.current
+    // O checkValidity dispara o `invalid`, que abre as seções fechadas onde há campo a corrigir.
+    if (form && !form.checkValidity()) {
+      const erros = errosDoFormulario(form)
+      if (erros.length > 1) {
+        setResumo((anterior) => ({ erros, vez: (anterior?.vez ?? 0) + 1 }))
+        setFocar(null)
+      } else {
+        setResumo(null)
+        setFocar({ campo: erros[0]?.controle ?? form })
+      }
+      return
+    }
+    setResumo(null)
     void executar(true)
   }
+
+  // O foco vai depois que o campo mostra a mensagem, para o leitor de tela ler o erro junto: ela
+  // aparece numa renderização seguinte à do clique, depois do efeito do próprio campo.
+  useEffect(() => {
+    if (!focar) return
+    const espera = setTimeout(() => focar.campo.focus())
+    return () => clearTimeout(espera)
+  }, [focar])
+  const vezDoResumo = resumo?.vez
+  useEffect(() => {
+    if (vezDoResumo) resumoRef.current?.focus()
+  }, [vezDoResumo])
 
   /** Depois de uma falha, o formulário não muda sozinho, e nada chamaria outro recálculo. */
   function tentarDeNovo() {
@@ -402,6 +445,9 @@ function App() {
     setCarregando(false)
     setErro(null)
     setInvalidoEm(null)
+    // O caso que entra começa sem erros à vista: os campos em branco de um formulário limpo não acusam nada.
+    setTentou(false)
+    setResumo(null)
     setRascunho(r)
     setCalculo(novoCalculo)
     // O caso desfeito pode ter sido limpo no meio da busca das regras: ela recomeça para ele.
@@ -535,27 +581,23 @@ function App() {
   const camposDaParcela = (p: ParcelaRequest, i: number) => (
     <fieldset key={i} className="parcela">
       <legend className="sr-only">Parcela {i + 1}</legend>
-      <label>
-        Descrição
+      <Campo rotulo="Descrição" seVazio="Descreva a parcela (ex.: despesa escolar de março).">
         <input required value={p.descricao} onChange={(e) => alterarParcela(i, 'descricao', e.target.value)} />
-      </label>
-      <label>
-        Valor (R$)
+      </Campo>
+      <Campo rotulo="Valor (R$)" seVazio="Informe o valor (ex.: 1.234,56).">
         <CampoDecimal casas={2} required value={p.valor} onValor={(v) => alterarParcela(i, 'valor', v)} />
-      </label>
-      <label>
-        Início da correção
+      </Campo>
+      <Campo rotulo="Início da correção">
         <input
           type="date"
           required
           value={p.inicioCorrecao}
           onChange={(e) => alterarParcela(i, 'inicioCorrecao', e.target.value)}
         />
-      </label>
-      <label>
-        Início dos juros
+      </Campo>
+      <Campo rotulo="Início dos juros">
         <input type="date" value={p.inicioJuros ?? ''} onChange={(e) => alterarParcela(i, 'inicioJuros', e.target.value)} />
-      </label>
+      </Campo>
       {(parcelas.length > 1 || comPensao) && (
         <button
           type="button"
@@ -605,7 +647,9 @@ function App() {
           )}
         </header>
 
-        <form ref={formulario} onSubmit={enviar}>
+        <TentouCalcular value={tentou}>
+        <form ref={formulario} noValidate onSubmit={enviar}>
+          {resumo && <ResumoErros ref={resumoRef} erros={resumo.erros} />}
           <section className="bloco" aria-labelledby="bloco-pensao">
             <h2 id="bloco-pensao">Pensão</h2>
             <label className="checkbox">
@@ -654,8 +698,7 @@ function App() {
             </div>
             <p className="dica">Opcionais: só identificam o processo no cabeçalho do PDF.</p>
             <div className="campos quatro">
-              <label>
-                Data-base do cálculo
+              <Campo rotulo="Data-base do cálculo">
                 <input
                   type="date"
                   required
@@ -663,17 +706,16 @@ function App() {
                   value={dataBase}
                   onChange={(e) => alterar('dataBase', e.target.value)}
                 />
-              </label>
+              </Campo>
               {ritosAtivos && (
-                <label>
-                  Ajuizamento da execução
+                <Campo rotulo="Ajuizamento da execução">
                   <input
                     type="date"
                     required
                     value={pensao.ajuizamento}
                     onChange={(e) => alterar('pensao', { ...pensao, ajuizamento: e.target.value })}
                   />
-                </label>
+                </Campo>
               )}
             </div>
             {/* O que fica de fora muda o valor, então fica à vista; só o porquê vai para o "Saiba mais". */}
@@ -807,6 +849,7 @@ function App() {
             </p>
           </div>
         </form>
+        </TentouCalcular>
       </div>
 
       <div className="resultado">

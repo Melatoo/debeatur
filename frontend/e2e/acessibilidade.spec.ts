@@ -49,6 +49,14 @@ for (const [tema, nome] of [
       await semViolacoes(page)
     })
 
+    test('resumo de erros e campos inválidos', async ({ page }) => {
+      await page.goto('/')
+      await page.getByLabel('Dia do vencimento').fill('45')
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click()
+      await expect(page.getByRole('region', { name: /^Corrija \d+ campos para calcular$/ })).toBeFocused()
+      await semViolacoes(page)
+    })
+
     test('demonstrativo', async ({ page }) => {
       await calcularCaso(page)
       await page.getByText(/^Colunas \(/).click()

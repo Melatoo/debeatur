@@ -161,6 +161,52 @@ textarea:hover {
   border-color: var(--texto-suave);
 }
 
+/* Antes do foco: com o foco, a borda passa a ser a dele, como em todo campo. */
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: var(--erro);
+}
+
+.mensagem-erro {
+  display: block;
+  color: var(--erro);
+  font-size: 0.875rem;
+  font-weight: 600;
+  max-width: 72ch;
+}
+
+.resumo-erros {
+  border: 2px solid var(--erro);
+  border-radius: 8px;
+  background: var(--superficie);
+  padding: 16px 20px;
+  margin: 0 0 24px;
+}
+
+.resumo-erros:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.resumo-erros h2 {
+  margin: 0 0 8px;
+}
+
+.resumo-erros ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.resumo-erros li + li {
+  margin-top: 4px;
+}
+
+.resumo-erros a {
+  color: var(--texto);
+  font-weight: 600;
+}
+
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {

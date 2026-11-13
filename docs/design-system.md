@@ -109,7 +109,8 @@ Os raios são três: `raio-amostra` (3px) nas amostras e barras, `raio-controle`
 ## Estados
 
 - **Foco:** contorno `foco` de 2px. Campos também trocam a borda para `foco`.
-- **Campo inválido:** `aria-invalid="true"`, borda em `erro` e a `MensagemErro` logo abaixo, ligada por `aria-describedby`. A mensagem fica na tela até o dado ser corrigido.
+- **Campo inválido:** `aria-invalid="true"`, borda em `erro` e a `MensagemErro` entre o rótulo e o campo, ligada por `aria-describedby`. Abaixo do campo, ela o desalinharia dos vizinhos da mesma linha, que se alinham pela base. A mensagem fica na tela até o dado ser corrigido e some assim que ele é.
+- **Quando o erro aparece:** antes do primeiro Calcular, só o valor mal escrito acusa, ao sair do campo; o obrigatório ainda vazio não, porque a pessoa está preenchendo. Depois de Calcular, todo campo inválido mostra a mensagem. Limpar e abrir um cálculo salvo voltam ao começo.
 - **Desabilitado:** `opacity: 0.6`. Só o botão que espera uma resposta (Calcular, Baixar PDF, Salvar, Entrar, Sair e o Abrir, Atualizar ou Duplicar de um cálculo salvo) mostra `cursor: progress`; os outros, `not-allowed`.
 - **Situação do demonstrativo** (`data-situacao`): `atual` não mostra faixa; `atualizando` apaga os números a 0.6 e mostra "Atualizando o demonstrativo…"; `desatualizado` apaga a 0.4 e mostra a faixa em `aviso-fundo` com borda `aviso`. A faixa acompanha a rolagem e é uma região `role="status"`.
 - **Hover em linha de tabela:** `borda` a 35%, para seguir a linha com o olho. Some na impressão.
@@ -140,7 +141,8 @@ Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `
 - Texto com contraste de 4,5:1 ou mais sobre o fundo indicado em cada token, nos dois temas. O contorno dos controles (`borda-forte`), o contorno de foco e as amostras e barras dos ritos, 3:1 ou mais.
 - O rito nunca é indicado só pela cor: o título da tabela e do total diz o nome, e a legenda acompanha o gráfico. As cores dos ritos também diferem em luminosidade.
 - Toda tabela tem `<caption>` com o rito e a unidade, `scope="col"` no cabeçalho e `scope="row"` na primeira coluna. A `.rolagem` em volta tem `tabIndex={0}`, `role="region"` e nome, para rolar de lado pelo teclado.
-- Mensagens de validação ficam escritas abaixo do campo (`MensagemErro`), ligadas por `aria-describedby`. `setCustomValidity` continua, mas sozinho o balão do navegador some e não é lido do mesmo jeito em todo leitor de tela. Com dois erros ou mais depois de Calcular, o resumo de erros abre o formulário e recebe o foco.
+- Mensagens de validação ficam escritas junto do campo (`MensagemErro`), ligadas por `aria-describedby`. O formulário tem `noValidate`: o balão do navegador some, muda com o idioma dele e não é lido do mesmo jeito em todo leitor de tela. `required`, `min`, `max` e `setCustomValidity` continuam valendo, e o `Campo` traduz a validade deles na mensagem, com exemplo. Dentro do `<label>`, a mensagem leva `aria-hidden` para não entrar no nome do campo; o leitor de tela a lê pela descrição.
+- Com um erro só depois de Calcular, o foco vai para o campo. Com dois ou mais, o resumo de erros (`ResumoErros`) abre o formulário, recebe o foco e liga cada erro ao campo; ele fica até o próximo Calcular.
 - Alvos de clique e toque com 24 por 24px ou mais (WCAG 2.5.8): o botão `compacto` tem 29px de altura.
 - Ctrl+Enter (⌘+Enter no Mac) calcula de qualquer campo, salvo com uma janela modal aberta. O botão Calcular declara o atalho em `aria-keyshortcuts`, e o pé do formulário o mostra num `<kbd>`, escondido do leitor de tela para não ser lido duas vezes e da tela de toque (`pointer: coarse`), onde não há teclado.
 
@@ -154,10 +156,8 @@ que atualiza este documento junto.
   (`raio-amostra`, `raio-controle`, `raio-cartao`), `largura-leitura`, `largura-pagina`,
   `largura-coluna-tabela`, `quebra-duas-colunas` e os estilos de texto pelo nome. Hoje esses
   valores aparecem literais no `App.css`.
-- **Componentes que ainda não existem:** `MensagemErro`, `CabecalhoProcesso`, `Parametros` (como
-  componente), `TotalRito`, `TabelaMemoria`, `Procedencia` e `Situacao`.
-- **Resumo de erros:** não existe. Com vários campos inválidos depois de Calcular, nada recebe o
-  foco nem lista os erros.
+- **Componentes que ainda não existem:** `CabecalhoProcesso`, `Parametros` (como componente),
+  `TotalRito`, `TabelaMemoria`, `Procedencia` e `Situacao`.
 - **Impressão:** a tabela sai em 8pt, e não 9pt, e sempre em A4 retrato, sem `@page` paisagem
   para a memória com mais de sete colunas. Não há rodapé com o número do processo e "Página X
   de Y", nem cabeçalho com a data e a hora do cálculo. A marca `.marca-pagina` não existe: um
