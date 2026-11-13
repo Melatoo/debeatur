@@ -1,7 +1,7 @@
 import { useContext, useEffect, useId, useRef, useState } from 'react'
 import type { InicioJuros, PagamentoRequest } from './api'
 import { Campo, MensagemErro } from './Campo'
-import { TentouCalcular } from './validacao'
+import { Validacao } from './validacao'
 import { CampoDecimal } from './CampoDecimal'
 import { contar, mes } from './formato'
 import { lerPagamentosColados } from './pagamentosColados'
@@ -157,7 +157,7 @@ function ColarPagamentos({ pensao, onPagamentos }: PropsColar) {
   }, [texto])
   // Depois de Calcular, o texto esquecido na caixa diz por que o cálculo não saiu. Com os erros de
   // uma tentativa de incluir à vista, eles já dizem o que corrigir.
-  const pendente = useContext(TentouCalcular) && texto.trim() !== '' && erros.length === 0
+  const pendente = useContext(Validacao).tentativas > 0 && texto.trim() !== '' && erros.length === 0
 
   function incluir() {
     // Uma linha em branco do "Adicionar pagamento" dá lugar aos colados, em vez de travar o envio.

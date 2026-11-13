@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   buscarRegimePadrao,
   calcular,
@@ -18,7 +18,7 @@ import { data, dataHora, mes } from './formato'
 import { EditorPensao } from './EditorPensao'
 import { CampoDecimal } from './CampoDecimal'
 import { Campo, ResumoErros } from './Campo'
-import { TentouCalcular, errosDoFormulario, type ErroDoResumo } from './validacao'
+import { Validacao, errosDoFormulario, type ErroDoResumo } from './validacao'
 import { armazenamentoDoNavegador } from './armazenamento'
 import { estaVazia, fimDoMesAnterior, paraPedido, paraProcesso, parcelaVazia, rascunhoVazio } from './caso'
 import { novaDataBase, paraRascunho, regimeSalvo, tituloPadrao, type RegimeSalvo } from './calculoSalvo'
@@ -145,16 +145,20 @@ function App() {
   /** Chave do formulário que, depois do primeiro cálculo, ficou com campo inválido e não pôde ser recalculado. */
   const [invalidoEm, setInvalidoEm] = useState<string | null>(null)
   const formulario = useRef<HTMLFormElement>(null)
-  /** Se a pessoa já tentou calcular este caso: daí em diante, todo campo inválido mostra o erro. */
-  const [tentou, setTentou] = useState(false)
+  /** Quantas vezes a pessoa tentou calcular este caso: daí em diante, todo campo inválido mostra o erro. */
+  const [tentativas, setTentativas] = useState(0)
+  /** Muda a cada caso que entra no formulário, para os campos esquecerem o que guardaram do anterior. */
+  const [rodada, setRodada] = useState(0)
   /**
    * Os erros do último Calcular barrado com dois campos inválidos ou mais, até o próximo Calcular;
    * `vez` refaz o foco a cada clique. Cada campo diz na hora quando foi corrigido.
    */
   const [resumo, setResumo] = useState<{ erros: ErroDoResumo[]; vez: number } | null>(null)
   const resumoRef = useRef<HTMLElement>(null)
-  /** O campo que recebe o foco depois de um Calcular barrado só por ele. */
-  const [focar, setFocar] = useState<{ campo: HTMLElement } | null>(null)
+  /** O campo que recebe o foco depois de um Calcular barrado só por ele; o `Campo` o foca ao mostrar o erro. */
+  const [focar, setFocar] = useState<HTMLElement | null>(null)
+  const aoFocar = useCallback(() => setFocar(null), [])
+  const validacao = useMemo(() => ({ tentativas, rodada, focar, aoFocar }), [tentativas, rodada, focar, aoFocar])
   const pe = useRef<HTMLDivElement>(null)
   useAlturaFixa(pe, '--altura-pe', formulario)
   /** O cálculo que está no servidor; um mais novo cancela o anterior, que chegaria fora de ordem. */
@@ -300,6 +304,8 @@ function App() {
       const resultado = await calcular({ ...pedido, processo: paraProcesso(processo) }, controle.signal)
       if (controle.signal.aborted) return
       setInvalidoEm(null)
+      // O recálculo automático também fecha o resumo: com o cálculo feito, não sobrou o que corrigir.
+      setResumo(null)
       setCalculo((anterior) => ({
         numero: manual || !anterior ? (anterior?.numero ?? 0) + 1 : anterior.numero,
         pedido,
@@ -383,7 +389,7 @@ function App() {
   function enviar(evento: FormEvent) {
     evento.preventDefault()
     cancelarEspera()
-    setTentou(true)
+    setTentativas((n) => n + 1)
     const form = formulario.current
     // O checkValidity dispara o `invalid`, que abre as seções fechadas onde há campo a corrigir.
     if (form && !form.checkValidity()) {
@@ -393,7 +399,15 @@ function App() {
         setFocar(null)
       } else {
         setResumo(null)
-        setFocar({ campo: erros[0]?.controle ?? form })
+        const campo = erros[0]?.controle
+        if (campo?.closest('[data-campo]')) {
+          // O `Campo` o foca quando a mensagem estiver à vista, para o leitor de tela lê-la junto.
+          setFocar(campo)
+        } else {
+          // Fora de um `Campo` (a caixa de colagem), a mensagem sai na própria renderização do
+          // clique, que o React aplica antes do timeout.
+          setTimeout(() => (campo ?? form).focus())
+        }
       }
       return
     }
@@ -401,13 +415,9 @@ function App() {
     void executar(true)
   }
 
-  // O foco vai depois que o campo mostra a mensagem, para o leitor de tela ler o erro junto: ela
-  // aparece numa renderização seguinte à do clique, depois do efeito do próprio campo.
-  useEffect(() => {
-    if (!focar) return
-    const espera = setTimeout(() => focar.campo.focus())
-    return () => clearTimeout(espera)
-  }, [focar])
+  // Corrigido de volta ao caso do demonstrativo na tela, o formulário não recalcula, e nada fecharia
+  // o resumo: ele some porque não há mais o que corrigir.
+  const resumoAberto = calculo !== null && !desatualizado ? null : resumo
   const vezDoResumo = resumo?.vez
   useEffect(() => {
     if (vezDoResumo) resumoRef.current?.focus()
@@ -445,9 +455,13 @@ function App() {
     setCarregando(false)
     setErro(null)
     setInvalidoEm(null)
-    // O caso que entra começa sem erros à vista: os campos em branco de um formulário limpo não acusam nada.
-    setTentou(false)
+    // O caso que entra começa do zero: os campos em branco de um formulário limpo não acusam nada.
+    // Com um demonstrativo na tela (um cálculo salvo aberto, um Desfazer), o caso já foi calculado e
+    // se recalcula a cada edição: o campo que ficar inválido diz na hora o que corrigir.
+    setTentativas(novoCalculo ? 1 : 0)
+    setRodada((n) => n + 1)
     setResumo(null)
+    setFocar(null)
     setRascunho(r)
     setCalculo(novoCalculo)
     // O caso desfeito pode ter sido limpo no meio da busca das regras: ela recomeça para ele.
@@ -647,9 +661,9 @@ function App() {
           )}
         </header>
 
-        <TentouCalcular value={tentou}>
+        <Validacao value={validacao}>
         <form ref={formulario} noValidate onSubmit={enviar}>
-          {resumo && <ResumoErros ref={resumoRef} erros={resumo.erros} />}
+          {resumoAberto && <ResumoErros ref={resumoRef} erros={resumoAberto.erros} />}
           <section className="bloco" aria-labelledby="bloco-pensao">
             <h2 id="bloco-pensao">Pensão</h2>
             <label className="checkbox">
@@ -849,7 +863,7 @@ function App() {
             </p>
           </div>
         </form>
-        </TentouCalcular>
+        </Validacao>
       </div>
 
       <div className="resultado">

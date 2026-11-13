@@ -1,11 +1,21 @@
 import { createContext } from 'react'
 import { data, mes } from './formato'
 
-/**
- * Se a pessoa já tentou calcular este caso. Antes disso, só o valor mal escrito aparece, ao sair do
- * campo; depois, todo campo inválido mostra a mensagem, até o obrigatório vazio.
- */
-export const TentouCalcular = createContext(false)
+export interface EstadoDaValidacao {
+  /**
+   * Quantas vezes a pessoa tentou calcular este caso. Com zero, só o valor mal escrito aparece, ao
+   * sair do campo; depois, todo campo inválido mostra a mensagem, até o obrigatório vazio. Cada
+   * Calcular faz os campos relerem a validade.
+   */
+  tentativas: number
+  /** Muda a cada caso que entra no formulário: o que um campo guardou do anterior deixa de valer. */
+  rodada: number
+  /** O controle que recebe o foco quando mostrar o erro, depois de um Calcular barrado só por ele. */
+  focar: HTMLElement | null
+  aoFocar: () => void
+}
+
+export const Validacao = createContext<EstadoDaValidacao>({ tentativas: 0, rodada: 0, focar: null, aoFocar: () => {} })
 
 /** O que a mensagem precisa de um campo do formulário: o tipo, os limites e a validade nativa. */
 export interface CampoValidavel {

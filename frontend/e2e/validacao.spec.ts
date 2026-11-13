@@ -1,4 +1,4 @@
-import { expect, preencherCaso, test } from './apoio.ts'
+import { calcularCaso, expect, preencherCaso, test } from './apoio.ts'
 
 const DIA = 'Informe um dia de 1 a 31, só com números (ex.: 10).'
 const PERCENTUAL = 'Informe o percentual da sentença (ex.: 30 ou 33,33).'
@@ -71,6 +71,43 @@ test('o Limpar tira os erros da tela junto com o caso', async ({ page }) => {
   await page.getByRole('button', { name: 'Limpar' }).click()
   await expect(page.getByRole('region', { name: /^Corrija/ })).toHaveCount(0)
   await expect(page.locator('[aria-invalid="true"]')).toHaveCount(0)
+})
+
+test('o resumo some quando o recálculo automático sai, sem outro Calcular', async ({ page }) => {
+  await calcularCaso(page)
+  await page.getByLabel('% do salário mínimo').fill('')
+  await page.getByLabel('Dia do vencimento').fill('45')
+  await page.getByRole('button', { name: 'Calcular', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Corrija 2 campos para calcular' })).toBeVisible()
+
+  await page.getByLabel('% do salário mínimo').fill('30')
+  await page.getByLabel('Dia do vencimento').fill('10')
+  await expect(page.getByRole('region', { name: /^Corrija/ })).toHaveCount(0)
+})
+
+test('com um cálculo salvo aberto, o campo que fica inválido acusa na hora', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Cálculos salvos' }).click()
+  await page.getByRole('button', { name: 'Abrir Alimentos de A. B. C. até 30/06/2025' }).click()
+  await expect(page.getByRole('heading', { name: 'Demonstrativo atualizado até 30/06/2025' })).toBeVisible()
+
+  await page.getByLabel('% do salário mínimo').fill('')
+  await expect(page.getByLabel('% do salário mínimo')).toHaveAccessibleDescription(PERCENTUAL)
+})
+
+test('o Ctrl+Enter de dentro do campo inválido lê o erro dele', async ({ page }) => {
+  await page.goto('/')
+  await preencherCaso(page)
+  const dia = page.getByLabel('Dia do vencimento')
+  await dia.fill('45')
+  await page.keyboard.press('Control+Enter')
+  await expect(dia).toBeFocused()
+  await expect(dia).toHaveAccessibleDescription(new RegExp(`^${DIA.replace(/[().]/g, '\\$&')}`))
+
+  // Outro Ctrl+Enter, sem sair do campo, relê a validade: a mensagem acompanha o valor novo.
+  await dia.fill('')
+  await page.keyboard.press('Control+Enter')
+  await expect(dia).toHaveAccessibleDescription(/^Informe o dia do vencimento \(ex\.: 10\)\./)
 })
 
 test('o texto colado e não incluído diz por que o cálculo não saiu', async ({ page }) => {
