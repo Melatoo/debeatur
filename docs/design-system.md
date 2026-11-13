@@ -32,6 +32,8 @@ A ordem dos blocos é fixa na tela, na impressão e no PDF:
 
 A faixa de `Situacao` fica acima de todos.
 
+No PDF, que se lê nos autos a partir da primeira página, um quadro-resumo (o débito de cada rito, os acréscimos do art. 523 e o total da execução) vem logo depois do cabeçalho, antes dos critérios. O total da execução continua fechando a memória, e ele e a `Procedencia` formam um bloco que não se divide: a última página nunca traz só a procedência das séries.
+
 ## Conteúdo e voz
 
 - Português do Brasil, em frases curtas e na voz ativa. Termos do processo como o juiz e o advogado os usam: *parcela*, *ajuizamento*, *citação*, *rito da prisão*, *memória de cálculo*, *débito atualizado*.
@@ -51,7 +53,7 @@ Siga `frontend/src/formato.ts`; é a única fonte desses formatos.
 | Valor em reais, isolado | moeda pt-BR | R$ 1.523,40 |
 | Valor em reais, na tabela | duas casas, sem símbolo (cola em planilha) | 1.523,40 |
 | Valor negativo ou dedução | hífen-menos antes do número, sem parênteses nem cor | -1.412,00 |
-| Taxa de juros | quatro casas e % | 1,0000% |
+| Taxa de juros | quatro casas e até seis quando a taxa as tem (o BCB publica a taxa legal com seis), sem zeros à direita além da quarta nem separador de milhar, e % | 1,0000% · 0,512345% · 0,51234% |
 | Fator de correção | sete casas | 1,0482371 |
 | Data | dd/mm/aaaa | 05/03/2025 |
 | Competência | mm/aaaa (mm/aa no eixo estreito) | 03/2025 |
@@ -126,6 +128,7 @@ Não há ícones nem logotipo. O nome "Debeatur" aparece em texto, no estilo `ti
 ## Impressão e PDF
 
 - Ctrl+P aplica o tema `impressao`: A4, margens de 14 por 12mm, tabela em 9pt, formulário e ações escondidos. Com mais de sete colunas visíveis, a memória sai em A4 paisagem.
+- O aviso de prescrição (parcelas vencidas mais de dois anos antes do ajuizamento, art. 206, §2º, do CC) aparece em `aviso` no formulário e no demonstrativo, mas não vai ao papel nem ao PDF: é para quem confere, e no demonstrativo juntado aos autos trabalharia contra a parte que o junta. Ele só avisa; o cálculo segue com as parcelas, porque se a prescrição corre depende de fatos que o cálculo não tem (arts. 197, II, e 198, I, do CC).
 - Toda página leva o número do processo e "Página X de Y" no rodapé, e a data e a hora do cálculo no cabeçalho. Uma folha solta sempre diz de onde veio.
 - Um demonstrativo que não está atual leva a marca `.marca-pagina` em todas as páginas, não só na primeira: no navegador ela é `position: fixed`, que se repete a cada página impressa; no PDF, vai no cabeçalho.
 - O total de cada tabela não se separa das últimas linhas (`break-inside: avoid` no `<tfoot>`), e o cabeçalho da tabela se repete em cada página.
@@ -133,7 +136,7 @@ Não há ícones nem logotipo. O nome "Debeatur" aparece em texto, no estilo `ti
 
 ## Sigilo
 
-Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `CabecalhoProcesso` diz isso na tela, e o PDF, em toda página. O caso guardado no navegador fica só nele, e Limpar apaga também essa cópia. Um cálculo salvo vai para o servidor e não some com o Limpar; o pé do formulário diz isso junto da recomendação de limpar em computador compartilhado.
+Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `CabecalhoProcesso` diz isso na tela, e o PDF, no alto de toda página: "Segredo de justiça (art. 189, II, do CPC)". O caso guardado no navegador fica só nele, e Limpar apaga também essa cópia. Um cálculo salvo vai para o servidor e não some com o Limpar; o pé do formulário diz isso junto da recomendação de limpar em computador compartilhado.
 
 ## Acessibilidade
 
