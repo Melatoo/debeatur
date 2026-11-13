@@ -125,6 +125,7 @@ Não há ícones nem logotipo. O nome "Debeatur" aparece em texto, no estilo `ti
 ## Impressão e PDF
 
 - Ctrl+P aplica o tema `impressao`: A4, margens de 14 por 12mm, tabela em 9pt, formulário e ações escondidos. Com mais de sete colunas visíveis, a memória sai em A4 paisagem.
+- O aviso de prescrição (parcelas vencidas mais de dois anos antes do ajuizamento, art. 206, §2º, do CC) aparece em `aviso` no formulário e no demonstrativo, mas não vai ao papel nem ao PDF: é para quem confere, e no demonstrativo juntado aos autos trabalharia contra a parte que o junta. Ele só avisa; o cálculo segue com as parcelas, porque se a prescrição corre depende de fatos que o cálculo não tem (arts. 197, II, e 198, I, do CC).
 - Toda página leva o número do processo e "Página X de Y" no rodapé, e a data e a hora do cálculo no cabeçalho. Uma folha solta sempre diz de onde veio.
 - Um demonstrativo que não está atual leva a marca `.marca-pagina` em todas as páginas, não só na primeira: no navegador ela é `position: fixed`, que se repete a cada página impressa; no PDF, vai no cabeçalho.
 - O total de cada tabela não se separa das últimas linhas (`break-inside: avoid` no `<tfoot>`), e o cabeçalho da tabela se repete em cada página.

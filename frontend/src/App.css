@@ -339,6 +339,15 @@ fieldset {
   color: var(--aviso);
 }
 
+.aviso-prescricao {
+  margin: 12px 0 0;
+  max-width: 72ch;
+}
+
+.demonstrativo .aviso-prescricao {
+  margin: 0 0 24px;
+}
+
 input:disabled {
   opacity: 0.6;
 }
@@ -1265,7 +1274,9 @@ main.acesso {
   .topo button,
   .janela,
   .acoes-resultado,
-  .status {
+  .status,
+  /* O aviso de prescrição é para quem confere: no papel que vai aos autos, trabalharia contra quem o junta. */
+  .aviso-prescricao {
     display: none;
   }
 
