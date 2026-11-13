@@ -77,6 +77,11 @@ final class DemonstrativoPdf {
     private static final Font TABELA = new Font(Font.HELVETICA, 7.5f, Font.NORMAL, TEXTO);
     private static final Font TABELA_NEGRITO = new Font(Font.HELVETICA, 7.5f, Font.BOLD, TEXTO);
     private static final Font NOTA = new Font(Font.HELVETICA, 7.5f, Font.NORMAL, SUAVE);
+    /** Entrelinha das notas em lista: a padrão do OpenPDF, 1,5 vez o corpo, abre espaço demais. */
+    private static final float ENTRELINHA_NOTA = 9.5f;
+    private static final Font MARCA =new Font(Font.HELVETICA, 8.5f, Font.BOLD, TEXTO);
+
+    private static final String SEGREDO_DE_JUSTICA = "Segredo de justiça (art. 189, II, do CPC)";
 
     private static final Map<Rito, String[]> RITOS = Map.of(
             Rito.PRISAO, new String[]{"Rito da prisão",
@@ -161,10 +166,11 @@ final class DemonstrativoPdf {
         documento.open();
 
         cabecalho(documento);
+        // o total na primeira página: quem abre o PDF nos autos acha o valor sem passar pela memória
+        resumo(documento);
         criterios(documento);
         memoria(documento);
-        totais(documento);
-        fontes(documento);
+        encerramento(documento);
 
         documento.close();
         return saida.toByteArray();
@@ -471,7 +477,8 @@ final class DemonstrativoPdf {
 
     // ---- totais --------------------------------------------------------------------------
 
-    private void totais(Document documento) {
+    /** O quadro-resumo da primeira página: o débito de cada rito, os acréscimos e o total. */
+    private void resumo(Document documento) {
         documento.add(secao("Resumo"));
         Map<String, BigDecimal> linhas = new LinkedHashMap<>();
         DemonstrativoResponse.Ritos ritos = resultado.ritos();
@@ -493,28 +500,63 @@ final class DemonstrativoPdf {
             }
         }
 
-        PdfPTable tabela = new PdfPTable(new float[]{4, 1.4f});
-        tabela.setWidthPercentage(55);
-        tabela.setHorizontalAlignment(Element.ALIGN_LEFT);
-        tabela.setKeepTogether(true);
+        PdfPTable tabela = quadroDeTotais();
         linhas.forEach((rotulo, valor) -> {
             tabela.addCell(celula(rotulo, NORMAL, false));
             tabela.addCell(celula(moeda(valor), NORMAL, true));
         });
+        linhaDoTotalDaExecucao(tabela);
+        tabela.setSpacingAfter(4);
+        documento.add(tabela);
+    }
+
+    /**
+     * O total da execução, que fecha a memória de onde ele sai (a composição está no resumo), e as
+     * fontes dos índices, num bloco que não se divide: se não couber no fim da memória, a página
+     * seguinte leva os dois, e nunca só a procedência das séries.
+     */
+    private void encerramento(Document documento) {
+        PdfPTable total = quadroDeTotais();
+        linhaDoTotalDaExecucao(total);
+        PdfPCell conteudo = new PdfPCell();
+        conteudo.setBorder(Rectangle.NO_BORDER);
+        conteudo.setPadding(0);
+        conteudo.addElement(total);
+        fontes().forEach(conteudo::addElement);
+        PdfPTable bloco = new PdfPTable(1);
+        bloco.setWidthPercentage(100);
+        bloco.setKeepTogether(true);
+        // sem espaço antes: a tabela da memória já deixa o dela
+        bloco.addCell(conteudo);
+        documento.add(bloco);
+    }
+
+    private static PdfPTable quadroDeTotais() {
+        PdfPTable tabela = new PdfPTable(new float[]{4, 1.4f});
+        tabela.setWidthPercentage(55);
+        tabela.setHorizontalAlignment(Element.ALIGN_LEFT);
+        tabela.setKeepTogether(true);
+        return tabela;
+    }
+
+    private void linhaDoTotalDaExecucao(PdfPTable tabela) {
         PdfPCell rotulo = celula("Total da execução", NEGRITO, false);
         rotulo.setBackgroundColor(FUNDO_CABECALHO);
         tabela.addCell(rotulo);
         PdfPCell total = celula(moeda(resultado.total()), NEGRITO, true);
         total.setBackgroundColor(FUNDO_CABECALHO);
         tabela.addCell(total);
-        tabela.setSpacingAfter(4);
-        documento.add(tabela);
     }
 
     // ---- fontes --------------------------------------------------------------------------
 
-    private void fontes(Document documento) {
-        documento.add(secao("Fontes dos índices"));
+    /** A procedência das séries: o título, um item por série e de quando são os valores. */
+    private List<Element> fontes() {
+        List<Element> elementos = new ArrayList<>();
+        Paragraph titulo = secao("Fontes dos índices");
+        // logo abaixo do total, que já separa a procedência da memória
+        titulo.setSpacingBefore(6);
+        elementos.add(titulo);
         // só os índices que o motor de fato aplicou: a correção nos meses corrigidos e a taxa
         // legal nos meses com juros, e não tudo o que a regra prevê
         List<RegraDto> deCorrecao = regrasAplicadas(Linha::inicioCorrecao);
@@ -544,8 +586,10 @@ final class DemonstrativoPdf {
             itens.add("Salário mínimo nacional: valor vigente em cada mês, da série " + SgsClient.CODIGO_SALARIO_MINIMO
                     + " do SGS/BCB.");
         }
+        // em corpo de nota: a procedência é consulta de quem confere, e cabe no fim da memória
+        // em vez de abrir uma página só para ela
         for (String item : itens) {
-            documento.add(new Paragraph("• " + item, NORMAL));
+            elementos.add(new Paragraph(ENTRELINHA_NOTA, "• " + item, NOTA));
         }
         // sem salvar, as séries vêm do cache local, atualizado todo dia a partir do SGS; salvo, do
         // snapshot, para que o PDF saia igual mesmo depois de o BCB revisar uma série
@@ -553,10 +597,11 @@ final class DemonstrativoPdf {
                 ? "com os valores publicados e em uso em " + emissao.format(DATA) + "."
                 : "com os valores em uso em " + salvoEm.format(DATA) + ", quando o cálculo foi salvo, guardados "
                         + "com ele e reaplicados nesta emissão.";
-        Paragraph consulta = new Paragraph("Séries do Sistema Gerenciador de Séries Temporais do Banco Central do "
+        Paragraph consulta = new Paragraph(ENTRELINHA_NOTA, "Séries do Sistema Gerenciador de Séries Temporais do Banco Central do "
                 + "Brasil (api.bcb.gov.br), " + valores, NOTA);
         consulta.setSpacingBefore(4);
-        documento.add(consulta);
+        elementos.add(consulta);
+        return elementos;
     }
 
     /** Se o cálculo usou as regras do regime cível padrão do TJMG, com ou sem o nome dele. */
@@ -566,7 +611,10 @@ final class DemonstrativoPdf {
 
     // ---- rodapé --------------------------------------------------------------------------
 
-    /** Identificação e "Página X de Y" em todas as páginas; o total só se sabe ao fechar. */
+    /**
+     * Em todas as páginas: a marca de segredo de justiça no alto, e a identificação e "Página X
+     * de Y" no pé; o total de páginas só se sabe ao fechar.
+     */
     private final class Rodape extends PdfPageEventHelper {
 
         private PdfTemplate totalDePaginas;
@@ -581,6 +629,11 @@ final class DemonstrativoPdf {
         @Override
         public void onEndPage(PdfWriter writer, Document document) {
             PdfContentByte canvas = writer.getDirectContent();
+            // ações de alimentos correm em segredo de justiça (art. 189, II, do CPC): uma folha
+            // solta do demonstrativo também o diz
+            ColumnText.showTextAligned(canvas, Element.ALIGN_RIGHT, new Phrase(SEGREDO_DE_JUSTICA, MARCA),
+                    document.right(), document.top() + 14, 0);
+
             float y = document.bottom() - 22;
             String processo = pedido.processo() == null ? null : texto(pedido.processo().numero());
             String identificacao = (processo == null ? "" : "Processo " + processo + " · ")
@@ -654,8 +707,9 @@ final class DemonstrativoPdf {
         celula.setVerticalAlignment(Element.ALIGN_MIDDLE);
         celula.setBorderColor(LINHA);
         celula.setBorderWidth(0.5f);
-        celula.setPadding(3);
-        celula.setPaddingBottom(4);
+        // respiro curto: com 3 e 4, as fontes do caso de 18 meses com ritos abriam uma página sozinhas
+        celula.setPadding(2);
+        celula.setPaddingBottom(3);
         return celula;
     }
 
@@ -681,11 +735,12 @@ final class DemonstrativoPdf {
     }
 
     /**
-     * Seis casas, a precisão em que o BCB publica a taxa legal: com menos, quem confere os
-     * juros a partir do percentual impresso pode errar o centavo.
+     * Quatro casas, como na tela, e até seis quando a taxa as tem: o BCB publica a taxa legal
+     * com seis, e com menos quem confere os juros a partir do percentual impresso pode errar o
+     * centavo. A taxa fixa sai "1,0000%", e não "1,000000%".
      */
     private static String percentual(BigDecimal valor) {
-        return formato("0.000000").format(valor) + "%";
+        return formato("0.0000##").format(valor) + "%";
     }
 
     private static String numeroLivre(BigDecimal valor) {
