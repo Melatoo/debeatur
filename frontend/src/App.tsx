@@ -854,10 +854,10 @@ function App() {
                 <kbd>{atalho.tela}</kbd> calcula de qualquer campo
               </span>
             </div>
-            {calculo && <p className="dica">O demonstrativo se atualiza sozinho a cada alteração.</p>}
             <p className="aviso" role="status">
               {avisoDoRegime}
             </p>
+            {/* Só o que muda vai no status; o texto fixo abaixo seria relido a cada troca. */}
             <p className="dica rascunho" role="status">
               {podeDesfazer && troca.motivo === 'limpar' ? (
                 <>
@@ -877,13 +877,24 @@ function App() {
                         </button>{' '}
                       </>
                     )}
-                    {restauradoDe && `Caso restaurado do rascunho de ${dataHora(restauradoDe)}. `}
-                    O formulário fica guardado neste navegador; em computador compartilhado, use Limpar ao terminar. O
-                    Limpar não apaga os cálculos salvos, que ficam no servidor.
+                    {restauradoDe && `Caso restaurado do rascunho de ${dataHora(restauradoDe)}.`}
                   </>
                 )
               )}
             </p>
+            {/* Uma frase à vista, para o pé fixo não tomar a coluna em tela de notebook; o resto, no "Saiba mais". */}
+            {(calculo || !emBranco) && (
+              <Dica
+                curta={
+                  calculo
+                    ? 'O demonstrativo se atualiza a cada alteração, e o formulário fica guardado neste navegador.'
+                    : 'O formulário fica guardado neste navegador.'
+                }
+              >
+                Em computador compartilhado, use Limpar ao terminar. O Limpar não apaga os cálculos salvos, que ficam no
+                servidor.
+              </Dica>
+            )}
           </div>
         </form>
         </Validacao>

@@ -229,8 +229,12 @@ final class DemonstrativoPdf {
         campos.put("Correção e juros", resultado.regime().nome());
         documento.add(pares(campos));
 
-        List<String> regras = regrasDoPeriodo().stream()
-                .map(r -> periodo(r) + ": " + nomeIndice(r.correcao()) + " + " + r.descricaoJuros())
+        Optional<Periodo> doCalculo = periodoDoCalculo();
+        List<RegraDto> doPeriodo = doCalculo
+                .map(p -> regrasEntre(p.de(), p.ate()))
+                .orElseGet(() -> resultado.regime().regras());
+        List<String> regras = doPeriodo.stream()
+                .map(r -> periodo(r, doCalculo) + ": " + nomeIndice(r.correcao()) + " + " + r.descricaoJuros())
                 .toList();
         PdfPTable tabela = semBordas(2, new float[]{1.6f, 8.4f});
         for (String regra : regras) {
@@ -262,21 +266,21 @@ final class DemonstrativoPdf {
                 : "Não aplicados";
     }
 
+    /** Meses do cálculo, inclusive nas duas pontas. */
+    private record Periodo(YearMonth de, YearMonth ate) {
+    }
+
     /**
-     * Regras que alcançam o período do cálculo: do primeiro termo inicial, de correção ou de
-     * juros, ao mês anterior à data-base, o último que o motor percorre. Se tudo vence no mês
-     * da data-base, fica a regra vigente nesse mês.
+     * Período do cálculo: do primeiro termo inicial, de correção ou de juros, ao mês anterior à
+     * data-base, o último que o motor percorre. Se tudo vence no mês da data-base, é esse mês.
+     * Vazio se nenhuma linha tem termo inicial.
      */
-    private List<RegraDto> regrasDoPeriodo() {
-        YearMonth primeiro = Stream.of(primeiroMes(Linha::inicioCorrecao), primeiroMes(Linha::inicioJuros))
+    private Optional<Periodo> periodoDoCalculo() {
+        YearMonth ultimo = ultimoMesPercorrido();
+        return Stream.of(primeiroMes(Linha::inicioCorrecao), primeiroMes(Linha::inicioJuros))
                 .flatMap(Optional::stream)
                 .min(Comparator.naturalOrder())
-                .orElse(null);
-        if (primeiro == null) {
-            return resultado.regime().regras();
-        }
-        YearMonth ultimo = ultimoMesPercorrido();
-        return regrasEntre(primeiro, primeiro.isAfter(ultimo) ? primeiro : ultimo);
+                .map(primeiro -> new Periodo(primeiro, primeiro.isAfter(ultimo) ? primeiro : ultimo));
     }
 
     /**
@@ -751,13 +755,20 @@ final class DemonstrativoPdf {
         return data == null ? "—" : data.format(DATA);
     }
 
-    private static String periodo(RegraDto regra) {
-        if (regra.fim() == null) {
-            return "desde " + regra.inicio().format(MES);
+    /**
+     * Vigência da regra recortada ao período do cálculo: num cálculo de 2024, a regra que vale
+     * desde 07/1994 aparece desde o primeiro mês do cálculo. A regra sem fim continua "desde".
+     */
+    private static String periodo(RegraDto regra, Optional<Periodo> doCalculo) {
+        YearMonth inicio = doCalculo.map(p -> regra.inicio().isBefore(p.de()) ? p.de() : regra.inicio())
+                .orElse(regra.inicio());
+        YearMonth fim = regra.fim() == null
+                ? null
+                : doCalculo.map(p -> regra.fim().isAfter(p.ate()) ? p.ate() : regra.fim()).orElse(regra.fim());
+        if (fim == null) {
+            return "desde " + inicio.format(MES);
         }
-        return regra.inicio().equals(regra.fim())
-                ? regra.inicio().format(MES)
-                : regra.inicio().format(MES) + " a " + regra.fim().format(MES);
+        return inicio.equals(fim) ? inicio.format(MES) : inicio.format(MES) + " a " + fim.format(MES);
     }
 
     private static String nomeIndice(Indice indice) {
