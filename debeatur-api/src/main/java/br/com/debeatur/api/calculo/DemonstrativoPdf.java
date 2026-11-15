@@ -229,12 +229,8 @@ final class DemonstrativoPdf {
         campos.put("Correção e juros", resultado.regime().nome());
         documento.add(pares(campos));
 
-        Optional<Periodo> doCalculo = periodoDoCalculo();
-        List<RegraDto> doPeriodo = doCalculo
-                .map(p -> regrasEntre(p.de(), p.ate()))
-                .orElseGet(() -> resultado.regime().regras());
-        List<String> regras = doPeriodo.stream()
-                .map(r -> periodo(r, doCalculo) + ": " + nomeIndice(r.correcao()) + " + " + r.descricaoJuros())
+        List<String> regras = regrasDoCalculo().stream()
+                .map(r -> periodo(r) + ": " + nomeIndice(r.correcao()) + " + " + r.descricaoJuros())
                 .toList();
         PdfPTable tabela = semBordas(2, new float[]{1.6f, 8.4f});
         for (String regra : regras) {
@@ -268,6 +264,24 @@ final class DemonstrativoPdf {
 
     /** Meses do cálculo, inclusive nas duas pontas. */
     private record Periodo(YearMonth de, YearMonth ate) {
+    }
+
+    /**
+     * Regras que alcançam o período do cálculo, com a vigência recortada a ele: num cálculo de
+     * 2024, a regra que vale desde 07/1994 aparece desde o primeiro mês do cálculo. A regra sem
+     * fim continua sem fim. Sem período, ficam as regras do regime como estão.
+     */
+    private List<RegraDto> regrasDoCalculo() {
+        return periodoDoCalculo()
+                .map(p -> regrasEntre(p.de(), p.ate()).stream().map(r -> recortada(r, p)).toList())
+                .orElseGet(() -> resultado.regime().regras());
+    }
+
+    private static RegraDto recortada(RegraDto regra, Periodo periodo) {
+        YearMonth inicio = regra.inicio().isBefore(periodo.de()) ? periodo.de() : regra.inicio();
+        YearMonth fim = regra.fim() != null && regra.fim().isAfter(periodo.ate()) ? periodo.ate() : regra.fim();
+        return new RegraDto(inicio, fim, regra.correcao(), regra.juros(), regra.percentualJurosMensal(),
+                regra.ultimoDiaTaxaFixa(), regra.descricaoJuros());
     }
 
     /**
@@ -755,20 +769,13 @@ final class DemonstrativoPdf {
         return data == null ? "—" : data.format(DATA);
     }
 
-    /**
-     * Vigência da regra recortada ao período do cálculo: num cálculo de 2024, a regra que vale
-     * desde 07/1994 aparece desde o primeiro mês do cálculo. A regra sem fim continua "desde".
-     */
-    private static String periodo(RegraDto regra, Optional<Periodo> doCalculo) {
-        YearMonth inicio = doCalculo.map(p -> regra.inicio().isBefore(p.de()) ? p.de() : regra.inicio())
-                .orElse(regra.inicio());
-        YearMonth fim = regra.fim() == null
-                ? null
-                : doCalculo.map(p -> regra.fim().isAfter(p.ate()) ? p.ate() : regra.fim()).orElse(regra.fim());
-        if (fim == null) {
-            return "desde " + inicio.format(MES);
+    private static String periodo(RegraDto regra) {
+        if (regra.fim() == null) {
+            return "desde " + regra.inicio().format(MES);
         }
-        return inicio.equals(fim) ? inicio.format(MES) : inicio.format(MES) + " a " + fim.format(MES);
+        return regra.inicio().equals(regra.fim())
+                ? regra.inicio().format(MES)
+                : regra.inicio().format(MES) + " a " + regra.fim().format(MES);
     }
 
     private static String nomeIndice(Indice indice) {

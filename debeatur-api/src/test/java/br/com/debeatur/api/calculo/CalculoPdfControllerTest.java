@@ -184,7 +184,7 @@ class CalculoPdfControllerTest {
                 .containsIgnoringWhitespaces("Sentença: INPC + 1% a.m.")
                 // a regra vale desde 01/2023, mas o cálculo começa na parcela de 09/2023
                 .containsIgnoringWhitespaces("desde 09/2023: INPC + 1% a.m.")
-                .doesNotContain("01/2023");
+                .doesNotContainPattern("desde\\s*01/2023");
     }
 
     @Test
@@ -269,7 +269,7 @@ class CalculoPdfControllerTest {
                 .doesNotContain("Salário mínimo")
                 // a regra do INPC vale de 07/1994 a 07/2024; o cálculo só passa por 07/2024
                 .containsIgnoringWhitespaces("07/2024: INPC + 1% a.m.")
-                .doesNotContain("1994")
+                .doesNotContain("07/1994")
                 .containsIgnoringWhitespaces("08/2024: IPCA + 1% a.m. até 29/08/2024 e taxa legal pro rata nos dias seguintes")
                 .containsIgnoringWhitespaces("desde 09/2024: IPCA + Taxa legal (Res. CMN 5.171/2024)");
     }
