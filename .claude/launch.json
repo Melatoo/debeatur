@@ -1,0 +1,25 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/v:on",
+        "/c",
+        "(if not defined DEBEATUR_DB_PORTA set DEBEATUR_DB_PORTA=5432)& set DEBEATUR_DB_URL=jdbc:postgresql://localhost:!DEBEATUR_DB_PORTA!/debeatur&&.\\mvnw.cmd -q install -DskipTests && .\\mvnw.cmd -pl debeatur-api spring-boot:run"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "docker",
+      "url": "http://localhost:3000"
+    }
+  ]
+}
