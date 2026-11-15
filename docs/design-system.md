@@ -23,7 +23,10 @@ O Debeatur calcula o cumprimento de sentença de alimentos e entrega um demonstr
 A ordem dos blocos é fixa na tela, na impressão e no PDF:
 
 1. `CabecalhoProcesso`: processo, juízo, partes e a marca de segredo de justiça.
-2. `Parametros`: os critérios do cálculo, um por inciso do art. 524.
+   Logo abaixo, a linha do total (`.total-topo`): o total da execução e, com ritos, o débito de
+   cada um, para o total estar à vista sem rolar a tela.
+2. `Parametros`: os critérios do cálculo, um por inciso do art. 524. A vigência de cada regra do
+   regime sai recortada ao período do cálculo.
 3. A linha do tempo, com a legenda dos ritos (`Rito`).
 4. `TotalRito`: o total de cada rito, com a composição.
 5. `TabelaMemoria`: a memória de cálculo de cada rito.

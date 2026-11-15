@@ -6,7 +6,6 @@ import {
   type Demonstrativo as Resultado,
   type LinhaDemonstrativo,
   type ProcessoRequest,
-  type Regra,
   type Rito,
   type SubtotalRito,
 } from './api'
@@ -18,7 +17,7 @@ import { LinhaDoTempo } from './LinhaDoTempo'
 import { useAlturaFixa } from './alturaFixa'
 import { paraCampo } from './numero'
 import { armazenamentoDoNavegador } from './armazenamento'
-import { INDICES, descreverPeriodo, mesAnterior } from './regime'
+import { INDICES, descreverPeriodo, regrasDoPeriodo } from './regime'
 
 interface Props {
   /** O pedido que gerou o resultado: o demonstrativo descreve o que foi calculado, não o formulário atual. */
@@ -82,20 +81,6 @@ const nomeDaParcela = (l: LinhaDemonstrativo) => {
   if (!l.pensao) return l.descricao
   const quitada = l.pensao.valorPago > 0 && l.valorOriginal === 0
   return `${mes(l.pensao.mes)}${quitada ? ' (quitada)' : ''}`
-}
-
-/**
- * Regras do regime que alcançam o período do cálculo: do primeiro termo inicial ao mês anterior
- * à data-base, que é o último mês que o motor corrige e sobre o qual conta juros. Se tudo vence
- * no mês da data-base, mostra a regra vigente nesse mês, em vez de uma lista vazia.
- */
-function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase: string): Regra[] {
-  const inicios = linhas.flatMap((l) => [l.inicioCorrecao, l.inicioJuros ?? l.inicioCorrecao]).map((d) => d.slice(0, 7))
-  const primeiro = inicios.sort()[0]
-  if (!primeiro) return regras
-  const anteriorABase = mesAnterior(dataBase.slice(0, 7))
-  const ultimo = primeiro > anteriorABase ? primeiro : anteriorABase
-  return regras.filter((r) => r.inicio <= ultimo && (r.fim == null || r.fim >= primeiro))
 }
 
 /** Anotação dos juros no vencimento, igual na tela e no texto copiado. */
@@ -438,6 +423,23 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           {aviso?.de === pedido && aviso.texto}
         </p>
       </div>
+
+      {/*
+        O total à vista sem rolar, como no quadro-resumo da primeira página do PDF. Fora do cabeçalho,
+        que não se apaga: desatualizado, o total se apaga com os outros números.
+      */}
+      <p className="total-topo">
+        <span className="rotulo">Total da execução</span> <strong>{moeda(resultado.total)}</strong>
+        {ritos && (
+          <span className="composicao">
+            <span className="rito-prisao">Prisão {moeda(ritos.prisao.debitoAtualizado)}</span>
+            <span className="rito-penhora">
+              Penhora {moeda(ritos.totalPenhora)}
+              {comAcrescimos && ' com multa e honorários'}
+            </span>
+          </span>
+        )}
+      </p>
 
       <dl className="parametros">
         {pensao && (

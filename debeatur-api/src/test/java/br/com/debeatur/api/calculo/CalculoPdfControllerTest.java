@@ -182,7 +182,9 @@ class CalculoPdfControllerTest {
                 .containsIgnoringWhitespaces("02/2024: R$ 200,00")
                 .containsIgnoringWhitespaces("01/03/2024")
                 .containsIgnoringWhitespaces("Sentença: INPC + 1% a.m.")
-                .containsIgnoringWhitespaces("desde 01/2023: INPC + 1% a.m.");
+                // a regra vale desde 01/2023, mas o cálculo começa na parcela de 09/2023
+                .containsIgnoringWhitespaces("desde 09/2023: INPC + 1% a.m.")
+                .doesNotContainPattern("desde\\s*01/2023");
     }
 
     @Test
@@ -265,7 +267,11 @@ class CalculoPdfControllerTest {
                 .containsIgnoringWhitespaces("Até 07/2024, o regime padrão segue a tabela")
                 .containsIgnoringWhitespaces("Corregedoria-Geral de Justiça do TJMG")
                 .doesNotContain("Salário mínimo")
-                .containsIgnoringWhitespaces("08/2024: IPCA + 1% a.m. até 29/08/2024 e taxa legal pro rata nos dias seguintes");
+                // a regra do INPC vale de 07/1994 a 07/2024; o cálculo só passa por 07/2024
+                .containsIgnoringWhitespaces("07/2024: INPC + 1% a.m.")
+                .doesNotContain("07/1994")
+                .containsIgnoringWhitespaces("08/2024: IPCA + 1% a.m. até 29/08/2024 e taxa legal pro rata nos dias seguintes")
+                .containsIgnoringWhitespaces("desde 09/2024: IPCA + Taxa legal (Res. CMN 5.171/2024)");
     }
 
     @Test
@@ -295,9 +301,10 @@ class CalculoPdfControllerTest {
 
         String pdf = texto(post("/api/calculos/pdf", pedido).getResponse().getContentAsByteArray());
 
-        // os critérios mostram as duas regras, porque os juros passam pelas duas
+        // os critérios mostram as duas regras, porque os juros passam pelas duas, cada uma
+        // recortada ao período do cálculo, que começa nos juros de 11/2023
         assertThat(pdf)
-                .containsIgnoringWhitespaces("01/2023 a 12/2023: IPCA-E + 1% a.m.")
+                .containsIgnoringWhitespaces("11/2023 a 12/2023: IPCA-E + 1% a.m.")
                 .containsIgnoringWhitespaces("série 188 do SGS/BCB")
                 .doesNotContain("10764");
     }

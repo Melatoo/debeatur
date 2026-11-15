@@ -1,4 +1,4 @@
-import type { IndiceCorrecao, Regime, Regra, TipoJuros } from './api'
+import type { IndiceCorrecao, LinhaDemonstrativo, Regime, Regra, TipoJuros } from './api'
 import { mes } from './formato'
 import { exigirDecimal, paraCampo } from './numero'
 
@@ -94,5 +94,29 @@ export function mesAnterior(mes: string): string {
 }
 
 export function descreverPeriodo(regra: Regra): string {
-  return regra.fim ? `${mes(regra.inicio)} a ${mes(regra.fim)}` : `desde ${mes(regra.inicio)}`
+  if (!regra.fim) return `desde ${mes(regra.inicio)}`
+  return regra.fim === regra.inicio ? mes(regra.inicio) : `${mes(regra.inicio)} a ${mes(regra.fim)}`
+}
+
+/**
+ * Regras do regime que alcançam o período do cálculo: do primeiro termo inicial ao mês anterior
+ * à data-base, que é o último mês que o motor corrige e sobre o qual conta juros. Se tudo vence
+ * no mês da data-base, mostra a regra vigente nesse mês, em vez de uma lista vazia.
+ *
+ * A vigência de cada regra sai recortada a esse período, como no PDF: num cálculo de 2024, a
+ * regra que vale desde 07/1994 aparece desde o primeiro mês do cálculo. A sem fim continua "desde".
+ */
+export function regrasDoPeriodo(regras: Regra[], linhas: LinhaDemonstrativo[], dataBase: string): Regra[] {
+  const inicios = linhas.flatMap((l) => [l.inicioCorrecao, l.inicioJuros ?? l.inicioCorrecao]).map((d) => d.slice(0, 7))
+  const primeiro = inicios.sort()[0]
+  if (!primeiro) return regras
+  const anteriorABase = mesAnterior(dataBase.slice(0, 7))
+  const ultimo = primeiro > anteriorABase ? primeiro : anteriorABase
+  return regras
+    .filter((r) => r.inicio <= ultimo && (r.fim == null || r.fim >= primeiro))
+    .map((r) => ({
+      ...r,
+      inicio: r.inicio < primeiro ? primeiro : r.inicio,
+      fim: r.fim != null && r.fim > ultimo ? ultimo : r.fim,
+    }))
 }

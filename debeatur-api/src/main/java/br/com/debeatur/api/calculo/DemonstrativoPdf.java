@@ -229,7 +229,7 @@ final class DemonstrativoPdf {
         campos.put("Correção e juros", resultado.regime().nome());
         documento.add(pares(campos));
 
-        List<String> regras = regrasDoPeriodo().stream()
+        List<String> regras = regrasDoCalculo().stream()
                 .map(r -> periodo(r) + ": " + nomeIndice(r.correcao()) + " + " + r.descricaoJuros())
                 .toList();
         PdfPTable tabela = semBordas(2, new float[]{1.6f, 8.4f});
@@ -262,21 +262,39 @@ final class DemonstrativoPdf {
                 : "Não aplicados";
     }
 
+    /** Meses do cálculo, inclusive nas duas pontas. */
+    private record Periodo(YearMonth de, YearMonth ate) {
+    }
+
     /**
-     * Regras que alcançam o período do cálculo: do primeiro termo inicial, de correção ou de
-     * juros, ao mês anterior à data-base, o último que o motor percorre. Se tudo vence no mês
-     * da data-base, fica a regra vigente nesse mês.
+     * Regras que alcançam o período do cálculo, com a vigência recortada a ele: num cálculo de
+     * 2024, a regra que vale desde 07/1994 aparece desde o primeiro mês do cálculo. A regra sem
+     * fim continua sem fim. Sem período, ficam as regras do regime como estão.
      */
-    private List<RegraDto> regrasDoPeriodo() {
-        YearMonth primeiro = Stream.of(primeiroMes(Linha::inicioCorrecao), primeiroMes(Linha::inicioJuros))
+    private List<RegraDto> regrasDoCalculo() {
+        return periodoDoCalculo()
+                .map(p -> regrasEntre(p.de(), p.ate()).stream().map(r -> recortada(r, p)).toList())
+                .orElseGet(() -> resultado.regime().regras());
+    }
+
+    private static RegraDto recortada(RegraDto regra, Periodo periodo) {
+        YearMonth inicio = regra.inicio().isBefore(periodo.de()) ? periodo.de() : regra.inicio();
+        YearMonth fim = regra.fim() != null && regra.fim().isAfter(periodo.ate()) ? periodo.ate() : regra.fim();
+        return new RegraDto(inicio, fim, regra.correcao(), regra.juros(), regra.percentualJurosMensal(),
+                regra.ultimoDiaTaxaFixa(), regra.descricaoJuros());
+    }
+
+    /**
+     * Período do cálculo: do primeiro termo inicial, de correção ou de juros, ao mês anterior à
+     * data-base, o último que o motor percorre. Se tudo vence no mês da data-base, é esse mês.
+     * Vazio se nenhuma linha tem termo inicial.
+     */
+    private Optional<Periodo> periodoDoCalculo() {
+        YearMonth ultimo = ultimoMesPercorrido();
+        return Stream.of(primeiroMes(Linha::inicioCorrecao), primeiroMes(Linha::inicioJuros))
                 .flatMap(Optional::stream)
                 .min(Comparator.naturalOrder())
-                .orElse(null);
-        if (primeiro == null) {
-            return resultado.regime().regras();
-        }
-        YearMonth ultimo = ultimoMesPercorrido();
-        return regrasEntre(primeiro, primeiro.isAfter(ultimo) ? primeiro : ultimo);
+                .map(primeiro -> new Periodo(primeiro, primeiro.isAfter(ultimo) ? primeiro : ultimo));
     }
 
     /**

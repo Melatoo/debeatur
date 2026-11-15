@@ -566,6 +566,56 @@ button:disabled.esperando {
   color: var(--texto-suave);
 }
 
+/* O total à vista sem rolar; os cards do resumo, mais abaixo, trazem a composição. */
+.total-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.total-topo .rotulo {
+  font-weight: 700;
+}
+
+.total-topo strong {
+  font-size: 1.6rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.total-topo .composicao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+}
+
+.total-topo .composicao > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A cor do rito nunca sem o nome dele ao lado. */
+.total-topo .composicao > span::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.total-topo .rito-prisao::before {
+  background: var(--prisao);
+}
+
+.total-topo .rito-penhora::before {
+  background: var(--penhora);
+}
+
 .parametros {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -792,14 +842,21 @@ button:disabled.esperando {
 
 .total-rito .valor {
   margin: 6px 0 10px;
-  font-size: 1.85rem;
-  font-weight: 750;
+  font-size: 1.5rem;
+  font-weight: 650;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
+/* O total da execução pesa mais que os subtotais por rito: é ele que vai ao pedido. */
+.total-rito.geral h3 {
+  font-size: 1.05rem;
+}
+
 .total-rito.geral .valor {
   color: var(--texto);
+  font-size: 2rem;
+  font-weight: 750;
 }
 
 .total-rito dl {
