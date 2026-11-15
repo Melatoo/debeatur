@@ -1,59 +1,84 @@
 # Requisitos do MVP
 
-Decisões de produto que orientam as escolhas técnicas do primeiro release (issue #1).
+Decisões de produto que orientam as escolhas técnicas do primeiro release (issue #1). Em
+27/10/2026 o recorte passou do cumprimento de sentença cível em quantia certa para a execução
+de alimentos; o motor de correção e juros é o mesmo.
 
 ## Usuário-alvo
 
-Advogado autônomo ou escritório pequeno que hoje monta o demonstrativo do art. 524 do CPC
-em planilha.
+Advogado de família, defensor ou servidor de contadoria que hoje monta o demonstrativo da
+execução de alimentos em planilha, como a planilha modelo da Defensoria Pública de MG.
 
-- Um escritório é um tenant. O MVP pode ter um único usuário por escritório, mas o modelo
-  de dados já nasce com `escritorio_id` (é barato agora e caro de adicionar depois).
+- Um escritório é um tenant, com um único usuário no MVP. O modelo de dados já nasce com
+  `escritorio_id` (é barato agora e caro de adicionar depois).
 - Não há perfis ou permissões no MVP.
 
 ## Recorte jurídico
 
-**Cumprimento de sentença cível entre particulares:** condenações em quantia certa (danos
-materiais, danos morais, cobrança).
+**Execução de alimentos** (arts. 528 a 533 do CPC), com o demonstrativo que acompanha o
+pedido.
 
-- Termos iniciais distintos para correção e juros por parcela (ex.: Súmulas 43, 54 e 362
-  do STJ), o que o modelo `Parcela` já suporta.
-- Acréscimos do art. 523, §1º (multa de 10% e honorários de 10%).
+- **Pensão em percentual do salário mínimo:** uma parcela por mês, no dia de vencimento do
+  título, pelo salário mínimo vigente em cada vencimento (Súmula 490 do STF), com correção e
+  juros desde cada vencimento (#21).
+- **Outras parcelas:** valores avulsos com vencimento próprio, além da pensão.
+- **Termo inicial dos juros:** configurável entre o vencimento de cada parcela e a citação.
+- **Pagamentos parciais:** abatidos da parcela do mesmo mês, sem imputação do art. 354 do CC,
+  como na planilha da DPMG.
+- **Dois ritos:** com a data do ajuizamento, as parcelas se dividem entre o rito da prisão (as
+  três anteriores ao ajuizamento e as que vencerem no curso do processo, art. 528, §7º, do CPC)
+  e o da penhora, com subtotais separados. Os acréscimos do art. 523, §1º (multa e honorários
+  de 10%), incidem só sobre a penhora.
+- **Prescrição:** aviso das parcelas vencidas mais de dois anos antes do ajuizamento (art. 206,
+  §2º, do CC), lembrando que ela não corre contra absolutamente incapaz (art. 198, I) nem entre
+  ascendentes e descendentes durante o poder familiar (art. 197, II). O cálculo não as exclui.
 
 ## Tribunal de referência
 
-**TJMG.** Os cálculos de gabarito virão da contadoria do TJMG ou de processos homologados lá.
+**TJMG.** Os cálculos de gabarito vêm da contadoria do TJMG, de processos homologados lá e da
+planilha da DPMG (`docs/gabarito.md`).
 
-- Correção até 07/2024: fatores da tabela da Corregedoria-Geral de Justiça do TJMG (base
-  INPC). A edição vigente em 29/08/2024 só tem INPC até julho, então agosto/2024 já é
-  corrigido pelo IPCA (#24). Juros de 1% a.m. até 29/08/2024; em agosto/2024, 29/30 de 1%
-  mais 2/31 da taxa legal de agosto, como a planilha da DPMG (#3).
-  A confirmar: se os fatores publicados batem com o INPC puro do SGS ou se a tabela precisa
-  entrar como série própria.
-- A partir de 09/2024: IPCA + taxa legal (Lei 14.905/2024). A confirmar: como o TJMG
-  operacionalizou a mudança (se publica tabela própria e se trata 30 e 31/08/2024 como a DPMG).
+- **Regime padrão:** tabela da Corregedoria-Geral de Justiça do TJMG (base INPC) + 1% a.m. até
+  29/08/2024 e, depois, IPCA + taxa legal (Lei 14.905/2024). A edição da tabela vigente em
+  29/08/2024 só tem INPC até julho, então agosto/2024 já é corrigido pelo IPCA (#24). Em
+  agosto/2024, os juros são 1% até o dia 29 e taxa legal pro rata nos dias 30 e 31.
+- **Regime pelo título:** a sentença pode fixar critérios próprios (coisa julgada), então o
+  regime é um dado do cálculo. Quem calcula informa índice e juros por período no regime
+  próprio.
+- **Tema 1368 do STJ:** para título omisso, a taxa do art. 406 do CC antes da Lei 14.905/2024 é
+  a SELIC. O padrão continua sendo a tabela da CGJ + 1% a.m.; a SELIC entra como critério que
+  quem calcula informa (#28).
 
 ## Definição de pronto
 
 O MVP está pronto para uso em processo real quando:
 
-1. **Bate com o gabarito:** diferença zero (ou de centavos, justificada) contra os casos
-   da issue #2.
-2. **Pro rata die:** termos iniciais e data-base no meio do mês (issue #3).
-3. **Regime básico configurável:** informar os períodos, o índice de correção e os juros
-   fixados na sentença, com o regime padrão do TJMG como default (issue #3).
-4. **Salva cálculos:** reabrir e atualizar um cálculo, com snapshot dos índices usados (issue #4).
-5. **Exporta PDF:** demonstrativo com memória de cálculo pronto para juntar aos autos (issue #6).
-6. **Autenticação mínima:** para salvar cálculos em uma aplicação hospedada é preciso login,
-   então entra um usuário por escritório (issue #7).
+1. **Bate com o gabarito:** diferença zero (ou de centavos, justificada) contra cálculos de
+   alimentos homologados ou da contadoria (#2). *Em aberto: o gabarito tem a tabela da CGJ, o
+   CADEJ e a planilha da DPMG, mas nenhum cálculo homologado de alimentos.*
+2. **Alimentos:** pensão em salário mínimo, outras parcelas, pagamentos parciais e os dois
+   ritos. *Feito (#34 a #41).*
+3. **Regime configurável:** o padrão do TJMG e um regime próprio por cálculo. *Feito; falta o
+   regime do Tema 1368 (#28).*
+4. **Pro rata die:** termos iniciais e data-base no meio do mês (#3). *Em parte: só a virada de
+   agosto/2024 é proporcional; o resto do cálculo é mensal.*
+5. **Salva cálculos:** reabrir e atualizar um cálculo, com snapshot dos índices usados.
+   *Feito (#4).*
+6. **Exporta PDF:** demonstrativo com memória de cálculo, total e marca de segredo de justiça
+   em toda página, pronto para juntar aos autos. *Feito (#6).*
+7. **Autenticação mínima:** login de um usuário por escritório, com limite de tentativas.
+   *Feito (#7).*
 
 ## Fora do escopo
 
+- Alimentos fixados em valor fixo ou em percentual dos rendimentos (em aberto)
+- Exclusão das parcelas prescritas do cálculo, que mexe no motor e precisa de gabarito
+- Imputação do pagamento (art. 354 do CC)
 - Fazenda Pública (EC 113/2021, Tema 810 do STF, RPV/precatório)
 - Trabalhista (ADC 58)
 - Tabelas e regimes pré-definidos de outros tribunais
-- Pagamentos parciais e imputação (art. 354 do CC)
 - Exportação em Excel
 - Múltiplos usuários por escritório e controle de permissões
 
-Os itens fora do escopo estão na issue #5.
+O cálculo cível em quantia certa, recorte original do MVP, continua no motor e na API, mas não
+é o foco do produto. Os itens fora do escopo estão na issue #5.
