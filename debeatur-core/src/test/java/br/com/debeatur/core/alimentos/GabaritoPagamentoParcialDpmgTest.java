@@ -31,7 +31,7 @@ class GabaritoPagamentoParcialDpmgTest {
      */
     @Test
     void saldoAposPagamentoReproduzAPlanilha() {
-        PensaoEmSalarioMinimo pensao = new PensaoEmSalarioMinimo(new BigDecimal("30"), 1,
+        Pensao pensao = Pensao.emSalarioMinimo(new BigDecimal("30"), 1,
                 YearMonth.of(2025, 1), YearMonth.of(2025, 2), InicioJuros.VENCIMENTO, null);
         List<Parcela> saldos = new PagamentosParciais()
                 .com(YearMonth.of(2025, 2), Dinheiro.de("200.00"))

@@ -11,6 +11,7 @@ nunca do próprio motor.
 | `GabaritoTabelaTjmgTest` | Fatores da CGJ-TJMG, DJe/TJMG de 12/05/2026 (#18) | Fator de correção pelo INPC, jan/2024 a abr/2026 |
 | `GabaritoHomologadoTest` | Cálculos homologados em `CasosHomologados` | Demonstrativo completo, linha a linha e totais |
 | `GabaritoHomologadoTest` | Cinco cálculos do CADEJ/TJMG em `CasosCadej` | Demonstrativo completo, com ICGJ ou IPCA e juros de taxa fixa |
+| `GabaritoRendimentosDecimoTerceiroDpmgTest` | Planilha da DPMG gerada no iadefensor em 14/11/2026 | Pensão em rendimentos, 13º, abatimento nominal e art. 523 sobre o saldo |
 
 ### CADEJ
 
@@ -146,8 +147,11 @@ relatório. Ele não passa em branco.
    rel. Min. Ricardo Villas Bôas Cueva, julgado em 09/10/2018, DJe 15/10/2018, unânime). O
    precedente foi conferido pela ementa e pelos informativos, e falta ler o inteiro teor. É
    acórdão de turma, não repetitivo, então o motor fica como está e os casos do CADEJ seguem
-   registrando a divergência nos honorários e no total. Um cálculo homologado do TJMG ainda
-   confirmaria a prática local.
+   registrando a divergência nos honorários e no total. A planilha da DPMG faz como o motor:
+   multa e honorários são, cada um, 10% do saldo do débito (conferido em 14/11/2026 numa
+   planilha gerada no [iadefensor](https://www.iadefensor.com.br/planilha/planilha_sem_menu),
+   que produz o mesmo modelo de outubro/2026). Um cálculo homologado do TJMG ainda confirmaria
+   a prática local.
 6. **SELIC: série mensal do SGS × SELIC diária do CADEJ (#28).** O CADEJ multiplica a SELIC
    diária (SGS 11) dos dias úteis. A parcela de 15/01/2024 atualizada até 29/08/2024 dá fator
    1,0617101, que é o produto exato dos 147 dias úteis de 01/01 a 31/07/2024. O motor multiplica
@@ -158,3 +162,42 @@ relatório. Ele não passa em branco.
    termo inicial até o mês anterior ao pagamento, mais 1% no mês do pagamento, como nos
    tributos federais. Como o tribunal de referência é o TJMG, o caminho é seguir o CADEJ:
    montar o fator mensal a partir da SGS 11 e transcrever esse caso em `CasosCadej`.
+7. **Ritos: os três últimos meses do cálculo (DPMG) × a regra do art. 528, §7º.** Ao separar os
+   ritos, a planilha da DPMG põe na prisão os três últimos meses do cálculo. O motor segue a
+   lei e a Súmula 309 do STJ: as três parcelas anteriores ao ajuizamento e as que vencerem no
+   curso do processo. As duas regras coincidem quando o cálculo termina no ajuizamento, que é
+   o uso da planilha na petição inicial. Num cálculo atualizado no curso do processo, a regra
+   da planilha mandaria para a penhora as parcelas vencidas depois do ajuizamento, que a lei
+   põe na prisão. A diferença é intencional (decisão de 14/11/2026).
+8. **Juros de 0,5% a.m. até 10/01/2003 (CC/1916).** As notas da planilha da DPMG citam 6% a.a.
+   antes de 11/01/2003, mas ela começa em 02/2003, mesmo quando se pede início em 01/2003. Sem
+   fonte que mostre como dividir janeiro/2003, o motor fica como está (decisão de 14/11/2026).
+
+## Planilha da DPMG
+
+O gerador público da planilha da DPMG ([iadefensor](https://www.iadefensor.com.br/planilha/planilha_sem_menu),
+modelo "Taxa legal (Bacen)") produz o modelo de outubro/2026 que está em
+`planilha-dpmg-alimentos-2026-10.csv`: os fatores e os percentuais de juros vêm gravados como
+números, idênticos aos do CSV, e o Excel só multiplica. Gerar outros casos nele não traz
+fatores novos, mas mostra as convenções dos recursos opcionais. Em 14/11/2026:
+
+- **13º salário:** o valor de dezembro dobra.
+- **Abatimentos** (bloqueio em conta, depósito), em qualquer data: entram no total pelo valor
+  nominal, sem correção; a data aparece só na descrição. Multa e honorários incidem sobre o
+  saldo já abatido.
+- **Percentual dos rendimentos:** o percentual incide sobre um valor de rendimentos
+  informado, igual em todos os meses.
+- **Valor fixo:** só nos modelos cíveis, em períodos com valor próprio e sem reajuste.
+
+O Debeatur segue essas convenções (decisão de 14/11/2026). `GabaritoRendimentosDecimoTerceiroDpmgTest`
+transcreve um caso gerado no iadefensor em 14/11/2026: 30% de rendimentos de R$ 3.000,00 de
+10/2025 a 09/2026, com 13º, multa, honorários e um bloqueio de R$ 500,00. Os valores esperados
+aplicam as fórmulas da planilha ("ÍNDICE CORREÇÃO" e "% JUROS" do CSV) a cada parcela.
+
+O valor fixo só existe nos modelos cíveis do gerador, com multa de 2% em cada mês, que não se
+aplica a alimentos. No Debeatur ele só define o valor da parcela de cada mês, e a correção e os
+juros são os da pensão.
+
+Com os ritos separados, o gerador põe os abatimentos na planilha da penhora. O Debeatur faz o
+mesmo e, se eles passarem do débito da penhora, abate o resto da prisão, que o gerador deixaria
+negativo.

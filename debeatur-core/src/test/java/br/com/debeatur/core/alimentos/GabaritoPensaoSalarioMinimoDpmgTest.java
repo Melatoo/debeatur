@@ -28,7 +28,7 @@ class GabaritoPensaoSalarioMinimoDpmgTest {
     @ParameterizedTest(name = "{0}: {1}% do SM = {2}")
     @CsvFileSource(resources = "/gabarito/pensao-salario-minimo-dpmg-2026-10.csv", numLinesToSkip = 1)
     void valorDaParcelaReproduzAPlanilha(YearMonth mes, BigDecimal percentual, String valor) {
-        PensaoEmSalarioMinimo pensao = new PensaoEmSalarioMinimo(percentual, 1, mes, mes,
+        Pensao pensao = Pensao.emSalarioMinimo(percentual, 1, mes, mes,
                 InicioJuros.VENCIMENTO, null);
 
         List<Parcela> parcelas = pensao.parcelas(SALARIO_MINIMO);

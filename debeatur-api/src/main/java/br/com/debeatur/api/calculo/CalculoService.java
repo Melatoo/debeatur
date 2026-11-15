@@ -2,7 +2,7 @@ package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.core.Dinheiro;
 import br.com.debeatur.core.alimentos.DemonstrativoPorRito;
-import br.com.debeatur.core.alimentos.PensaoEmSalarioMinimo;
+import br.com.debeatur.core.alimentos.Pensao;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.MotorCalculo;
 import br.com.debeatur.core.calculo.Parcela;
@@ -90,24 +90,24 @@ public class CalculoService {
      * @throws IllegalArgumentException se a última parcela vencer depois da data-base
      */
     private static ParcelasDaPensao parcelas(PensaoRequest pensao, LocalDate dataBase, FonteSeries fonte) {
-        PensaoEmSalarioMinimo dominio = pensao.paraDominio();
+        Pensao dominio = pensao.paraDominio();
         if (dominio.ultimoVencimento().isAfter(dataBase)) {
             throw new IllegalArgumentException("A última parcela da pensão vence em " + dominio.ultimoVencimento()
                     + ", depois da data-base (" + dataBase + ")");
         }
         SalarioMinimo salarioMinimo = fonte.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes());
-        List<PensaoEmSalarioMinimo.ParcelaDoMes> devidas = dominio.parcelasPorMes(salarioMinimo);
+        List<Pensao.ParcelaDoMes> devidas = dominio.parcelasPorMes(salarioMinimo);
         List<Parcela> saldos = pensao.pagamentosParaDominio()
-                .abater(devidas.stream().map(PensaoEmSalarioMinimo.ParcelaDoMes::parcela).toList());
+                .abater(devidas.stream().map(Pensao.ParcelaDoMes::parcela).toList());
         if (saldos.size() != devidas.size()) {
             throw new IllegalStateException("O abatimento dos pagamentos deve manter uma parcela por mês");
         }
         Map<Parcela, DemonstrativoResponse.MesPensao> memoria = new IdentityHashMap<>();
         for (int i = 0; i < devidas.size(); i++) {
-            PensaoEmSalarioMinimo.ParcelaDoMes devida = devidas.get(i);
+            Pensao.ParcelaDoMes devida = devidas.get(i);
             Dinheiro devido = devida.parcela().valor();
             Parcela saldo = saldos.get(i);
-            memoria.put(saldo, new DemonstrativoResponse.MesPensao(devida.mes(), devida.salarioMinimo().valor(),
+            memoria.put(saldo, new DemonstrativoResponse.MesPensao(devida.mes(), devida.base().valor(),
                     devido.valor(), devido.menos(saldo.valor()).valor()));
         }
         return new ParcelasDaPensao(saldos, memoria);

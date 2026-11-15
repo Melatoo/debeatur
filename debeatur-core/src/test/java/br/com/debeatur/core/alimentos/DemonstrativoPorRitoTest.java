@@ -168,6 +168,60 @@ class DemonstrativoPorRitoTest {
     }
 
     @Test
+    void abatimentoSaiDaPenhoraEOArt523IncideSobreOSaldo() {
+        Demonstrativo demonstrativo = demonstrativo(
+                linha("01/2024", LocalDate.of(2024, 1, 10), "423.61", "50.83"),
+                linha("02/2024", LocalDate.of(2024, 2, 10), "423.15", "46.55"),
+                linha("03/2024", LocalDate.of(2024, 3, 10), "422.97", "42.30"),
+                linha("04/2024", LocalDate.of(2024, 4, 10), "422.49", "38.02"),
+                linha("05/2024", LocalDate.of(2024, 5, 10), "422.07", "33.77"));
+        List<Abatimento> abatimentos = List.of(
+                new Abatimento(LocalDate.of(2024, 8, 1), Dinheiro.de("300.00"), "Bloqueio"),
+                new Abatimento(LocalDate.of(2024, 9, 1), Dinheiro.de("44.14"), null));
+
+        DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo, AJUIZAMENTO, true, abatimentos);
+
+        // penhora 944.14 − 344.14 = 600.00; 10% = 60.00
+        assertThat(porRito.abatidoPenhora()).isEqualTo(Dinheiro.de("344.14"));
+        assertThat(porRito.abatidoPrisao()).isEqualTo(Dinheiro.ZERO);
+        assertThat(porRito.multaArt523()).isEqualTo(Dinheiro.de("60.00"));
+        assertThat(porRito.honorariosArt523()).isEqualTo(Dinheiro.de("60.00"));
+        assertThat(porRito.totalPenhora()).isEqualTo(Dinheiro.de("720.00"));
+        assertThat(porRito.totalPrisao()).isEqualTo(porRito.prisao().debitoAtualizado());
+        assertThat(porRito.total()).isEqualTo(porRito.totalPrisao().mais(porRito.totalPenhora()));
+    }
+
+    @Test
+    void abatimentoQuePassaDaPenhoraSaiDaPrisao() {
+        Demonstrativo demonstrativo = demonstrativo(
+                linha("01/2024", LocalDate.of(2024, 1, 10), "100.00", "10.00"),
+                linha("03/2024", LocalDate.of(2024, 3, 10), "100.00", "8.00"),
+                linha("04/2024", LocalDate.of(2024, 4, 10), "100.00", "7.00"),
+                linha("05/2024", LocalDate.of(2024, 5, 10), "100.00", "6.00"));
+
+        DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo, AJUIZAMENTO, true,
+                List.of(new Abatimento(LocalDate.of(2024, 8, 1), Dinheiro.de("150.00"), "Depósito")));
+
+        assertThat(porRito.abatidoPenhora()).isEqualTo(Dinheiro.de("110.00"));
+        assertThat(porRito.abatidoPrisao()).isEqualTo(Dinheiro.de("40.00"));
+        assertThat(porRito.multaArt523()).isEqualTo(Dinheiro.ZERO);
+        assertThat(porRito.totalPenhora()).isEqualTo(Dinheiro.ZERO);
+        // prisão 108 + 107 + 106 = 321; menos 40
+        assertThat(porRito.totalPrisao()).isEqualTo(Dinheiro.de("281.00"));
+        assertThat(porRito.total()).isEqualTo(Dinheiro.de("281.00"));
+    }
+
+    @Test
+    void rejeitaAbatimentoMaiorQueODebito() {
+        Demonstrativo demonstrativo = demonstrativo(linha("01/2024", LocalDate.of(2024, 1, 10), "100.00", "10.00"));
+
+        assertThatThrownBy(() -> DemonstrativoPorRito.separar(demonstrativo, AJUIZAMENTO, false,
+                List.of(new Abatimento(LocalDate.of(2024, 8, 1), Dinheiro.de("110.01"), ""))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("superam");
+    }
+
+    @Test
     void rejeitaDemonstrativoQueJaAplicaOArt523() {
         Demonstrativo semArt523 = demonstrativo(linha("01/2024", LocalDate.of(2024, 1, 10), "100.00", "0.00"));
         Demonstrativo comArt523 = new Demonstrativo(semArt523.dataBase(), semArt523.regime(), semArt523.linhas(),
