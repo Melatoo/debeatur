@@ -13,6 +13,18 @@ Cálculo de cumprimento de sentença (art. 524 do CPC). Escopo do MVP em `docs/r
   na máquina, sem a comparação visual.
 - Tudo junto: `docker compose up -d --build` (http://localhost:3000)
 
+## Preview
+
+`.claude/launch.json` define três servidores para o navegador do app:
+
+- `api`: instala os módulos sem testes e sobe a API na porta 8080, contra o banco do Docker
+  (`docker compose up -d db` antes). A porta do banco é a do `DEBEATUR_DB_PORTA`, a mesma do
+  compose, com padrão 5432. O comando usa `cmd`, então só roda no Windows.
+- `frontend`: Vite na porta 5173, com proxy de `/api` para a 8080. Suba a `api` antes.
+- `docker`: se conecta ao build do compose já rodando em http://localhost:3000.
+
+O login usa o usuário do escritório que já está no banco; não crie nem altere usuários para testar.
+
 ## Regras do domínio
 
 - **O motor é a parte crítica.** O `debeatur-core` produz valores que vão para os autos. Não
