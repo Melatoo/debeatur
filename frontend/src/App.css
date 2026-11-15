@@ -299,7 +299,8 @@ fieldset {
 
 .parcela,
 .regra,
-.pagamento {
+.pagamento,
+.abatimento {
   display: grid;
   gap: 12px 16px;
   align-items: end;
@@ -321,6 +322,11 @@ fieldset {
 .pagamento {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   max-width: 560px;
+}
+
+.abatimento {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  max-width: 760px;
 }
 
 .colar-pagamentos {
@@ -1281,11 +1287,13 @@ main.acesso {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .pagamento {
+  .pagamento,
+  .abatimento {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .pagamento button,
+  .abatimento button,
   .parcela button,
   .regra button {
     grid-column: 1 / -1;

@@ -2,8 +2,10 @@ package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.api.serie.FonteSeries;
 import br.com.debeatur.api.serie.SnapshotSeries;
+import br.com.debeatur.core.alimentos.Abatimento;
 import br.com.debeatur.core.alimentos.DemonstrativoPorRito;
 import br.com.debeatur.core.alimentos.Rito;
+import br.com.debeatur.core.alimentos.TotalComAbatimentos;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.LinhaDemonstrativo;
 import br.com.debeatur.core.calculo.Parcela;
@@ -22,8 +24,11 @@ import java.util.Optional;
 import java.util.SortedMap;
 
 /**
- * @param ritos  nulo se o cálculo não separa os ritos; se separa, multa, honorários e total
- *               são os do {@link DemonstrativoPorRito}, com o art. 523 só sobre a penhora
+ * @param abatimentos  valores recebidos que saem do débito atualizado pelo valor nominal; vazia
+ *                     se não houver
+ * @param totalAbatido soma dos abatimentos; multa e honorários incidem sobre o débito menos ele
+ * @param ritos        nulo se o cálculo não separa os ritos; se separa, multa, honorários e total
+ *                     são os do {@link DemonstrativoPorRito}, com o art. 523 só sobre a penhora
  * @param series os índices que o cálculo leu, mês a mês, para conferir o fator e os juros de
  *               cada linha; o salário mínimo já vem nas linhas da pensão
  */
@@ -36,6 +41,8 @@ public record DemonstrativoResponse(
         BigDecimal debitoAtualizado,
         BigDecimal multaArt523,
         BigDecimal honorariosArt523,
+        List<AbatimentoResponse> abatimentos,
+        BigDecimal totalAbatido,
         BigDecimal total,
         Ritos ritos,
         List<SerieUsada> series) {
@@ -43,7 +50,16 @@ public record DemonstrativoResponse(
     /** O mesmo demonstrativo, com as séries descritas de outra forma (de onde e de quando vieram). */
     DemonstrativoResponse comSeries(List<SerieUsada> outras) {
         return new DemonstrativoResponse(dataBase, regime, linhas, totalCorrigido, totalJuros, debitoAtualizado,
-                multaArt523, honorariosArt523, total, ritos, outras);
+                multaArt523, honorariosArt523, abatimentos, totalAbatido, total, ritos, outras);
+    }
+
+    /** Valor recebido abatido do débito, com a data e a origem informadas. */
+    public record AbatimentoResponse(LocalDate data, BigDecimal valor, String origem) {
+
+        static List<AbatimentoResponse> de(List<Abatimento> abatimentos) {
+            return abatimentos.stream().map(a -> new AbatimentoResponse(a.data(), a.valor().valor(), a.origem()))
+                    .toList();
+        }
     }
 
     /**
@@ -72,17 +88,28 @@ public record DemonstrativoResponse(
     }
 
     /**
-     * Memória de uma parcela da pensão: o devido é o percentual do salário mínimo vigente no
-     * mês, e o valor original da linha é o devido menos o pago.
+     * Memória de uma parcela da pensão: o devido sai da base do mês (dobrado em dezembro, com o
+     * 13º), e o valor original da linha é o devido menos o pago.
+     *
+     * @param salarioMinimo  salário mínimo vigente no mês; nulo se a pensão não é em salário mínimo
+     * @param decimoTerceiro se o devido inclui o 13º salário
      */
-    public record MesPensao(YearMonth mes, BigDecimal salarioMinimo, BigDecimal valorDevido, BigDecimal valorPago) {
+    public record MesPensao(YearMonth mes, BigDecimal salarioMinimo, BigDecimal valorDevido, BigDecimal valorPago,
+                            boolean decimoTerceiro) {
     }
 
-    /** @param totalPenhora débito da penhora mais multa e honorários do art. 523 */
-    public record Ritos(LocalDate ajuizamento, Subtotal prisao, Subtotal penhora, BigDecimal totalPenhora) {
+    /**
+     * @param abatidoPenhora parte dos abatimentos que saiu do débito da penhora
+     * @param abatidoPrisao  parte dos abatimentos que passou da penhora e saiu da prisão
+     * @param totalPrisao    débito da prisão menos {@code abatidoPrisao}
+     * @param totalPenhora   saldo da penhora mais multa e honorários do art. 523
+     */
+    public record Ritos(LocalDate ajuizamento, Subtotal prisao, Subtotal penhora, BigDecimal abatidoPenhora,
+                        BigDecimal abatidoPrisao, BigDecimal totalPrisao, BigDecimal totalPenhora) {
 
         static Ritos de(DemonstrativoPorRito porRito) {
             return new Ritos(porRito.ajuizamento(), Subtotal.de(porRito.prisao()), Subtotal.de(porRito.penhora()),
+                    porRito.abatidoPenhora().valor(), porRito.abatidoPrisao().valor(), porRito.totalPrisao().valor(),
                     porRito.totalPenhora().valor());
         }
     }
@@ -142,7 +169,19 @@ public record DemonstrativoResponse(
         }
         return new DemonstrativoResponse(d.dataBase(), RegimeDto.de(regime), linhas,
                 d.totalCorrigido().valor(), d.totalJuros().valor(), d.debitoAtualizado().valor(),
-                d.multaArt523().valor(), d.honorariosArt523().valor(), d.total().valor(), null, series);
+                d.multaArt523().valor(), d.honorariosArt523().valor(), List.of(), BigDecimal.ZERO.setScale(2),
+                d.total().valor(), null, series);
+    }
+
+    /** Sem ritos e com abatimentos: multa, honorários e total são os do fechamento. */
+    static DemonstrativoResponse de(Demonstrativo d, RegimeAtualizacao regime, Map<Parcela, MesPensao> memoria,
+                                    TotalComAbatimentos fechamento, List<SerieUsada> series) {
+        DemonstrativoResponse semAbatimento = de(d, regime, memoria, series);
+        return new DemonstrativoResponse(d.dataBase(), semAbatimento.regime(), semAbatimento.linhas(),
+                d.totalCorrigido().valor(), d.totalJuros().valor(), d.debitoAtualizado().valor(),
+                fechamento.multaArt523().valor(), fechamento.honorariosArt523().valor(),
+                AbatimentoResponse.de(fechamento.abatimentos()), fechamento.totalAbatido().valor(),
+                fechamento.total().valor(), null, series);
     }
 
     static DemonstrativoResponse de(Demonstrativo d, RegimeAtualizacao regime, Map<Parcela, MesPensao> memoria,
@@ -155,6 +194,8 @@ public record DemonstrativoResponse(
         Ritos ritos = Ritos.de(porRito);
         return new DemonstrativoResponse(d.dataBase(), RegimeDto.de(regime), linhas,
                 d.totalCorrigido().valor(), d.totalJuros().valor(), d.debitoAtualizado().valor(),
-                porRito.multaArt523().valor(), porRito.honorariosArt523().valor(), porRito.total().valor(), ritos, series);
+                porRito.multaArt523().valor(), porRito.honorariosArt523().valor(),
+                AbatimentoResponse.de(porRito.abatimentos()), Abatimento.total(porRito.abatimentos()).valor(),
+                porRito.total().valor(), ritos, series);
     }
 }

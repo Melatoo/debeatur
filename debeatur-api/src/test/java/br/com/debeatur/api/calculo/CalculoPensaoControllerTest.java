@@ -322,6 +322,111 @@ class CalculoPensaoControllerTest {
     }
 
     @Test
+    void pensaoEmRendimentosComDecimoTerceiroNaoLeOSalarioMinimo() {
+        String pensao = """
+                {"base": "RENDIMENTOS", "percentual": 30, "rendimentos": 3000.00, "decimoTerceiro": true,
+                 "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].descricao", v -> v.assertThat().isEqualTo("Alimentos 12/2023 e 13º salário"))
+                .hasPathSatisfying("$.linhas[0].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(1800.0))
+                .hasPathSatisfying("$.linhas[0].pensao.decimoTerceiro", v -> v.assertThat().isEqualTo(true))
+                .hasPathSatisfying("$.linhas[0].pensao.salarioMinimo", v -> v.assertThat().isNull())
+                .hasPathSatisfying("$.linhas[1].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(900.0))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(2700.0));
+        verify(series, never()).carregarSalarioMinimo(any(), any());
+    }
+
+    @Test
+    void pensaoEmValorFixoPorPeriodos() {
+        String pensao = """
+                {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2024-02", "valor": 650.00},
+                                                        {"aPartirDe": "2023-12", "valor": 500.00}],
+                 "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-02", "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(500.0))
+                .hasPathSatisfying("$.linhas[1].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(500.0))
+                .hasPathSatisfying("$.linhas[2].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(650.0))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(1650.0));
+    }
+
+    @Test
+    void recusaBaseSemOsDadosDela() {
+        String semRendimentos = """
+                {"base": "RENDIMENTOS", "percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01",
+                 "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO"}
+                """;
+        String fixoTardio = """
+                {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2024-02", "valor": 500.00}],
+                 "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-02", "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(semRendimentos, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("rendimentos"));
+        assertThat(calcular(requisicao(fixoTardio, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("primeiro valor fixo"));
+    }
+
+    @Test
+    void abatimentoSaiDoDebitoEOArt523IncideSobreOSaldo() {
+        String json = """
+                {"dataBase": "2024-03-15", "aplicarArt523": true, "regime": %s,
+                 "pensao": {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2024-01", "valor": 500.00}],
+                            "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-02",
+                            "inicioJuros": "VENCIMENTO",
+                            "abatimentos": [{"data": "2024-05-02", "valor": 200.00, "origem": "Bloqueio"}]}}
+                """.formatted(SEM_JUROS);
+
+        // 1.000,00 − 200,00 = 800,00; multa e honorários de 80,00
+        assertThat(calcular(json)).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(1000.0))
+                .hasPathSatisfying("$.totalAbatido", v -> v.assertThat().asNumber().isEqualTo(200.0))
+                .hasPathSatisfying("$.abatimentos[0].origem", v -> v.assertThat().isEqualTo("Bloqueio"))
+                .hasPathSatisfying("$.multaArt523", v -> v.assertThat().asNumber().isEqualTo(80.0))
+                .hasPathSatisfying("$.honorariosArt523", v -> v.assertThat().asNumber().isEqualTo(80.0))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(960.0));
+    }
+
+    @Test
+    void comRitosOAbatimentoSaiDaPenhora() {
+        SerieIndicesEmMemoria serie = new SerieIndicesEmMemoria();
+        for (YearMonth mes = YearMonth.of(2023, 10); mes.isBefore(YearMonth.of(2024, 3)); mes = mes.plusMonths(1)) {
+            serie.com(Indice.INPC, mes, "0");
+        }
+        when(series.carregar(any(), any(), any())).thenReturn(serie);
+        String json = """
+                {"dataBase": "2024-03-15", "aplicarArt523": true, "regime": %s,
+                 "pensao": {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2023-10", "valor": 500.00}],
+                            "diaVencimento": 10, "primeiroMes": "2023-10", "ultimoMes": "2024-02",
+                            "inicioJuros": "VENCIMENTO", "ajuizamento": "2024-02-01",
+                            "abatimentos": [{"data": "2024-03-01", "valor": 100.00}]}}
+                """.formatted(SEM_JUROS);
+
+        // penhora: 10/2023 = 500,00 − 100,00 = 400,00; 10% = 40,00; prisão: 4 × 500,00
+        assertThat(calcular(json)).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.ritos.abatidoPenhora", v -> v.assertThat().asNumber().isEqualTo(100.0))
+                .hasPathSatisfying("$.ritos.abatidoPrisao", v -> v.assertThat().asNumber().isEqualTo(0.0))
+                .hasPathSatisfying("$.ritos.totalPrisao", v -> v.assertThat().asNumber().isEqualTo(2000.0))
+                .hasPathSatisfying("$.ritos.totalPenhora", v -> v.assertThat().asNumber().isEqualTo(480.0))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(2480.0));
+    }
+
+    @Test
+    void recusaAbatimentoMaiorQueODebito() {
+        String pensao = """
+                {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2024-01", "valor": 500.00}],
+                 "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO",
+                 "abatimentos": [{"data": "2024-03-01", "valor": 600.00}]}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("superam"));
+    }
+
+    @Test
     void recusaCalculoSemPensaoNemParcelas() {
         assertThat(calcular("""
                 {"dataBase": "2024-03-15", "aplicarArt523": false}

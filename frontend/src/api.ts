@@ -34,9 +34,35 @@ export interface PagamentoRequest {
   valor: string
 }
 
-/** Pensão em percentual do salário mínimo: uma parcela por mês, de `primeiroMes` a `ultimoMes`. */
+/** Como o título fixou o valor mensal da pensão. */
+export type TipoBase = 'SALARIO_MINIMO' | 'RENDIMENTOS' | 'VALOR_FIXO'
+
+/** Valor mensal da pensão em valor fixo, do mês `aPartirDe` (AAAA-MM) até o próximo valor. */
+export interface ValorFixoRequest {
+  aPartirDe: string
+  valor: string
+}
+
+/** Valor recebido em qualquer data (bloqueio, depósito), que sai do débito atualizado pelo valor nominal. */
+export interface AbatimentoRequest {
+  /** AAAA-MM-DD */
+  data: string
+  valor: string
+  origem: string
+}
+
+/** Pensão alimentícia: uma parcela por mês, de `primeiroMes` a `ultimoMes`. */
 export interface PensaoRequest {
-  percentual: string
+  /** Sem base, a API entende salário mínimo, como nos cálculos salvos antes das outras. */
+  base?: TipoBase
+  /** Percentual do salário mínimo ou dos rendimentos; nulo no valor fixo. */
+  percentual: string | null
+  /** Rendimentos mensais, iguais em todos os meses; só na base RENDIMENTOS. */
+  rendimentos?: string
+  /** Só na base VALOR_FIXO; o primeiro valor cobre o início da pensão. */
+  valoresFixos?: ValorFixoRequest[]
+  /** Se a parcela de dezembro dobra com o 13º salário. */
+  decimoTerceiro?: boolean
   diaVencimento: number
   primeiroMes: string
   ultimoMes: string
@@ -44,6 +70,8 @@ export interface PensaoRequest {
   /** Obrigatória com juros desde a citação. */
   citacao: string | null
   pagamentos: PagamentoRequest[]
+  /** Saem do débito atualizado (ou do da penhora, com os ritos) pelo valor nominal; multa e honorários incidem sobre o saldo. */
+  abatimentos?: AbatimentoRequest[]
   /** Se informado, separa as linhas entre o rito da prisão e o da penhora; o art. 523 incide só na penhora. */
   ajuizamento: string | null
 }
@@ -83,13 +111,16 @@ export interface LinhaDemonstrativo {
   pensao: MesPensao | null
 }
 
-/** O devido é o percentual do salário mínimo vigente no mês; o valor original da linha, o devido menos o pago. */
+/** O devido sai da base do mês (em dobro em dezembro, com o 13º); o valor original da linha é o devido menos o pago. */
 export interface MesPensao {
   /** AAAA-MM */
   mes: string
-  salarioMinimo: number
+  /** Nulo se a pensão não é em salário mínimo. */
+  salarioMinimo: number | null
   valorDevido: number
   valorPago: number
+  /** Se o devido inclui o 13º salário. Ausente nas respostas anteriores a ele. */
+  decimoTerceiro?: boolean
 }
 
 export type Rito = 'PRISAO' | 'PENHORA'
@@ -105,8 +136,21 @@ export interface Ritos {
   ajuizamento: string
   prisao: SubtotalRito
   penhora: SubtotalRito
-  /** Débito da penhora mais multa e honorários do art. 523, somados no servidor. */
+  /** Parte dos abatimentos que saiu do débito da penhora. Ausente nas respostas anteriores aos abatimentos. */
+  abatidoPenhora?: number
+  /** Parte dos abatimentos que passou do débito da penhora e saiu do da prisão. */
+  abatidoPrisao?: number
+  /** Débito da prisão menos `abatidoPrisao`. */
+  totalPrisao?: number
+  /** Saldo da penhora mais multa e honorários do art. 523, somados no servidor. */
   totalPenhora: number
+}
+
+/** Um abatimento como o servidor o aplicou. */
+export interface Abatimento {
+  data: string
+  valor: number
+  origem: string
 }
 
 /** Um índice que o cálculo leu, com o valor de cada mês, de onde veio e de quando é. */
@@ -134,6 +178,10 @@ export interface Demonstrativo {
   debitoAtualizado: number
   multaArt523: number
   honorariosArt523: number
+  /** Ausente nas respostas anteriores aos abatimentos. */
+  abatimentos?: Abatimento[]
+  /** Soma dos abatimentos; multa e honorários incidem sobre o débito menos ele. */
+  totalAbatido?: number
   total: number
   ritos: Ritos | null
   /** Os índices que o cálculo leu, mês a mês; o salário mínimo vem nas linhas da pensão. */

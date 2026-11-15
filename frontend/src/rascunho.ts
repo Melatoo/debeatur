@@ -29,7 +29,7 @@ export interface RascunhoSalvo {
 }
 
 /** Muda quando o formato do rascunho muda; um rascunho de outra versão é descartado, e não adaptado. */
-const VERSAO = 1
+const VERSAO = 2
 export const CHAVE_RASCUNHO = 'debeatur:rascunho'
 /** Pausa na digitação antes de gravar: o formulário inteiro vai para o disco, e não a cada tecla. */
 export const ESPERA_RASCUNHO_MS = 400
@@ -47,8 +47,11 @@ const ehParcela = (v: unknown) =>
   comTextos(v, ['descricao', 'valor', 'inicioCorrecao']) && (v.inicioJuros === null || typeof v.inicioJuros === 'string')
 
 const ehPensao = (v: unknown) =>
-  comTextos(v, ['percentual', 'diaVencimento', 'primeiroMes', 'ultimoMes', 'inicioJuros', 'citacao', 'ajuizamento']) &&
-  listaDe(v.pagamentos, (p) => comTextos(p, ['mes', 'valor']))
+  comTextos(v, ['base', 'percentual', 'rendimentos', 'diaVencimento', 'primeiroMes', 'ultimoMes', 'inicioJuros', 'citacao', 'ajuizamento']) &&
+  typeof v.decimoTerceiro === 'boolean' &&
+  listaDe(v.valoresFixos, (f) => comTextos(f, ['aPartirDe', 'valor'])) &&
+  listaDe(v.pagamentos, (p) => comTextos(p, ['mes', 'valor'])) &&
+  listaDe(v.abatimentos, (a) => comTextos(a, ['data', 'valor', 'origem']))
 
 const ehRegra = (v: unknown) => comTextos(v, ['inicio', 'fim', 'correcao', 'juros', 'percentual', 'ultimoDiaTaxaFixa'])
 
