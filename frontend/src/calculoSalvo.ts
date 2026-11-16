@@ -22,14 +22,23 @@ const reais = (valor: string | number) => {
 }
 
 function paraPensaoEditavel(p: NonNullable<CalculoRequest['pensao']>): PensaoEditavel {
+  const base = p.base ?? 'SALARIO_MINIMO'
+  const vazia = pensaoVazia()
   return {
-    percentual: campo(p.percentual),
+    base,
+    percentual: p.percentual == null ? '' : campo(p.percentual),
+    rendimentos: p.rendimentos == null ? '' : reais(p.rendimentos),
+    valoresFixos: p.valoresFixos?.length
+      ? p.valoresFixos.map((v) => ({ aPartirDe: v.aPartirDe, valor: reais(v.valor) }))
+      : vazia.valoresFixos,
+    decimoTerceiro: p.decimoTerceiro ?? false,
     diaVencimento: String(p.diaVencimento),
     primeiroMes: p.primeiroMes,
     ultimoMes: p.ultimoMes,
     inicioJuros: p.inicioJuros,
     citacao: p.citacao ?? '',
     pagamentos: (p.pagamentos ?? []).map((pg) => ({ mes: pg.mes, valor: reais(pg.valor) })),
+    abatimentos: (p.abatimentos ?? []).map((a) => ({ data: a.data, valor: reais(a.valor), origem: a.origem ?? '' })),
     ajuizamento: p.ajuizamento ?? '',
   }
 }

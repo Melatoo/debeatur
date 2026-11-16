@@ -1,11 +1,11 @@
 import { useContext, useEffect, useId, useRef, useState } from 'react'
-import type { InicioJuros, PagamentoRequest } from './api'
+import type { AbatimentoRequest, InicioJuros, PagamentoRequest, TipoBase, ValorFixoRequest } from './api'
 import { Campo, MensagemErro } from './Campo'
 import { Validacao } from './validacao'
 import { CampoDecimal } from './CampoDecimal'
-import { contar, mes } from './formato'
+import { contar, data, mes } from './formato'
 import { lerPagamentosColados } from './pagamentosColados'
-import { erroDoDiaVencimento, type PensaoEditavel } from './pensao'
+import { BASES, erroDoDiaVencimento, erroDosValoresFixos, type PensaoEditavel } from './pensao'
 import { Dica } from './Dica'
 
 interface Props {
@@ -17,19 +17,96 @@ export function EditorPensao({ pensao, onPensao }: Props) {
   const alterar = (campos: Partial<PensaoEditavel>) => onPensao({ ...pensao, ...campos })
   const alterarPagamento = (indice: number, campos: Partial<PagamentoRequest>) =>
     alterar({ pagamentos: pensao.pagamentos.map((p, i) => (i === indice ? { ...p, ...campos } : p)) })
+  const alterarValorFixo = (indice: number, campos: Partial<ValorFixoRequest>) =>
+    alterar({ valoresFixos: pensao.valoresFixos.map((v, i) => (i === indice ? { ...v, ...campos } : v)) })
+  const alterarAbatimento = (indice: number, campos: Partial<AbatimentoRequest>) =>
+    alterar({ abatimentos: pensao.abatimentos.map((a, i) => (i === indice ? { ...a, ...campos } : a)) })
+  const erroFixos = erroDosValoresFixos(pensao)
 
   return (
     <div className="editor-pensao">
       <div className="campos quatro">
-        <Campo rotulo="% do salário mínimo" seVazio="Informe o percentual da sentença (ex.: 30 ou 33,33).">
-          <CampoDecimal
-            casas={2}
-            milhar={false}
-            required
-            value={pensao.percentual}
-            onValor={(v) => alterar({ percentual: v })}
-          />
-        </Campo>
+        <label className="duplo">
+          Valor fixado no título
+          <select value={pensao.base} onChange={(e) => alterar({ base: e.target.value as TipoBase })}>
+            {(Object.keys(BASES) as TipoBase[]).map((b) => (
+              <option key={b} value={b}>
+                {BASES[b]}
+              </option>
+            ))}
+          </select>
+        </label>
+        {pensao.base === 'SALARIO_MINIMO' && (
+          <Campo rotulo="% do salário mínimo" seVazio="Informe o percentual da sentença (ex.: 30 ou 33,33).">
+            <CampoDecimal
+              casas={2}
+              milhar={false}
+              required
+              value={pensao.percentual}
+              onValor={(v) => alterar({ percentual: v })}
+            />
+          </Campo>
+        )}
+        {pensao.base === 'RENDIMENTOS' && (
+          <>
+            <Campo rotulo="% dos rendimentos" seVazio="Informe o percentual da sentença (ex.: 30 ou 33,33).">
+              <CampoDecimal
+                casas={2}
+                milhar={false}
+                required
+                value={pensao.percentual}
+                onValor={(v) => alterar({ percentual: v })}
+              />
+            </Campo>
+            <Campo rotulo="Rendimentos (R$)" seVazio="Informe os rendimentos mensais (ex.: 3.000,00).">
+              <CampoDecimal casas={2} required value={pensao.rendimentos} onValor={(v) => alterar({ rendimentos: v })} />
+            </Campo>
+          </>
+        )}
+      </div>
+      {pensao.base === 'RENDIMENTOS' && (
+        <p className="dica">O percentual incide sobre o mesmo valor de rendimentos em todos os meses, sem reajuste.</p>
+      )}
+      {pensao.base === 'VALOR_FIXO' && (
+        <>
+          {pensao.valoresFixos.map((v, i) => (
+            <fieldset key={i} className="pagamento">
+              <legend className="sr-only">Valor fixo {i + 1}</legend>
+              <Campo rotulo="A partir de" erroProprio={i === 0 ? erroFixos : undefined}>
+                <input
+                  type="month"
+                  required
+                  value={v.aPartirDe}
+                  onChange={(e) => alterarValorFixo(i, { aPartirDe: e.target.value })}
+                />
+              </Campo>
+              <Campo rotulo="Valor mensal (R$)" seVazio="Informe o valor mensal (ex.: 500,00).">
+                <CampoDecimal casas={2} required value={v.valor} onValor={(valor) => alterarValorFixo(i, { valor })} />
+              </Campo>
+              {pensao.valoresFixos.length > 1 && (
+                <button
+                  type="button"
+                  className="secundario"
+                  aria-label={`Remover o valor ${v.aPartirDe ? `a partir de ${mes(v.aPartirDe)}` : i + 1}`}
+                  onClick={() => alterar({ valoresFixos: pensao.valoresFixos.filter((_, j) => j !== i) })}
+                >
+                  Remover
+                </button>
+              )}
+            </fieldset>
+          ))}
+          <button
+            type="button"
+            className="secundario"
+            onClick={() => alterar({ valoresFixos: [...pensao.valoresFixos, { aPartirDe: '', valor: '' }] })}
+          >
+            Adicionar período
+          </button>
+          <p className="dica">Cada valor vale do mês informado até o próximo, sem reajuste automático.</p>
+        </>
+      )}
+
+      <div className="campos quatro">
         {/* Campo de texto, como os outros números do formulário; a faixa de 1 a 31 vem do erroProprio, e não de min e max. */}
         <Campo
           rotulo="Dia do vencimento"
@@ -65,9 +142,21 @@ export function EditorPensao({ pensao, onPensao }: Props) {
           />
         </Campo>
       </div>
-      <Dica id="dica-vencimento" curta="Cada parcela vale o percentual do salário mínimo do mês do vencimento.">
+      <Dica
+        id="dica-vencimento"
+        curta={
+          pensao.base === 'SALARIO_MINIMO'
+            ? 'Cada parcela vale o percentual do salário mínimo do mês do vencimento.'
+            : 'Cada parcela vence nesse dia do mês.'
+        }
+      >
         Em mês sem o dia escolhido (31 em fevereiro, por exemplo), a parcela vence no último dia.
       </Dica>
+
+      <label className="checkbox">
+        <input type="checkbox" checked={pensao.decimoTerceiro} onChange={(e) => alterar({ decimoTerceiro: e.target.checked })} />
+        Incluir o 13º salário (a parcela de dezembro vale o dobro)
+      </label>
 
       <div className="campos quatro">
         <label className="duplo">
@@ -130,6 +219,49 @@ export function EditorPensao({ pensao, onPensao }: Props) {
         as outras.
       </p>
       <ColarPagamentos pensao={pensao} onPagamentos={(pagamentos) => alterar({ pagamentos })} />
+
+      <h3>Abatimentos</h3>
+      {pensao.abatimentos.length === 0 && <p className="dica">Nenhum valor recebido a abater.</p>}
+      {pensao.abatimentos.map((a, i) => (
+        <fieldset key={i} className="abatimento">
+          <legend className="sr-only">Abatimento {i + 1}</legend>
+          <Campo rotulo="Data do recebimento">
+            <input type="date" required value={a.data} onChange={(e) => alterarAbatimento(i, { data: e.target.value })} />
+          </Campo>
+          <Campo rotulo="Valor (R$)" seVazio="Informe o valor recebido (ex.: 500,00).">
+            <CampoDecimal casas={2} required value={a.valor} onValor={(valor) => alterarAbatimento(i, { valor })} />
+          </Campo>
+          <label>
+            Origem (opcional)
+            <input
+              type="text"
+              maxLength={200}
+              placeholder="Bloqueio, depósito…"
+              value={a.origem}
+              onChange={(e) => alterarAbatimento(i, { origem: e.target.value })}
+            />
+          </label>
+          <button
+            type="button"
+            className="secundario"
+            aria-label={`Remover o abatimento ${a.data ? `de ${data(a.data)}` : i + 1}`}
+            onClick={() => alterar({ abatimentos: pensao.abatimentos.filter((_, j) => j !== i) })}
+          >
+            Remover
+          </button>
+        </fieldset>
+      ))}
+      <button
+        type="button"
+        className="secundario"
+        onClick={() => alterar({ abatimentos: [...pensao.abatimentos, { data: '', valor: '', origem: '' }] })}
+      >
+        Adicionar abatimento
+      </button>
+      <p className="dica">
+        Valor recebido em qualquer data, mesmo depois do período (bloqueio em conta, depósito). Sai do total pelo valor
+        nominal, sem correção, e a multa e os honorários incidem sobre o saldo. Com os ritos separados, sai da penhora.
+      </p>
     </div>
   )
 }

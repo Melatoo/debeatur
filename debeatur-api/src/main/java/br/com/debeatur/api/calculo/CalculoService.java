@@ -3,6 +3,7 @@ package br.com.debeatur.api.calculo;
 import br.com.debeatur.core.Dinheiro;
 import br.com.debeatur.core.alimentos.DemonstrativoPorRito;
 import br.com.debeatur.core.alimentos.Pensao;
+import br.com.debeatur.core.alimentos.TotalComAbatimentos;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.MotorCalculo;
 import br.com.debeatur.core.calculo.Parcela;
@@ -15,6 +16,7 @@ import br.com.debeatur.api.serie.FonteSeries;
 import br.com.debeatur.api.serie.SnapshotSeries;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Collections;
@@ -57,12 +59,18 @@ public class CalculoService {
         ParametrosCalculo parametros = request.paraDominio(pensao.parcelas());
         Demonstrativo demonstrativo = calcular(parametros, lidas);
         List<DemonstrativoResponse.SerieUsada> series = DemonstrativoResponse.SerieUsada.de(lidas.snapshot(), fonte);
-        if (!request.separaPorRito()) {
-            return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), series);
+        if (request.separaPorRito()) {
+            DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo,
+                    request.pensao().ajuizamento(), request.aplicarArt523(),
+                    request.pensao().abatimentosParaDominio());
+            return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), porRito, series);
         }
-        DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo, request.pensao().ajuizamento(),
-                request.aplicarArt523());
-        return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), porRito, series);
+        if (request.temAbatimentos()) {
+            TotalComAbatimentos fechamento = TotalComAbatimentos.de(demonstrativo,
+                    request.pensao().abatimentosParaDominio(), request.aplicarArt523());
+            return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), fechamento, series);
+        }
+        return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), series);
     }
 
     /**
@@ -85,7 +93,7 @@ public class CalculoService {
     }
 
     /**
-     * Parcelas da pensão, com o salário mínimo da fonte e os pagamentos já abatidos.
+     * Parcelas da pensão, com o salário mínimo da fonte (se a base usa) e os pagamentos já abatidos.
      *
      * @throws IllegalArgumentException se a última parcela vencer depois da data-base
      */
@@ -95,7 +103,9 @@ public class CalculoService {
             throw new IllegalArgumentException("A última parcela da pensão vence em " + dominio.ultimoVencimento()
                     + ", depois da data-base (" + dataBase + ")");
         }
-        SalarioMinimo salarioMinimo = fonte.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes());
+        SalarioMinimo salarioMinimo = dominio.base().usaSalarioMinimo()
+                ? fonte.carregarSalarioMinimo(dominio.primeiroMes(), dominio.ultimoMes())
+                : null;
         List<Pensao.ParcelaDoMes> devidas = dominio.parcelasPorMes(salarioMinimo);
         List<Parcela> saldos = pensao.pagamentosParaDominio()
                 .abater(devidas.stream().map(Pensao.ParcelaDoMes::parcela).toList());
@@ -107,8 +117,9 @@ public class CalculoService {
             Pensao.ParcelaDoMes devida = devidas.get(i);
             Dinheiro devido = devida.parcela().valor();
             Parcela saldo = saldos.get(i);
-            memoria.put(saldo, new DemonstrativoResponse.MesPensao(devida.mes(), devida.base().valor(),
-                    devido.valor(), devido.menos(saldo.valor()).valor()));
+            BigDecimal salario = salarioMinimo == null ? null : devida.base().valor();
+            memoria.put(saldo, new DemonstrativoResponse.MesPensao(devida.mes(), salario, devido.valor(),
+                    devido.menos(saldo.valor()).valor(), devida.comDecimoTerceiro()));
         }
         return new ParcelasDaPensao(saldos, memoria);
     }

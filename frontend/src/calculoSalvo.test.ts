@@ -42,13 +42,18 @@ describe('paraRascunho', () => {
     expect(r.comPensao).toBe(true)
     expect(r.separarRitos).toBe(true)
     expect(r.pensao).toEqual({
+      base: 'SALARIO_MINIMO',
       percentual: '30',
+      rendimentos: '',
+      valoresFixos: [{ aPartirDe: '', valor: '' }],
+      decimoTerceiro: false,
       diaVencimento: '10',
       primeiroMes: '2024-04',
       ultimoMes: '2025-09',
       inicioJuros: 'VENCIMENTO',
       citacao: '',
       pagamentos: [{ mes: '2024-06', valor: '200,00' }],
+      abatimentos: [],
       ajuizamento: '2025-03-15',
     })
     expect(r.parcelas).toEqual([{ descricao: 'Despesa escolar', valor: '350,50', inicioCorrecao: '2025-02-10', inicioJuros: '' }])
@@ -72,6 +77,47 @@ describe('paraRascunho', () => {
         ajuizamento: '2025-03-15',
       },
       regime: undefined,
+    })
+  })
+
+  it('reabre a pensão em valor fixo com 13º e abatimentos e gera o mesmo pedido', () => {
+    const comNovidades = {
+      ...salvo,
+      pensao: {
+        ...salvo.pensao,
+        base: 'VALOR_FIXO',
+        percentual: null,
+        valoresFixos: [
+          { aPartirDe: '2024-04', valor: 500 },
+          { aPartirDe: '2025-01', valor: 650.5 },
+        ],
+        decimoTerceiro: true,
+        abatimentos: [{ data: '2025-10-02', valor: 300, origem: 'Bloqueio' }],
+      },
+    } as unknown as CalculoRequest
+
+    const r = paraRascunho(comNovidades, padrao)
+    expect(r.pensao.valoresFixos).toEqual([
+      { aPartirDe: '2024-04', valor: '500,00' },
+      { aPartirDe: '2025-01', valor: '650,50' },
+    ])
+    expect(r.pensao.abatimentos).toEqual([{ data: '2025-10-02', valor: '300,00', origem: 'Bloqueio' }])
+    expect(paraPedido(r).pensao).toEqual({
+      base: 'VALOR_FIXO',
+      percentual: null,
+      valoresFixos: [
+        { aPartirDe: '2024-04', valor: '500.00' },
+        { aPartirDe: '2025-01', valor: '650.50' },
+      ],
+      decimoTerceiro: true,
+      diaVencimento: 10,
+      primeiroMes: '2024-04',
+      ultimoMes: '2025-09',
+      inicioJuros: 'VENCIMENTO',
+      citacao: null,
+      pagamentos: [{ mes: '2024-06', valor: '200.00' }],
+      abatimentos: [{ data: '2025-10-02', valor: '300.00', origem: 'Bloqueio' }],
+      ajuizamento: '2025-03-15',
     })
   })
 

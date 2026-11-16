@@ -22,13 +22,24 @@ pedido.
   título, pelo salário mínimo vigente em cada vencimento (Súmula 490 do STF), com correção e
   juros desde cada vencimento (#21).
 - **Outras parcelas:** valores avulsos com vencimento próprio, além da pensão.
+- **Pensão em percentual dos rendimentos:** o percentual sobre um valor de rendimentos
+  informado, igual em todos os meses, como na planilha da DPMG.
+- **Pensão em valor fixo:** períodos com valor próprio, sem reajuste automático, como na
+  planilha da DPMG. Cada valor vale do mês informado até o próximo.
+- **13º salário:** opcional; o valor de dezembro dobra, como na planilha da DPMG.
 - **Termo inicial dos juros:** configurável entre o vencimento de cada parcela e a citação.
 - **Pagamentos parciais:** abatidos da parcela do mesmo mês, sem imputação do art. 354 do CC,
   como na planilha da DPMG.
+- **Abatimentos:** valores recebidos em qualquer data, mesmo depois do período cobrado
+  (bloqueio em conta, depósito), saem do total pelo valor nominal, sem correção, e multa e
+  honorários incidem sobre o saldo, como na planilha da DPMG. Com os ritos separados, saem do
+  débito da penhora, onde a DPMG os põe; o que passar dele sai do da prisão.
 - **Dois ritos:** com a data do ajuizamento, as parcelas se dividem entre o rito da prisão (as
   três anteriores ao ajuizamento e as que vencerem no curso do processo, art. 528, §7º, do CPC)
-  e o da penhora, com subtotais separados. Os acréscimos do art. 523, §1º (multa e honorários
-  de 10%), incidem só sobre a penhora.
+  e o da penhora, com subtotais separados. A regra é a da lei, mesmo quando difere da planilha
+  da DPMG, que põe na prisão os três últimos meses do cálculo (`docs/gabarito.md`,
+  divergência 7). Os acréscimos do art. 523, §1º (multa e honorários de 10%), incidem só sobre
+  a penhora.
 - **Prescrição:** aviso das parcelas vencidas mais de dois anos antes do ajuizamento (art. 206,
   §2º, do CC), lembrando que ela não corre contra absolutamente incapaz (art. 198, I) nem entre
   ascendentes e descendentes durante o poder familiar (art. 197, II). O cálculo não as exclui.
@@ -57,7 +68,8 @@ O MVP está pronto para uso em processo real quando:
    alimentos homologados ou da contadoria (#2). *Em aberto: o gabarito tem a tabela da CGJ, o
    CADEJ e a planilha da DPMG, mas nenhum cálculo homologado de alimentos.*
 2. **Alimentos:** pensão em salário mínimo, outras parcelas, pagamentos parciais e os dois
-   ritos. *Feito (#34 a #41).*
+   ritos. *Feito (#34 a #41).* Percentual dos rendimentos, valor fixo, 13º salário e
+   abatimentos, decididos em 14/11/2026, também.
 3. **Regime configurável:** o padrão do TJMG e um regime próprio por cálculo. *Feito; falta o
    regime do Tema 1368 (#28).*
 4. **Pro rata die:** termos iniciais e data-base no meio do mês (#3). *Em parte: só a virada de
@@ -71,7 +83,6 @@ O MVP está pronto para uso em processo real quando:
 
 ## Fora do escopo
 
-- Alimentos fixados em valor fixo ou em percentual dos rendimentos (em aberto)
 - Exclusão das parcelas prescritas do cálculo, que mexe no motor e precisa de gabarito
 - Imputação do pagamento (art. 354 do CC)
 - Fazenda Pública (EC 113/2021, Tema 810 do STF, RPV/precatório)

@@ -683,7 +683,7 @@ function App() {
             <h2 id="bloco-pensao">Pensão</h2>
             <label className="checkbox">
               <input type="checkbox" checked={comPensao} onChange={(e) => usarPensao(e.target.checked)} />
-              Alimentos fixados em percentual do salário mínimo
+              Pensão alimentícia mensal
             </label>
             {comPensao && <EditorPensao pensao={pensao} onPensao={(p) => alterar('pensao', p)} />}
             {/* A região fica sempre na página, para o leitor de tela anunciar o aviso quando ele aparece. */}

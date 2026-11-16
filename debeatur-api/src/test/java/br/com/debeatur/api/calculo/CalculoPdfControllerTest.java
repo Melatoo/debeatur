@@ -224,6 +224,35 @@ class CalculoPdfControllerTest {
     }
 
     @Test
+    void trazABaseO13EOsAbatimentosNaPenhora() throws IOException {
+        indicesDaPensao();
+        String pedido = """
+                {"dataBase": "2024-05-15", "aplicarArt523": true,
+                 "regime": {"regras": [{"inicio": "2023-01", "correcao": "INPC", "juros": "TAXA_FIXA", "percentualJurosMensal": 1}]},
+                 "pensao": {"base": "RENDIMENTOS", "percentual": 30, "rendimentos": 3000.00, "decimoTerceiro": true,
+                            "diaVencimento": 10, "primeiroMes": "2023-09", "ultimoMes": "2024-04",
+                            "inicioJuros": "VENCIMENTO", "ajuizamento": "2024-03-01",
+                            "abatimentos": [{"data": "2024-05-02", "valor": 500.00, "origem": "Bloqueio Sisbajud"}]}}
+                """;
+        MvcTestResult json = post("/api/calculos", pedido);
+        BigDecimal saldoPenhora = numero(json, "$.ritos.penhora.debitoAtualizado").subtract(new BigDecimal("500.00"));
+
+        String pdf = texto(post("/api/calculos/pdf", pedido).getResponse().getContentAsByteArray());
+
+        assertThat(pdf)
+                .containsIgnoringWhitespaces("30% dos rendimentos de R$ 3.000,00, iguais em todos os meses")
+                .containsIgnoringWhitespaces("Incluído: a parcela de dezembro vale o dobro")
+                .containsIgnoringWhitespaces("12/2023 e 13º")
+                .containsIgnoringWhitespaces("02/05/2024 (Bloqueio Sisbajud): R$ 500,00")
+                .containsIgnoringWhitespaces("Abatimento de 02/05/2024 (Bloqueio Sisbajud) -500,00")
+                .containsIgnoringWhitespaces("Saldo " + REAIS.format(saldoPenhora))
+                .containsIgnoringWhitespaces("Rito da penhora: abatimentos (valor nominal) R$ -500,00")
+                .containsIgnoringWhitespaces("Rito da penhora: total com os acréscimos R$ " + reais(json, "$.ritos.totalPenhora"))
+                .containsIgnoringWhitespaces("Total da execução R$ " + reais(json, "$.total"))
+                .doesNotContain("Salário mínimo (R$)");
+    }
+
+    @Test
     void indicaAsFontesDosIndicesDaPensao() throws IOException {
         indicesDaPensao();
 

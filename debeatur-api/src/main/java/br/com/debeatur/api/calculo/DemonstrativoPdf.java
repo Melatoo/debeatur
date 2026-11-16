@@ -212,14 +212,15 @@ final class DemonstrativoPdf {
         PensaoRequest pensao = pedido.pensao();
         int avulsas = pedido.parcelas() == null ? 0 : pedido.parcelas().size();
         if (pensao != null) {
-            campos.put("Pensão", numeroLivre(pensao.percentual()) + "% do salário mínimo vigente em cada mês, com vencimento no dia "
-                    + pensao.diaVencimento());
+            campos.put("Pensão", descricaoDaPensao(pensao) + ", com vencimento no dia " + pensao.diaVencimento());
+            campos.put("13º salário", pensao.comDecimoTerceiro() ? "Incluído: a parcela de dezembro vale o dobro" : "Não incluído");
             campos.put("Parcelas", pensao.primeiroMes().format(MES) + " a " + pensao.ultimoMes().format(MES)
                     + (avulsas > 0 ? ", mais " + contar(avulsas, "parcela avulsa", "parcelas avulsas") : ""));
             campos.put("Juros", pensao.inicioJuros() == InicioJuros.CITACAO
                     ? "Desde a citação (" + data(pensao.citacao()) + ") para as parcelas vencidas antes dela; as seguintes, desde o vencimento"
                     : "Desde o vencimento de cada parcela");
             campos.put("Pagamentos parciais", pagamentos());
+            campos.put("Abatimentos", abatimentos());
             campos.put("Ajuizamento", resultado.ritos() == null
                     ? "Ritos não separados" : data(resultado.ritos().ajuizamento()));
         } else {
@@ -240,6 +241,32 @@ final class DemonstrativoPdf {
         documento.add(tabela);
     }
 
+    private static String descricaoDaPensao(PensaoRequest pensao) {
+        return switch (pensao.tipoBase()) {
+            case SALARIO_MINIMO -> numeroLivre(pensao.percentual()) + "% do salário mínimo vigente em cada mês";
+            case RENDIMENTOS -> numeroLivre(pensao.percentual()) + "% dos rendimentos de " + moeda(pensao.rendimentos())
+                    + ", iguais em todos os meses";
+            case VALOR_FIXO -> "Valor fixo, sem reajuste: " + String.join("; ", pensao.valoresFixos().stream()
+                    .sorted(Comparator.comparing(PensaoRequest.ValorFixoRequest::aPartirDe))
+                    .map(v -> moeda(v.valor()) + " a partir de " + v.aPartirDe().format(MES))
+                    .toList());
+        };
+    }
+
+    private String abatimentos() {
+        if (resultado.abatimentos().isEmpty()) {
+            return "Nenhum";
+        }
+        String destino = resultado.ritos() == null ? "do débito atualizado" : "do débito da penhora";
+        return "Pelo valor nominal, sem correção, " + destino + ": " + String.join("; ",
+                resultado.abatimentos().stream().map(DemonstrativoPdf::abatimento).toList());
+    }
+
+    private static String abatimento(DemonstrativoResponse.AbatimentoResponse a) {
+        return data(a.data()) + (a.origem() == null || a.origem().isBlank() ? "" : " (" + a.origem() + ")")
+                + ": " + moeda(a.valor());
+    }
+
     private String pagamentos() {
         List<MesPensao> pagos = resultado.linhas().stream()
                 .map(Linha::pensao)
@@ -255,7 +282,8 @@ final class DemonstrativoPdf {
     private String art523() {
         boolean ritos = resultado.ritos() != null;
         if (comAcrescimos) {
-            return "Multa de 10% e honorários de 10% sobre " + (ritos ? "o débito da penhora" : "o débito atualizado");
+            String saldo = resultado.abatimentos().isEmpty() ? "o débito" : "o saldo, já abatido,";
+            return "Multa de 10% e honorários de 10% sobre " + saldo + (ritos ? " da penhora" : " atualizado");
         }
         return pedido.aplicarArt523()
                 ? "Multa e honorários de 10%, sem débito " + (ritos ? "na penhora" : "a acrescer")
@@ -332,7 +360,7 @@ final class DemonstrativoPdf {
     // ---- memória de cálculo --------------------------------------------------------------
 
     private static List<Coluna> colunas(List<Linha> linhas) {
-        boolean comSalarioMinimo = linhas.stream().anyMatch(l -> l.pensao() != null);
+        boolean comSalarioMinimo = linhas.stream().anyMatch(l -> l.pensao() != null && l.pensao().salarioMinimo() != null);
         boolean comPagamento = linhas.stream().anyMatch(l -> l.pensao() != null && l.pensao().valorPago().signum() > 0);
         List<Coluna> colunas = new ArrayList<>();
         colunas.add(new Coluna("Parcela", 1.6f, false, DemonstrativoPdf::nomeDaParcela, null));
@@ -341,7 +369,8 @@ final class DemonstrativoPdf {
                 l -> l.inicioJuros() == null ? "sem juros" : data(l.inicioJuros()), null));
         if (comSalarioMinimo) {
             colunas.add(new Coluna("Salário mínimo (R$)", 1.1f, true,
-                    l -> l.pensao() == null ? "—" : decimal(l.pensao().salarioMinimo()), null));
+                    l -> l.pensao() == null || l.pensao().salarioMinimo() == null ? "—" : decimal(l.pensao().salarioMinimo()),
+                    null));
         }
         colunas.add(new Coluna("Devido (R$)", 1.1f, true,
                 l -> decimal(l.pensao() == null ? l.valorOriginal() : l.pensao().valorDevido()), null));
@@ -363,7 +392,7 @@ final class DemonstrativoPdf {
             return l.descricao();
         }
         boolean quitada = l.pensao().valorPago().signum() > 0 && l.valorOriginal().signum() == 0;
-        return l.pensao().mes().format(MES) + (quitada ? " (quitada)" : "");
+        return l.pensao().mes().format(MES) + (l.pensao().decimoTerceiro() ? " e 13º" : "") + (quitada ? " (quitada)" : "");
     }
 
     private void memoria(Document documento) {
@@ -375,7 +404,7 @@ final class DemonstrativoPdf {
         DemonstrativoResponse.Ritos ritos = resultado.ritos();
         if (ritos == null) {
             Totais totais = new Totais(resultado.totalCorrigido(), resultado.totalJuros(), resultado.debitoAtualizado());
-            tabela(documento, resultado.linhas(), totais, true);
+            tabela(documento, resultado.linhas(), totais, null);
             return;
         }
         for (Rito rito : Rito.values()) {
@@ -390,13 +419,15 @@ final class DemonstrativoPdf {
             documento.add(regra);
             List<Linha> doRito = resultado.linhas().stream().filter(l -> l.rito() == rito).toList();
             Totais totais = new Totais(subtotal.totalCorrigido(), subtotal.totalJuros(), subtotal.debitoAtualizado());
-            tabela(documento, doRito, totais, rito == Rito.PENHORA);
+            tabela(documento, doRito, totais, rito);
         }
     }
 
     private String explicacaoDasColunas() {
         String pensao = resultado.linhas().stream().anyMatch(l -> l.pensao() != null)
-                ? "O devido é o percentual do salário mínimo vigente no mês, e o pago é abatido antes da correção. "
+                ? "O devido é o valor da pensão no mês" + (pedido.pensao() != null && pedido.pensao().comDecimoTerceiro()
+                        ? " (em dobro em dezembro, com o 13º salário)" : "")
+                        + ", e o pago é abatido antes da correção. "
                 : "";
         return pensao + "O fator de correção é o produto de (1 + variação) do índice em cada mês, do mês do termo inicial "
                 + "da correção até o mês anterior ao da data-base, sem arredondamento. Os juros de mora são simples: "
@@ -413,9 +444,9 @@ final class DemonstrativoPdf {
      * da página não bate com a regra do OpenPDF, e ela chegava a abrir a página seguinte sem o
      * cabeçalho.
      *
-     * @param comArt523 se a multa e os honorários do art. 523 entram no fechamento desta tabela
+     * @param rito o rito desta tabela, ou nulo se os ritos não são separados
      */
-    private void tabela(Document documento, List<Linha> linhas, Totais totais, boolean comArt523) {
+    private void tabela(Document documento, List<Linha> linhas, Totais totais, Rito rito) {
         PdfPTable parcelas = novaTabela();
         parcelas.setHeaderRows(1);
         parcelas.setSpacingAfter(8);
@@ -431,7 +462,7 @@ final class DemonstrativoPdf {
             vazia.setColspan(colunas.size());
             parcelas.addCell(vazia);
         }
-        fechamento(parcelas, totais, ordenadas.size(), comArt523);
+        fechamento(parcelas, totais, ordenadas.size(), rito);
         documento.add(parcelas);
     }
 
@@ -453,8 +484,12 @@ final class DemonstrativoPdf {
         }
     }
 
-    /** Acrescenta à tabela o subtotal e, se for o caso, a multa e os honorários do art. 523. */
-    private void fechamento(PdfPTable tabela, Totais totais, int parcelas, boolean comArt523) {
+    /**
+     * Acrescenta à tabela o subtotal e, se for o caso, os abatimentos e a multa e os honorários
+     * do art. 523. Os dois ficam na tabela sem ritos ou na da penhora; na da prisão, só o que dos
+     * abatimentos passou da penhora.
+     */
+    private void fechamento(PdfPTable tabela, Totais totais, int parcelas, Rito rito) {
         int primeiraComTotal = 0;
         while (colunas.get(primeiraComTotal).total() == null) {
             primeiraComTotal++;
@@ -469,7 +504,26 @@ final class DemonstrativoPdf {
             tabela.addCell(celula);
         }
 
-        if (comArt523 && comAcrescimos) {
+        DemonstrativoResponse.Ritos ritos = resultado.ritos();
+        if (rito == Rito.PRISAO && ritos.abatidoPrisao().signum() > 0) {
+            linhaDeTotal(tabela, "Abatimentos que passaram do débito da penhora", ritos.abatidoPrisao().negate(), false);
+            linhaDeTotal(tabela, "Total da prisão", ritos.totalPrisao(), true);
+        }
+        if (rito == Rito.PRISAO) {
+            return;
+        }
+        if (!resultado.abatimentos().isEmpty()) {
+            for (DemonstrativoResponse.AbatimentoResponse a : resultado.abatimentos()) {
+                linhaDeTotal(tabela, "Abatimento de " + data(a.data())
+                        + (a.origem() == null || a.origem().isBlank() ? "" : " (" + a.origem() + ")"), a.valor().negate(), false);
+            }
+            if (ritos != null && ritos.abatidoPrisao().signum() > 0) {
+                linhaDeTotal(tabela, "Parte dos abatimentos que sai da prisão", ritos.abatidoPrisao(), false);
+            }
+            BigDecimal abatido = ritos == null ? resultado.totalAbatido() : ritos.abatidoPenhora();
+            linhaDeTotal(tabela, "Saldo", totais.atualizado().subtract(abatido), true);
+        }
+        if (comAcrescimos) {
             linhaDeTotal(tabela, "Multa de 10% (art. 523, §1º, do CPC)", resultado.multaArt523(), false);
             linhaDeTotal(tabela, "Honorários de 10% (art. 523, §1º, do CPC)", resultado.honorariosArt523(), false);
             if (resultado.ritos() != null) {
@@ -503,12 +557,22 @@ final class DemonstrativoPdf {
         if (ritos != null) {
             linhas.put("Rito da prisão: débito atualizado (" + contar(ritos.prisao().parcelas(), "parcela", "parcelas") + ")",
                     ritos.prisao().debitoAtualizado());
+            if (ritos.abatidoPrisao().signum() > 0) {
+                linhas.put("Rito da prisão: abatimentos que passaram da penhora", ritos.abatidoPrisao().negate());
+            }
             linhas.put("Rito da penhora: débito atualizado (" + contar(ritos.penhora().parcelas(), "parcela", "parcelas") + ")",
                     ritos.penhora().debitoAtualizado());
+            if (ritos.abatidoPenhora().signum() > 0) {
+                linhas.put("Rito da penhora: abatimentos (valor nominal)", ritos.abatidoPenhora().negate());
+            }
         } else {
             linhas.put("Valor corrigido", resultado.totalCorrigido());
             linhas.put("Juros de mora", resultado.totalJuros());
             linhas.put("Débito atualizado", resultado.debitoAtualizado());
+            if (resultado.totalAbatido().signum() > 0) {
+                linhas.put("Abatimentos (valor nominal)", resultado.totalAbatido().negate());
+                linhas.put("Saldo", resultado.debitoAtualizado().subtract(resultado.totalAbatido()));
+            }
         }
         if (comAcrescimos) {
             linhas.put("Multa de 10% (art. 523, §1º, do CPC)", resultado.multaArt523());

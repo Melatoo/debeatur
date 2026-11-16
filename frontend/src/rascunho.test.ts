@@ -24,7 +24,7 @@ const preenchido: Rascunho = {
   parcelas: [{ descricao: 'Despesa escolar', valor: '350,00', inicioCorrecao: '2025-02-10', inicioJuros: null }],
 }
 
-const comoTexto = (rascunho: unknown, versao = 1) => JSON.stringify({ versao, salvoEm: '', aba: 'a', rascunho })
+const comoTexto = (rascunho: unknown, versao = 2) => JSON.stringify({ versao, salvoEm: '', aba: 'a', rascunho })
 
 describe('rascunho', () => {
   it('devolve o que foi salvo, com o momento do salvamento e a aba que o salvou', () => {
@@ -53,6 +53,17 @@ describe('rascunho', () => {
       expect(lerRascunho(armazenamento)).toBeNull()
       expect(armazenamento.dados.has(CHAVE_RASCUNHO)).toBe(false)
     }
+  })
+
+  it('adapta o rascunho da versão 1, que só tinha a pensão em salário mínimo', () => {
+    const armazenamento = armazenamentoEmMemoria()
+    const { base, rendimentos, valoresFixos, decimoTerceiro, abatimentos, ...pensaoV1 } = preenchido.pensao
+    expect([base, rendimentos, decimoTerceiro, abatimentos, valoresFixos]).toEqual(['SALARIO_MINIMO', '', false, [], [{ aPartirDe: '', valor: '' }]])
+    armazenamento.setItem(CHAVE_RASCUNHO, comoTexto({ ...preenchido, pensao: pensaoV1 }, 1))
+    expect(lerRascunho(armazenamento)?.rascunho).toEqual(preenchido)
+
+    armazenamento.setItem(CHAVE_RASCUNHO, comoTexto({ ...preenchido, pensao: { ...pensaoV1, pagamentos: null } }, 1))
+    expect(lerRascunho(armazenamento)).toBeNull()
   })
 
   it('segue sem armazenamento, ou com um que lança exceção', () => {

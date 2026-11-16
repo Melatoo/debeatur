@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 
 /**
  * @param parcelas parcelas avulsas; opcionais se houver {@code pensao}
- * @param pensao   pensão em percentual do salário mínimo, cujas parcelas vêm antes das avulsas
+ * @param pensao   pensão alimentícia, cujas parcelas vêm antes das avulsas
  * @param regime   critérios fixados no título; sem ele, vale o regime cível padrão do TJMG
  * @param processo identificação do processo para o cabeçalho do PDF; não entra no cálculo
  */
@@ -56,7 +56,7 @@ public record CalculoRequest(
         }
         return new ParametrosCalculo(todas,
                 dataBase, regime == null ? RegimeAtualizacao.civelPadrao() : regime.paraDominio(),
-                aplicarArt523 && !separaPorRito());
+                aplicarArt523 && !art523ForaDoMotor());
     }
 
     /**
@@ -80,5 +80,18 @@ public record CalculoRequest(
     /** Nos alimentos com ajuizamento, o art. 523 sai do motor e incide só sobre a penhora. */
     boolean separaPorRito() {
         return pensao != null && pensao.ajuizamento() != null;
+    }
+
+    /** Se há valores recebidos a abater do débito atualizado. */
+    boolean temAbatimentos() {
+        return pensao != null && !pensao.abatimentosInformados().isEmpty();
+    }
+
+    /**
+     * Com os ritos separados ou com abatimentos, multa e honorários não incidem sobre o débito
+     * todo que o motor calcula: o fechamento é feito depois, sobre a penhora ou sobre o saldo.
+     */
+    boolean art523ForaDoMotor() {
+        return separaPorRito() || temAbatimentos();
     }
 }

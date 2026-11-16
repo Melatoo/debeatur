@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   gerarPdf,
   gerarPdfSalvo,
@@ -15,7 +15,7 @@ import { competenciasQuitadas, parcelasAntigas, textoDoAviso } from './prescrica
 import { FatorMesAMes } from './FatorMesAMes'
 import { LinhaDoTempo } from './LinhaDoTempo'
 import { useAlturaFixa } from './alturaFixa'
-import { paraCampo } from './numero'
+import { descreverPensao } from './pensao'
 import { armazenamentoDoNavegador } from './armazenamento'
 import { INDICES, descreverPeriodo, regrasDoPeriodo } from './regime'
 
@@ -80,7 +80,7 @@ interface Coluna {
 const nomeDaParcela = (l: LinhaDemonstrativo) => {
   if (!l.pensao) return l.descricao
   const quitada = l.pensao.valorPago > 0 && l.valorOriginal === 0
-  return `${mes(l.pensao.mes)}${quitada ? ' (quitada)' : ''}`
+  return `${mes(l.pensao.mes)}${l.pensao.decimoTerceiro ? ' e 13º' : ''}${quitada ? ' (quitada)' : ''}`
 }
 
 /** Anotação dos juros no vencimento, igual na tela e no texto copiado. */
@@ -112,13 +112,21 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
   const antigas =
     pensao && parcelasAntigas(pensao, pensao.ajuizamento, pedido.dataBase, competenciasQuitadas(resultado.linhas))
   const avisoPrescricao = antigas && textoDoAviso(antigas)
-  const comSalarioMinimo = linhas.some((l) => l.pensao)
+  const comSalarioMinimo = linhas.some((l) => l.pensao?.salarioMinimo != null)
   // o valor abatido pelo servidor, o mesmo da coluna "Pago", e não o digitado no pedido
   const pagos = linhas
     .flatMap((l) => (l.pensao && l.pensao.valorPago > 0 ? [l.pensao] : []))
     .sort((a, b) => a.mes.localeCompare(b.mes))
   const comPagamento = pagos.length > 0
   const comAcrescimos = resultado.multaArt523 > 0 || resultado.honorariosArt523 > 0
+  // Respostas de antes dos abatimentos não trazem estes campos.
+  const abatimentos = resultado.abatimentos ?? []
+  const totalAbatido = resultado.totalAbatido ?? 0
+  const abatidoPenhora = ritos?.abatidoPenhora ?? 0
+  const abatidoPrisao = ritos?.abatidoPrisao ?? 0
+  const totalPrisao = ritos ? (ritos.totalPrisao ?? ritos.prisao.debitoAtualizado) : 0
+  const nomeDoAbatimento = (a: (typeof abatimentos)[number]) =>
+    `Abatimento de ${data(a.data)}${a.origem ? ` (${a.origem})` : ''}`
 
   useEffect(() => {
     // Leva quem calculou até o resultado, que na tela estreita fica abaixo do formulário. Só ao montar:
@@ -169,8 +177,8 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           {
             id: 'salarioMinimo' as const,
             titulo: 'Salário mínimo',
-            celula: (l: LinhaDemonstrativo) => (l.pensao ? decimal(l.pensao.salarioMinimo) : '—'),
-            texto: (l: LinhaDemonstrativo) => (l.pensao ? decimal(l.pensao.salarioMinimo) : ''),
+            celula: (l: LinhaDemonstrativo) => (l.pensao?.salarioMinimo != null ? decimal(l.pensao.salarioMinimo) : '—'),
+            texto: (l: LinhaDemonstrativo) => (l.pensao?.salarioMinimo != null ? decimal(l.pensao.salarioMinimo) : ''),
           },
         ]
       : []),
@@ -251,6 +259,8 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           ]
         : []),
       ['Débito atualizado', decimal(resultado.debitoAtualizado)],
+      ...abatimentos.map((a) => [nomeDoAbatimento(a), decimal(-a.valor)]),
+      ...(totalAbatido > 0 ? [['Saldo', decimal(resultado.debitoAtualizado - totalAbatido)]] : []),
       ...(comAcrescimos
         ? [
             ['Multa (art. 523, §1º)', decimal(resultado.multaArt523)],
@@ -432,10 +442,11 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         <span className="rotulo">Total da execução</span> <strong>{moeda(resultado.total)}</strong>
         {ritos && (
           <span className="composicao">
-            <span className="rito-prisao">Prisão {moeda(ritos.prisao.debitoAtualizado)}</span>
+            <span className="rito-prisao">Prisão {moeda(totalPrisao)}</span>
             <span className="rito-penhora">
               Penhora {moeda(ritos.totalPenhora)}
               {comAcrescimos && ' com multa e honorários'}
+              {abatidoPenhora > 0 && (comAcrescimos ? ', já abatida' : ' já abatida')}
             </span>
           </span>
         )}
@@ -447,9 +458,12 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
             <div>
               <dt>Pensão</dt>
               <dd>
-                {paraCampo(pensao.percentual)}% do salário mínimo vigente em cada mês, com vencimento no dia{' '}
-                {pensao.diaVencimento}
+                {descreverPensao(pensao)}, com vencimento no dia {pensao.diaVencimento}
               </dd>
+            </div>
+            <div>
+              <dt>13º salário</dt>
+              <dd>{pensao.decimoTerceiro ? 'Incluído: a parcela de dezembro vale o dobro' : 'Não incluído'}</dd>
             </div>
             <div>
               <dt>Parcelas</dt>
@@ -475,6 +489,16 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
               </dd>
             </div>
             <div>
+              <dt>Abatimentos</dt>
+              <dd>
+                {abatimentos.length === 0
+                  ? 'Nenhum'
+                  : `Pelo valor nominal, sem correção, ${ritos ? 'do débito da penhora' : 'do débito atualizado'}: ${abatimentos
+                      .map((a) => `${data(a.data)}${a.origem ? ` (${a.origem})` : ''}: ${moeda(a.valor)}`)
+                      .join('; ')}`}
+              </dd>
+            </div>
+            <div>
               <dt>Ajuizamento</dt>
               <dd>{ritos ? data(ritos.ajuizamento) : 'Ritos não separados'}</dd>
             </div>
@@ -484,7 +508,9 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           <dt>Art. 523, §1º</dt>
           <dd>
             {comAcrescimos
-              ? `Multa de 10% e honorários de 10% sobre ${ritos ? 'a penhora' : 'o débito'}`
+              ? `Multa de 10% e honorários de 10% sobre ${
+                  totalAbatido > 0 ? `o saldo, já abatido, ${ritos ? 'da penhora' : 'do débito'}` : ritos ? 'a penhora' : 'o débito'
+                }`
               : pedido.aplicarArt523
                 ? `Multa e honorários de 10%, sem débito ${ritos ? 'na penhora' : 'a acrescer'}`
                 : 'Não aplicados'}
@@ -518,12 +544,18 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         <div className="resumo">
           <div className="total-rito prisao">
             <h3>Rito da prisão</h3>
-            <p className="valor">{moeda(ritos.prisao.debitoAtualizado)}</p>
+            <p className="valor">{moeda(totalPrisao)}</p>
             <dl>
               <dt>{contar(ritos.prisao.parcelas, 'parcela', 'parcelas')}, corrigidas</dt>
               <dd>{moeda(ritos.prisao.totalCorrigido)}</dd>
               <dt>Juros</dt>
               <dd>{moeda(ritos.prisao.totalJuros)}</dd>
+              {abatidoPrisao > 0 && (
+                <>
+                  <dt>Abatimentos que passaram da penhora</dt>
+                  <dd>{moeda(-abatidoPrisao)}</dd>
+                </>
+              )}
             </dl>
           </div>
           <div className="total-rito penhora">
@@ -532,6 +564,12 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
             <dl>
               <dt>{contar(ritos.penhora.parcelas, 'parcela', 'parcelas')}, atualizadas</dt>
               <dd>{moeda(ritos.penhora.debitoAtualizado)}</dd>
+              {abatidoPenhora > 0 && (
+                <>
+                  <dt>Abatimentos</dt>
+                  <dd>{moeda(-abatidoPenhora)}</dd>
+                </>
+              )}
               <dt>Multa de 10%</dt>
               <dd>{moeda(resultado.multaArt523)}</dd>
               <dt>Honorários de 10%</dt>
@@ -546,6 +584,12 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
               <dd>{moeda(resultado.totalCorrigido)}</dd>
               <dt>Juros</dt>
               <dd>{moeda(resultado.totalJuros)}</dd>
+              {totalAbatido > 0 && (
+                <>
+                  <dt>Abatimentos</dt>
+                  <dd>{moeda(-totalAbatido)}</dd>
+                </>
+              )}
               {comAcrescimos && (
                 <>
                   <dt>Multa de 10%</dt>
@@ -565,6 +609,14 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
             <dl>
               <dt>Débito atualizado</dt>
               <dd>{moeda(resultado.debitoAtualizado)}</dd>
+              {totalAbatido > 0 && (
+                <>
+                  <dt>Abatimentos</dt>
+                  <dd>{moeda(-totalAbatido)}</dd>
+                  <dt>Saldo</dt>
+                  <dd>{moeda(resultado.debitoAtualizado - totalAbatido)}</dd>
+                </>
+              )}
               {comAcrescimos && (
                 <>
                   <dt>Multa de 10%</dt>
@@ -607,7 +659,8 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         </details>
       </div>
       <p className="explica-colunas">
-        O devido é o percentual do salário mínimo do mês; o pago é abatido antes da correção. O fator acumula a
+        O devido é o valor da pensão no mês{pensao?.decimoTerceiro ? ', em dobro em dezembro com o 13º' : ''}; o pago é
+        abatido antes da correção. O fator acumula a
         correção do vencimento até a data-base, e os juros incidem sobre o saldo corrigido.
       </p>
 
@@ -619,7 +672,12 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
             RITOS.PRISAO.regra,
             linhas.filter((l) => l.rito === 'PRISAO'),
             ritos.prisao,
-            null,
+            abatidoPrisao > 0 && (
+              <>
+                {linhaDeTotal('Abatimentos que passaram do débito da penhora', -abatidoPrisao)}
+                {linhaDeTotal('Total da prisão', totalPrisao, 'total')}
+              </>
+            ),
           )}
           {tabela(
             'tabela-penhora',
@@ -627,13 +685,20 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
             RITOS.PENHORA.regra,
             linhas.filter((l) => l.rito === 'PENHORA'),
             ritos.penhora,
-            comAcrescimos && (
-              <>
-                {linhaDeTotal('Multa de 10% (art. 523, §1º)', resultado.multaArt523)}
-                {linhaDeTotal('Honorários de 10% (art. 523, §1º)', resultado.honorariosArt523)}
-                {linhaDeTotal('Total da penhora', ritos.totalPenhora, 'total')}
-              </>
-            ),
+            <>
+              {abatimentos.map((a, i) => (
+                <Fragment key={i}>{linhaDeTotal(nomeDoAbatimento(a), -a.valor)}</Fragment>
+              ))}
+              {abatidoPrisao > 0 && linhaDeTotal('Parte dos abatimentos que sai da prisão', abatidoPrisao)}
+              {abatidoPenhora > 0 && linhaDeTotal('Saldo', ritos.penhora.debitoAtualizado - abatidoPenhora, 'total')}
+              {comAcrescimos && (
+                <>
+                  {linhaDeTotal('Multa de 10% (art. 523, §1º)', resultado.multaArt523)}
+                  {linhaDeTotal('Honorários de 10% (art. 523, §1º)', resultado.honorariosArt523)}
+                  {linhaDeTotal('Total da penhora', ritos.totalPenhora, 'total')}
+                </>
+              )}
+            </>,
           )}
         </>
       ) : (
@@ -643,12 +708,18 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           null,
           linhas,
           resultado,
-          comAcrescimos && (
-            <>
-              {linhaDeTotal('Multa de 10% (art. 523, §1º)', resultado.multaArt523)}
-              {linhaDeTotal('Honorários de 10% (art. 523, §1º)', resultado.honorariosArt523)}
-            </>
-          ),
+          <>
+            {abatimentos.map((a, i) => (
+              <Fragment key={i}>{linhaDeTotal(nomeDoAbatimento(a), -a.valor)}</Fragment>
+            ))}
+            {totalAbatido > 0 && linhaDeTotal('Saldo', resultado.debitoAtualizado - totalAbatido, 'total')}
+            {comAcrescimos && (
+              <>
+                {linhaDeTotal('Multa de 10% (art. 523, §1º)', resultado.multaArt523)}
+                {linhaDeTotal('Honorários de 10% (art. 523, §1º)', resultado.honorariosArt523)}
+              </>
+            )}
+          </>,
         )
       )}
 
