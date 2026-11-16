@@ -1,6 +1,6 @@
 import type { ParcelaRequest, ProcessoRequest } from './api'
 import { apagar, gravar, ler, type Armazenamento } from './armazenamento'
-import type { PensaoEditavel } from './pensao'
+import { pensaoVazia, type PensaoEditavel } from './pensao'
 import type { RegraEditavel } from './regime'
 
 /**
@@ -28,7 +28,10 @@ export interface RascunhoSalvo {
   aba: string
 }
 
-/** Muda quando o formato do rascunho muda; um rascunho de outra versão é descartado, e não adaptado. */
+/**
+ * Muda quando o formato do rascunho muda. Um rascunho da versão 1 (só salário mínimo) é adaptado,
+ * com os campos novos da pensão no padrão; um de outra versão é descartado.
+ */
 const VERSAO = 2
 export const CHAVE_RASCUNHO = 'debeatur:rascunho'
 /** Pausa na digitação antes de gravar: o formulário inteiro vai para o disco, e não a cada tecla. */
@@ -77,14 +80,26 @@ function ehRascunho(v: unknown): v is Rascunho {
   )
 }
 
+/**
+ * A versão 1 só tinha a pensão em salário mínimo: base, rendimentos, valores fixos, 13º e
+ * abatimentos entram com o valor do formulário em branco. O resto é conferido por {@link ehRascunho}.
+ */
+function daVersao1(rascunho: unknown): unknown {
+  if (!ehObjeto(rascunho) || !ehObjeto(rascunho.pensao)) return rascunho
+  const { base, rendimentos, valoresFixos, decimoTerceiro, abatimentos } = pensaoVazia()
+  return { ...rascunho, pensao: { base, rendimentos, valoresFixos, decimoTerceiro, abatimentos, ...rascunho.pensao } }
+}
+
 /** O conteúdo da chave, se for um rascunho que esta versão do formulário sabe abrir. */
 function interpretar(texto: string): RascunhoSalvo | null {
   try {
     const salvo: unknown = JSON.parse(texto)
-    if (!ehObjeto(salvo) || salvo.versao !== VERSAO || !ehRascunho(salvo.rascunho)) return null
+    if (!ehObjeto(salvo) || (salvo.versao !== VERSAO && salvo.versao !== 1)) return null
+    const rascunho = salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho
+    if (!ehRascunho(rascunho)) return null
     const salvoEm = new Date(typeof salvo.salvoEm === 'string' ? salvo.salvoEm : NaN)
     return {
-      rascunho: salvo.rascunho,
+      rascunho,
       salvoEm: Number.isNaN(salvoEm.getTime()) ? new Date() : salvoEm,
       aba: typeof salvo.aba === 'string' ? salvo.aba : '',
     }

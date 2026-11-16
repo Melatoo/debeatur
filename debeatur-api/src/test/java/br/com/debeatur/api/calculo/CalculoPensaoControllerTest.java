@@ -359,6 +359,9 @@ class CalculoPensaoControllerTest {
                 {"base": "RENDIMENTOS", "percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01",
                  "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO"}
                 """;
+        String semPercentual = """
+                {"diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO"}
+                """;
         String fixoTardio = """
                 {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2024-02", "valor": 500.00}],
                  "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-02", "inicioJuros": "VENCIMENTO"}
@@ -366,6 +369,8 @@ class CalculoPensaoControllerTest {
 
         assertThat(calcular(requisicao(semRendimentos, null))).hasStatus(400).bodyJson()
                 .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("rendimentos"));
+        assertThat(calcular(requisicao(semPercentual, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("percentual do salário mínimo"));
         assertThat(calcular(requisicao(fixoTardio, null))).hasStatus(400).bodyJson()
                 .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("primeiro valor fixo"));
     }
