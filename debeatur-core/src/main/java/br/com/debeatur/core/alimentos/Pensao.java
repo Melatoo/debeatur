@@ -21,7 +21,8 @@ import java.util.Objects;
  * <p>
  * Com o 13º salário, a parcela de dezembro vale o dobro do mês comum, como na planilha de
  * alimentos da DPMG: é uma parcela só, com o vencimento de dezembro. O dobro é do valor já
- * arredondado.
+ * arredondado. Não há 13º proporcional: dezembro dobra inteiro mesmo que a pensão comece no
+ * meio do ano, e a pensão que termina antes de dezembro fica sem 13º.
  *
  * @param base           como o título fixou o valor mensal
  * @param diaVencimento  dia do mês em que a parcela vence, de 1 a 31

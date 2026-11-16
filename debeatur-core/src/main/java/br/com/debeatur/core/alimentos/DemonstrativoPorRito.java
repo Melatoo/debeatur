@@ -102,9 +102,9 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
      */
     public static DemonstrativoPorRito separar(Demonstrativo demonstrativo, LocalDate ajuizamento,
                                                boolean aplicarArt523, List<Abatimento> abatimentos) {
-        Objects.requireNonNull(abatimentos, "abatimentos");
         Objects.requireNonNull(demonstrativo, "demonstrativo");
         Objects.requireNonNull(ajuizamento, "ajuizamento");
+        Objects.requireNonNull(abatimentos, "abatimentos");
         if (!demonstrativo.multaArt523().equals(Dinheiro.ZERO)
                 || !demonstrativo.honorariosArt523().equals(Dinheiro.ZERO)) {
             throw new IllegalArgumentException(

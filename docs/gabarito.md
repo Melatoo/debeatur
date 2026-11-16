@@ -11,7 +11,7 @@ nunca do próprio motor.
 | `GabaritoTabelaTjmgTest` | Fatores da CGJ-TJMG, DJe/TJMG de 12/05/2026 (#18) | Fator de correção pelo INPC, jan/2024 a abr/2026 |
 | `GabaritoHomologadoTest` | Cálculos homologados em `CasosHomologados` | Demonstrativo completo, linha a linha e totais |
 | `GabaritoHomologadoTest` | Cinco cálculos do CADEJ/TJMG em `CasosCadej` | Demonstrativo completo, com ICGJ ou IPCA e juros de taxa fixa |
-| `GabaritoRendimentosDecimoTerceiroDpmgTest` | Planilha da DPMG gerada no iadefensor em 14/11/2026 | Pensão em rendimentos, 13º, abatimento nominal e art. 523 sobre o saldo |
+| `GabaritoRendimentosDecimoTerceiroDpmgTest` | Planilha da DPMG gerada no iadefensor em 15/11/2026 | Pensão em rendimentos, 13º, abatimento nominal e art. 523 sobre o saldo |
 
 ### CADEJ
 
@@ -172,6 +172,11 @@ relatório. Ele não passa em branco.
 8. **Juros de 0,5% a.m. até 10/01/2003 (CC/1916).** As notas da planilha da DPMG citam 6% a.a.
    antes de 11/01/2003, mas ela começa em 02/2003, mesmo quando se pede início em 01/2003. Sem
    fonte que mostre como dividir janeiro/2003, o motor fica como está (decisão de 14/11/2026).
+9. **Multa e honorários sem arredondar (DPMG).** Na planilha da DPMG, multa e honorários são
+   `saldo × 0,1` sem arredondamento, e o total soma esses valores cheios. O motor arredonda cada
+   valor monetário a duas casas antes de somar. No caso de `GabaritoRendimentosDecimoTerceiroDpmgTest`,
+   cada um vale 1.217,147: a planilha mostra total de R$ 14.605,76, e o motor, R$ 14.605,77. A
+   multa e os honorários são lançados nos autos em reais e centavos, então o motor fica como está.
 
 ## Planilha da DPMG
 
@@ -181,7 +186,8 @@ modelo "Taxa legal (Bacen)") produz o modelo de outubro/2026 que está em
 números, idênticos aos do CSV, e o Excel só multiplica. Gerar outros casos nele não traz
 fatores novos, mas mostra as convenções dos recursos opcionais. Em 14/11/2026:
 
-- **13º salário:** o valor de dezembro dobra.
+- **13º salário:** o valor de dezembro dobra. Não há 13º proporcional: a pensão que começa
+  no meio do ano dobra dezembro inteiro, e a que termina antes de dezembro fica sem 13º.
 - **Abatimentos** (bloqueio em conta, depósito), em qualquer data: entram no total pelo valor
   nominal, sem correção; a data aparece só na descrição. Multa e honorários incidem sobre o
   saldo já abatido.
@@ -190,9 +196,10 @@ fatores novos, mas mostra as convenções dos recursos opcionais. Em 14/11/2026:
 - **Valor fixo:** só nos modelos cíveis, em períodos com valor próprio e sem reajuste.
 
 O Debeatur segue essas convenções (decisão de 14/11/2026). `GabaritoRendimentosDecimoTerceiroDpmgTest`
-transcreve um caso gerado no iadefensor em 14/11/2026: 30% de rendimentos de R$ 3.000,00 de
-10/2025 a 09/2026, com 13º, multa, honorários e um bloqueio de R$ 500,00. Os valores esperados
-aplicam as fórmulas da planilha ("ÍNDICE CORREÇÃO" e "% JUROS" do CSV) a cada parcela.
+transcreve um caso gerado no iadefensor em 15/11/2026: 30% de rendimentos de R$ 3.000,00 de
+10/2025 a 09/2026, com 13º, multa, honorários e um bloqueio de R$ 500,00. O .xlsx não guarda
+valores calculados, só os números de cada mês e as fórmulas; os valores esperados são essas
+fórmulas, como o Excel as mostra. O total diverge em um centavo (item 9 das divergências).
 
 O valor fixo só existe nos modelos cíveis do gerador, com multa de 2% em cada mês, que não se
 aplica a alimentos. No Debeatur ele só define o valor da parcela de cada mês, e a correção e os

@@ -17,22 +17,22 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Gabarito: planilha de alimentos da DPMG gerada no iadefensor em 14/11/2026 (modelo "Taxa
- * legal (Bacen)", data-base 10/2026), com 30% de rendimentos líquidos de R$ 3.000,00, 13º
- * salário, multa e honorários de 10% e um bloqueio de R$ 500,00 em 10/11/2026.
+ * Gabarito: planilha de alimentos da DPMG gerada no iadefensor em 15/11/2026 (modelo "Taxa
+ * legal (Bacen)", data-base 10/2026), de 10/2025 a 09/2026, com 30% de rendimentos líquidos de
+ * R$ 3.000,00, 13º salário, multa e honorários de 10% e um bloqueio de R$ 500,00 em 10/11/2026.
  * <p>
- * Convenções da planilha: a parcela é 30% dos rendimentos, R$ 900,00 em todos os meses, e a
- * de dezembro entra em dobro; o abatimento sai do total pelo valor nominal, sem correção; multa
- * e honorários são, cada um, 10% do saldo já abatido. A planilha começa em 10/2025; aqui o
- * cálculo vai até 09/2026, último mês transcrito em {@code planilha-dpmg-alimentos-2026-10.csv}.
+ * O .xlsx traz o devido, o "ÍNDICE CORREÇÃO" e o "% JUROS" de cada mês gravados como números, e
+ * o Excel só aplica as fórmulas: corrigido = diferença × índice, juros = corrigido × % juros,
+ * subtotal = soma, saldo = subtotal − abatimento, multa e honorários = saldo × 10%. Os valores
+ * esperados são essas fórmulas sobre os números do arquivo, como o Excel os mostra em duas casas.
  * <p>
- * Os valores esperados aplicam as fórmulas da planilha ("ÍNDICE CORREÇÃO" e "% JUROS" daquele
- * CSV) a cada parcela: corrigido = valor × fator e juros = corrigido × % juros, cada um em duas
- * casas.
+ * Convenções conferidas: a parcela é R$ 900,00 em todos os meses e a de dezembro entra em dobro;
+ * o abatimento sai do subtotal pelo valor nominal; multa e honorários incidem sobre o saldo.
  */
 class GabaritoRendimentosDecimoTerceiroDpmgTest {
 
     private static final LocalDate DATA_BASE = LocalDate.of(2026, 10, 1);
+    private static final Dinheiro TOTAL_DA_PLANILHA = Dinheiro.de("14605.76");
 
     @Test
     void reproduzAPlanilhaComDecimoTerceiroEAbatimento() {
@@ -59,7 +59,9 @@ class GabaritoRendimentosDecimoTerceiroDpmgTest {
         assertThat(total.saldo()).isEqualTo(Dinheiro.de("12171.47"));
         assertThat(total.multaArt523()).isEqualTo(Dinheiro.de("1217.15"));
         assertThat(total.honorariosArt523()).isEqualTo(Dinheiro.de("1217.15"));
-        assertThat(total.total()).isEqualTo(Dinheiro.de("14605.77"));
+        // Divergência registrada (docs/gabarito.md, item 9): a planilha mostra 14.605,76 porque
+        // soma multa e honorários sem arredondar (1.217,147 cada); o motor arredonda cada um.
+        assertThat(total.total()).isEqualTo(TOTAL_DA_PLANILHA.mais(Dinheiro.de("0.01")));
     }
 
     private static void assertLinha(LinhaDemonstrativo linha, String valor, String corrigido, String juros) {
