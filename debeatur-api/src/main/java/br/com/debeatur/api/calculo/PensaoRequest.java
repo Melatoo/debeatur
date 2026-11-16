@@ -3,7 +3,7 @@ package br.com.debeatur.api.calculo;
 import br.com.debeatur.core.Dinheiro;
 import br.com.debeatur.core.alimentos.InicioJuros;
 import br.com.debeatur.core.alimentos.PagamentosParciais;
-import br.com.debeatur.core.alimentos.PensaoEmSalarioMinimo;
+import br.com.debeatur.core.alimentos.Pensao;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -40,8 +40,8 @@ public record PensaoRequest(
     public record PagamentoRequest(@NotNull YearMonth mes, @NotNull @Positive BigDecimal valor) {
     }
 
-    PensaoEmSalarioMinimo paraDominio() {
-        return new PensaoEmSalarioMinimo(percentual, diaVencimento, primeiroMes, ultimoMes, inicioJuros, citacao);
+    Pensao paraDominio() {
+        return Pensao.emSalarioMinimo(percentual, diaVencimento, primeiroMes, ultimoMes, inicioJuros, citacao);
     }
 
     PagamentosParciais pagamentosParaDominio() {

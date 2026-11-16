@@ -31,16 +31,23 @@ import java.util.stream.IntStream;
  *       inclusive a que vence no próprio dia, e todas as que vencem depois dele.</li>
  *   <li>Conta-se por parcela, não por saldo: uma parcela quitada entre as três últimas ocupa o
  *       lugar dela, com saldo zero, e não puxa uma parcela mais antiga para a prisão.</li>
+ *   <li>Os {@link Abatimento abatimentos} saem do débito da penhora pelo valor nominal, como na
+ *       planilha da DPMG, que os põe na planilha desse rito; multa e honorários incidem sobre o
+ *       saldo. O que passar do débito da penhora sai do da prisão, que não tem acréscimos.</li>
  * </ul>
  *
  * @param ajuizamento      data do ajuizamento da execução
  * @param ritoDasLinhas    rito de cada linha do demonstrativo, na mesma ordem
- * @param multaArt523      10% do débito da penhora, ou zero
- * @param honorariosArt523 10% do débito da penhora, ou zero
- * @param total            débito dos dois ritos mais multa e honorários
+ * @param abatimentos      valores recebidos, na ordem informada
+ * @param abatidoPenhora   parte dos abatimentos que saiu do débito da penhora
+ * @param abatidoPrisao    parte dos abatimentos que passou do débito da penhora e saiu do da prisão
+ * @param multaArt523      10% do saldo da penhora, ou zero
+ * @param honorariosArt523 10% do saldo da penhora, ou zero
+ * @param total            saldo dos dois ritos mais multa e honorários
  */
 public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinhas, Subtotal prisao,
-                                   Subtotal penhora, Dinheiro multaArt523, Dinheiro honorariosArt523,
+                                   Subtotal penhora, List<Abatimento> abatimentos, Dinheiro abatidoPenhora,
+                                   Dinheiro abatidoPrisao, Dinheiro multaArt523, Dinheiro honorariosArt523,
                                    Dinheiro total) {
 
     /** Parcelas anteriores ao ajuizamento que podem ser cobradas sob pena de prisão. */
@@ -53,6 +60,9 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
         ritoDasLinhas = List.copyOf(ritoDasLinhas);
         Objects.requireNonNull(prisao, "prisao");
         Objects.requireNonNull(penhora, "penhora");
+        abatimentos = List.copyOf(abatimentos);
+        Objects.requireNonNull(abatidoPenhora, "abatidoPenhora");
+        Objects.requireNonNull(abatidoPrisao, "abatidoPrisao");
         Objects.requireNonNull(multaArt523, "multaArt523");
         Objects.requireNonNull(honorariosArt523, "honorariosArt523");
         Objects.requireNonNull(total, "total");
@@ -77,15 +87,24 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
         }
     }
 
-    /**
-     * @param aplicarArt523 inclui multa e honorários de 10% sobre o débito da penhora
-     * @throws IllegalArgumentException se o demonstrativo já tiver multa ou honorários do
-     *                                  art. 523, que aqui incidiriam sobre o débito todo
-     */
+    /** Separa os ritos sem abatimentos. */
     public static DemonstrativoPorRito separar(Demonstrativo demonstrativo, LocalDate ajuizamento,
                                                boolean aplicarArt523) {
+        return separar(demonstrativo, ajuizamento, aplicarArt523, List.of());
+    }
+
+    /**
+     * @param aplicarArt523 inclui multa e honorários de 10% sobre o saldo da penhora
+     * @param abatimentos   valores recebidos, que saem primeiro da penhora
+     * @throws IllegalArgumentException se o demonstrativo já tiver multa ou honorários do
+     *                                  art. 523, que aqui incidiriam sobre o débito todo, ou se
+     *                                  os abatimentos superarem o débito dos dois ritos
+     */
+    public static DemonstrativoPorRito separar(Demonstrativo demonstrativo, LocalDate ajuizamento,
+                                               boolean aplicarArt523, List<Abatimento> abatimentos) {
         Objects.requireNonNull(demonstrativo, "demonstrativo");
         Objects.requireNonNull(ajuizamento, "ajuizamento");
+        Objects.requireNonNull(abatimentos, "abatimentos");
         if (!demonstrativo.multaArt523().equals(Dinheiro.ZERO)
                 || !demonstrativo.honorariosArt523().equals(Dinheiro.ZERO)) {
             throw new IllegalArgumentException(
@@ -114,15 +133,30 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
         Subtotal subtotalPrisao = Subtotal.de(prisao);
         Subtotal subtotalPenhora = Subtotal.de(penhora);
         Dinheiro debitoPenhora = subtotalPenhora.debitoAtualizado();
-        Dinheiro multa = aplicarArt523 ? debitoPenhora.percentual(DEZ_PORCENTO) : Dinheiro.ZERO;
-        Dinheiro honorarios = aplicarArt523 ? debitoPenhora.percentual(DEZ_PORCENTO) : Dinheiro.ZERO;
-        Dinheiro total = subtotalPrisao.debitoAtualizado().mais(debitoPenhora).mais(multa).mais(honorarios);
-        return new DemonstrativoPorRito(ajuizamento, ritos, subtotalPrisao, subtotalPenhora, multa, honorarios, total);
+        Dinheiro debitoPrisao = subtotalPrisao.debitoAtualizado();
+        Dinheiro abatido = Abatimento.total(abatimentos);
+        if (abatido.compareTo(debitoPenhora.mais(debitoPrisao)) > 0) {
+            throw new IllegalArgumentException("Os abatimentos (" + abatido + ") superam o débito atualizado ("
+                    + debitoPenhora.mais(debitoPrisao) + ")");
+        }
+        Dinheiro abatidoPenhora = abatido.compareTo(debitoPenhora) > 0 ? debitoPenhora : abatido;
+        Dinheiro abatidoPrisao = abatido.menos(abatidoPenhora);
+        Dinheiro saldoPenhora = debitoPenhora.menos(abatidoPenhora);
+        Dinheiro multa = aplicarArt523 ? saldoPenhora.percentual(DEZ_PORCENTO) : Dinheiro.ZERO;
+        Dinheiro honorarios = aplicarArt523 ? saldoPenhora.percentual(DEZ_PORCENTO) : Dinheiro.ZERO;
+        Dinheiro total = debitoPrisao.menos(abatidoPrisao).mais(saldoPenhora).mais(multa).mais(honorarios);
+        return new DemonstrativoPorRito(ajuizamento, ritos, subtotalPrisao, subtotalPenhora, abatimentos,
+                abatidoPenhora, abatidoPrisao, multa, honorarios, total);
     }
 
-    /** Débito da penhora mais multa e honorários do art. 523: o que se cobra nesse rito. */
+    /** Saldo da penhora mais multa e honorários do art. 523: o que se cobra nesse rito. */
     public Dinheiro totalPenhora() {
-        return penhora.debitoAtualizado().mais(multaArt523).mais(honorariosArt523);
+        return penhora.debitoAtualizado().menos(abatidoPenhora).mais(multaArt523).mais(honorariosArt523);
+    }
+
+    /** Débito da prisão menos o que dos abatimentos passou da penhora: o que se cobra nesse rito. */
+    public Dinheiro totalPrisao() {
+        return prisao.debitoAtualizado().menos(abatidoPrisao);
     }
 
     public Subtotal subtotal(Rito rito) {
