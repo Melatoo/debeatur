@@ -52,5 +52,27 @@ O login usa o usuário do escritório que já está no banco; não crie nem alte
 - Nada de push direto na `main`: tudo passa por PR com o CI verde.
 - Mudanças no `debeatur-core`, na autenticação e na persistência são revisadas linha a linha;
   mantenha esses PRs pequenos.
+- Antes de abrir PR, rode a skill `verify` (`.claude/skills/verify`): ela escolhe as checagens
+  pelo diff, roda o app, faz o review em contexto novo e preenche "Como verifiquei".
+
+## Verificação e review
+
+O dono não lê todo diff. Quem decide quanto ele precisa olhar é o risco da **mudança**:
+
+| Risco | O que entra | Merge |
+|---|---|---|
+| Baixo | Docs, textos da tela, tokens do design system, testes novos que não mudam valor esperado, Dependabot patch/minor | O Claude faz o merge com o CI verde e nenhum achado Important aberto |
+| Médio | Telas, API, PDF, frontend em geral, `debeatur-indices` | O Claude faz o merge com o CI verde, review sem Important aberto e a evidência no PR (comandos e screenshot do fluxo) |
+| Alto | `MotorCalculo`, `Dinheiro`, `RegimeAtualizacao`, `Juros`, `alimentos/`, valores ou tolerâncias de gabarito, autenticação (`acesso/`, `sessao.ts`), migrações Flyway, `.github/`, `REVIEW.md`, este arquivo, Dependabot major | Só o dono faz o merge, depois de ler linha a linha |
+
+- Na dúvida entre dois níveis, vale o mais alto. Um PR com arquivos de níveis diferentes fica no
+  nível do arquivo mais arriscado.
+- O review automático comenta mas não aprova. Todo achado Important precisa ser corrigido ou
+  respondido com o motivo antes do merge.
+- Pare e chame o dono quando a mesma checagem ou o review falhar depois de 3 rodadas de correção,
+  ou quando a correção pedir mudança numa regra do domínio.
+- Quando algo escapar (revert, correção depois do merge), o PR da correção acrescenta um item em
+  `docs/checklist-confiabilidade.md` ou uma linha no `REVIEW.md`.
+- Commits levam o trailer `Verificado:` com o que rodou (ou `Verificado: nenhum`).
 - Código, nomes e mensagens de commit em português, seguindo o estilo existente. A exceção são
   os PRs do Dependabot, que mantêm as mensagens padrão dele.

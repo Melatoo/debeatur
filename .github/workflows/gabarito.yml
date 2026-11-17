@@ -1,0 +1,37 @@
+name: Gabarito
+
+# Separado do CI porque também roda quando a descrição do PR muda ("edited"): é lá que fica a fonte.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: gabarito-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  fonte:
+    runs-on: ubuntu-latest
+    steps:
+      # O script vem da base, não do PR: o PR não pode afrouxar a própria guarda.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/scripts
+      - name: Confere se o PR diz de onde vêm os valores
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          DESCRICAO: ${{ github.event.pull_request.body }}
+        run: |
+          gh pr diff "$PR" --repo "$GITHUB_REPOSITORY" --name-only > "$RUNNER_TEMP/arquivos"
+          printf '%s\n' "$DESCRICAO" > "$RUNNER_TEMP/descricao"
+          if [ ! -f .github/scripts/guarda-gabarito.sh ]; then
+            echo "A base ainda não tem a guarda; nada a conferir."
+            exit 0
+          fi
+          bash .github/scripts/guarda-gabarito.sh "$RUNNER_TEMP/arquivos" "$RUNNER_TEMP/descricao"

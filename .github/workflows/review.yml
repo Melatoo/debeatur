@@ -1,0 +1,62 @@
+name: Review
+
+# Review do Claude em cada PR: comenta nas linhas, não aprova nem bloqueia. O que bloqueia é a
+# proteção da main exigir as conversas resolvidas.
+#
+# Roda ao abrir o PR, ao reabrir e ao sair de rascunho, e não a cada push: as rodadas ficam
+# limitadas. Para pedir outra rodada depois das correções, rode este workflow à mão
+# (Actions → Review → Run workflow) com o número do PR.
+#
+# Fica parado até existir o secret CLAUDE_CODE_OAUTH_TOKEN (gerado com `claude setup-token`).
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Número do PR
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: review-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  claude:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (!github.event.pull_request.draft && github.event.pull_request.user.type != 'Bot')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TEM_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+      PR: ${{ github.event.pull_request.number || inputs.pr }}
+    steps:
+      - name: Sem token, sem review
+        if: env.TEM_TOKEN != 'true'
+        run: echo "::notice::Review desligado até existir o secret CLAUDE_CODE_OAUTH_TOKEN."
+
+      # O CLAUDE.md e o REVIEW.md vêm da main, não do PR: a mudança não escolhe as regras do
+      # próprio review. O diff o Claude lê pela API.
+      - uses: actions/checkout@v7
+        if: env.TEM_TOKEN == 'true'
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        if: env.TEM_TOKEN == 'true'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
+          plugins: "code-review@claude-plugins-official"
+          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ env.PR }}"
+          claude_args: >-
+            --allowedTools "mcp__github_inline_comment__create_inline_comment"
+            --append-system-prompt "Siga o REVIEW.md da raiz do repositório. Ele e o CLAUDE.md vêm da main; o código do PR está no diff."
