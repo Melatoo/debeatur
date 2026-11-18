@@ -32,6 +32,10 @@ export interface ApiSimulada {
   calculo: { status: number; arquivo: string }
   /** Os pedidos de cálculo recebidos, na ordem. */
   pedidos: unknown[]
+  /** Os ids dos cálculos salvos que receberam DELETE. */
+  excluidos: string[]
+  /** Se o cálculo salvo foi excluído em outra janela: o PDF dele responde 404. */
+  excluidoEmOutraJanela: boolean
   /** Chamadas que nenhuma rota simulada atendeu; o teste falha se sobrar alguma. */
   inesperadas: string[]
   /** POST e DELETE sem o token CSRF do cookie no cabeçalho; o teste falha se sobrar algum. */
@@ -52,6 +56,8 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
     bloquearLogin: false,
     calculo: { status: 200, arquivo: 'demonstrativo.json' },
     pedidos: [],
+    excluidos: [],
+    excluidoEmOutraJanela: false,
     inesperadas: [],
     semToken: [],
   }
@@ -125,6 +131,24 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
         return responder(route, 'calculo-salvo.json')
       case 'POST /api/calculos/salvos':
         return responder(route, 'calculo-salvo.json', 201)
+      case `PATCH /api/calculos/salvos/${ID_SALVO}`: {
+        const { titulo } = pedido.postDataJSON()
+        const resumo = fixture<{ id: string }[]>('calculos-salvos.json').find((r) => r.id === ID_SALVO)
+        return route.fulfill({ json: { ...resumo, titulo } })
+      }
+      case `DELETE /api/calculos/salvos/${ID_SALVO}`:
+        api.excluidos.push(ID_SALVO)
+        return route.fulfill({ status: 204, body: '' })
+      case `GET /api/calculos/salvos/${ID_SALVO}/pdf`:
+        if (!api.excluidoEmOutraJanela) {
+          api.inesperadas.push(chave)
+          return route.fulfill({ status: 501, json: { detail: `Sem simulação para ${chave}` } })
+        }
+        return route.fulfill({
+          status: 404,
+          contentType: 'application/problem+json',
+          json: { status: 404, detail: 'Cálculo salvo não encontrado.' },
+        })
       default:
         api.inesperadas.push(chave)
         return route.fulfill({ status: 501, json: { detail: `Sem simulação para ${chave}` } })

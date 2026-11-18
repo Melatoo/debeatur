@@ -1,6 +1,7 @@
 package br.com.debeatur.api.calculo;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -22,10 +23,16 @@ final class CalculoSalvoDtos {
     record SalvarRequest(@Size(max = 200) String titulo, @NotNull @Valid CalculoRequest calculo) {
     }
 
-    record Resumo(UUID id, String titulo, LocalDate dataBase, String regime, BigDecimal total, Instant criadoEm) {
+    /** @param titulo o novo título; o pedido e os números do cálculo não mudam */
+    record RenomearRequest(@NotBlank @Size(max = 200) String titulo) {
+    }
+
+    /** @param processo o número do processo, se o pedido trouxer um */
+    record Resumo(UUID id, String titulo, String processo, LocalDate dataBase, String regime, BigDecimal total,
+                  Instant criadoEm) {
 
         static Resumo de(RepositorioCalculos.Resumo r) {
-            return new Resumo(r.id(), r.titulo(), r.dataBase(), r.regime(), r.total(), r.criadoEm());
+            return new Resumo(r.id(), r.titulo(), r.processo(), r.dataBase(), r.regime(), r.total(), r.criadoEm());
         }
     }
 

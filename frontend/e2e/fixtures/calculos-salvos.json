@@ -2,9 +2,19 @@
   {
     "id": "a53a1473-1f7b-4621-be44-e62394ad8869",
     "titulo": "Alimentos de A. B. C. até 30/06/2025",
+    "processo": "5001234-56.2024.8.13.0024",
     "dataBase": "2025-06-30",
     "regime": "Cível padrão TJMG (tabela CGJ: INPC até 07/2024; Lei 14.905/2024)",
     "total": 8524.83,
     "criadoEm": "2026-11-11T13:14:52.843290Z"
+  },
+  {
+    "id": "0d6f2c1e-5b7a-4c3e-9f1d-2a8b6c4e7f90",
+    "titulo": "Despesas escolares de D. E.",
+    "processo": null,
+    "dataBase": "2026-03-31",
+    "regime": "Critérios fixados no título",
+    "total": 1312.4,
+    "criadoEm": "2026-11-02T18:40:11.120000Z"
   }
 ]

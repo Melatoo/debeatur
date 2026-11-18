@@ -7,12 +7,15 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
@@ -51,6 +54,20 @@ public class CalculoSalvoController {
     @GetMapping("/{id}")
     CalculoSalvoDtos.CalculoSalvo reabrir(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
         return calculos.reabrir(usuario.escritorio(), id);
+    }
+
+    /** Troca o título; os números e o snapshot do cálculo não mudam. */
+    @PatchMapping("/{id}")
+    CalculoSalvoDtos.Resumo renomear(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id,
+                                     @Valid @RequestBody CalculoSalvoDtos.RenomearRequest request) {
+        return calculos.renomear(usuario.escritorio(), id, request.titulo());
+    }
+
+    /** Exclui o cálculo e o snapshot das séries dele, sem volta. */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void excluir(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
+        calculos.excluir(usuario.escritorio(), id);
     }
 
     /**

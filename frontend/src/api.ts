@@ -219,7 +219,7 @@ export function aoExpirarSessao(aviso: () => void): () => void {
   return () => aoExpirar.delete(aviso)
 }
 
-/** O token CSRF que a API grava no cookie `XSRF-TOKEN` e confere no cabeçalho de todo POST e DELETE. */
+/** O token CSRF que a API grava no cookie `XSRF-TOKEN` e confere no cabeçalho de todo POST, PATCH e DELETE. */
 export function tokenCsrf(cookies: string = document.cookie): string | null {
   for (const par of cookies.split(';')) {
     const [nome, ...valor] = par.trim().split('=')
@@ -333,6 +333,8 @@ export async function gerarPdf(request: CalculoRequest): Promise<Anexo> {
 export interface ResumoCalculo {
   id: string
   titulo: string
+  /** O número do processo no pedido salvo, se houver. */
+  processo: string | null
   dataBase: string
   /** Nome do regime usado. */
   regime: string
@@ -372,6 +374,25 @@ export async function listarCalculos(): Promise<ResumoCalculo[]> {
 
 export async function reabrirCalculo(id: string, sinal?: AbortSignal): Promise<CalculoSalvo> {
   return lerResposta(await fetch(`/api/calculos/salvos/${encodeURIComponent(id)}`, { signal: sinal }), 'abrir o cálculo')
+}
+
+/** Troca só o título; os números e os índices guardados não mudam. */
+export async function renomearCalculo(id: string, titulo: string): Promise<ResumoCalculo> {
+  const resposta = await fetch(`/api/calculos/salvos/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: await comCsrf({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ titulo: titulo.trim() }),
+  })
+  return lerResposta(resposta, 'renomear o cálculo')
+}
+
+/** Exclui o cálculo e os índices guardados com ele, sem volta. */
+export async function excluirCalculo(id: string): Promise<void> {
+  const resposta = await fetch(`/api/calculos/salvos/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: await comCsrf({}),
+  })
+  if (resposta.status !== 204) await lerResposta(resposta, 'excluir o cálculo')
 }
 
 /** O PDF do cálculo salvo, com o snapshot das séries: os mesmos números da tela ao abri-lo. */

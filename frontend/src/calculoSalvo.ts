@@ -1,4 +1,4 @@
-import type { CalculoRequest, Regime } from './api'
+import type { CalculoRequest, Regime, ResumoCalculo } from './api'
 import { data } from './formato'
 import { fimDoMesAnterior, parcelaVazia } from './caso'
 import { paraCampo } from './numero'
@@ -111,6 +111,35 @@ export function paraRascunho(pedido: CalculoRequest, padrao: Regime | null): Ras
 export function tituloPadrao(pedido: Pick<CalculoRequest, 'dataBase' | 'processo'>): string {
   const numero = pedido.processo?.numero?.trim()
   return numero ? `Processo ${numero}` : `Cálculo com data-base em ${data(pedido.dataBase)}`
+}
+
+/** Sem acento e em minúsculas: "Execução" acha "execucao". */
+const semAcento = (texto: string) => texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+
+const soDigitos = (texto: string) => texto.replace(/\D/g, '')
+
+/**
+ * Os cálculos salvos que batem com a busca, na mesma ordem. Cada palavra precisa aparecer no
+ * título, no regime ou no número do processo, sem diferença de acento nem de maiúsculas.
+ *
+ * Uma palavra só de números e pontuação procura no título e no processo, e acha o processo também
+ * pelos dígitos: "5001234562024" acha "5001234-56.2024.8.13.0024", com ou sem a máscara do CNJ. Ela
+ * não procura no regime, cujo nome tem datas e leis ("07/2024", "14.905"): "2024" acharia todo
+ * cálculo no regime padrão, e não os processos de 2024.
+ */
+export function filtrarCalculos(lista: readonly ResumoCalculo[], busca: string): ResumoCalculo[] {
+  const palavras = semAcento(busca).split(/\s+/).filter(Boolean)
+  if (palavras.length === 0) return [...lista]
+  return lista.filter((r) => {
+    const texto = semAcento(`${r.titulo} ${r.regime} ${r.processo ?? ''}`)
+    const textoSemRegime = semAcento(`${r.titulo} ${r.processo ?? ''}`)
+    const digitos = soDigitos(r.processo ?? '')
+    return palavras.every((p) => {
+      if (!/^[\d.\-/]+$/.test(p)) return texto.includes(p)
+      const numero = soDigitos(p)
+      return textoSemRegime.includes(p) || (numero !== '' && digitos.includes(numero))
+    })
+  })
 }
 
 /**

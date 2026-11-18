@@ -64,6 +64,8 @@ interface Calculo {
 /** De onde veio o caso que está no formulário, para o pé do formulário dizer. */
 interface Origem {
   modo: AcaoSalvo | 'salvo'
+  /** O cálculo salvo de onde o caso veio; renomeá-lo ou excluí-lo na lista muda o que o pé diz. */
+  id: string
   titulo: string
   criadoEm: Date
   /** O regime salvo diante do padrão de hoje: um padrão antigo pede aviso quando os índices são os de hoje. */
@@ -137,6 +139,12 @@ function App() {
   }, [calculo])
   const [origem, setOrigem] = useState<Origem | null>(null)
   const [listaAberta, setListaAberta] = useState(false)
+  /**
+   * Os cálculos excluídos e os renomeados na lista nesta visita. Ficam à parte, e não dentro do
+   * caso da tela, para valer também para o caso que o "Desfazer" devolve.
+   */
+  const [excluidos, setExcluidos] = useState<ReadonlySet<string>>(() => new Set())
+  const [titulos, setTitulos] = useState<ReadonlyMap<string, string>>(() => new Map())
   const [salvarAberta, setSalvarAberta] = useState(false)
   /** O regime padrão, buscado uma vez para reconhecê-lo num cálculo salvo; nulo se a busca falhou. */
   const regimePadrao = useRef<Promise<Regime | null> | null>(null)
@@ -548,6 +556,7 @@ function App() {
     trocarCaso(depois, novoCalculo)
     setOrigem({
       modo: acao,
+      id: salvo.id,
       titulo: salvo.titulo,
       criadoEm: new Date(salvo.criadoEm),
       regime: regimeSalvo(salvo.calculo, padrao),
@@ -569,17 +578,50 @@ function App() {
     // Se o demonstrativo mudou durante o salvamento, o salvo é o anterior, e o da tela não é ele.
     setCalculo((atual) => (atual === enviado ? { ...atual, resultado: salvo.demonstrativo, salvo: deste } : atual))
     // Um regime antigo que veio de outro salvo continua antigo neste: o aviso segue com ele.
-    setOrigem({ modo: 'salvo', titulo: salvo.titulo, criadoEm: new Date(salvo.criadoEm), regime: origem?.regime ?? 'padrao' })
+    setOrigem({ modo: 'salvo', id: salvo.id, titulo: salvo.titulo, criadoEm: new Date(salvo.criadoEm), regime: origem?.regime ?? 'padrao' })
     setRestauradoDe(null)
     setSalvarAberta(false)
   }
 
-  /** O cálculo salvo na tela, se nada mudou desde que foi aberto ou salvo, nem o processo. */
+  /**
+   * O snapshot de um cálculo excluído não existe mais: se ele está na tela, seja porque estava
+   * aberto, seja porque o Desfazer o devolveu, os números são refeitos com os índices de hoje, os
+   * mesmos que o PDF e um novo Salvar vão usar. O cálculo refeito não tem mais `salvo`; se o
+   * recálculo falhar, o pé diz que os números ainda são os do dia em que ele foi salvo.
+   */
+  const comSnapshotExcluido = calculo?.salvo !== undefined && excluidos.has(calculo.salvo.id)
+  const refazerSemSnapshot = useEffectEvent(() => {
+    // Com o formulário editado, o recálculo automático já vem; com um cálculo em curso, ele chega.
+    if (!desatualizado && emCurso.current === null) void executar(false)
+  })
+  useEffect(() => {
+    if (comSnapshotExcluido) refazerSemSnapshot()
+  }, [comSnapshotExcluido, calculo])
+
+  function excluiuSalvo(id: string) {
+    setExcluidos((e) => new Set(e).add(id))
+  }
+
+  /**
+   * O cálculo salvo na tela, se nada mudou desde que foi aberto ou salvo, nem o processo. Excluído,
+   * ele deixa de ser salvo: o Salvar volta, e o PDF sai do formulário, sem pedir um id que não existe.
+   */
   const idSalvo =
-    calculo?.salvo && !desatualizado && calculo.salvo.processo === textoDoProcesso(processo) ? calculo.salvo.id : undefined
+    calculo?.salvo &&
+    !desatualizado &&
+    !excluidos.has(calculo.salvo.id) &&
+    calculo.salvo.processo === textoDoProcesso(processo)
+      ? calculo.salvo.id
+      : undefined
 
   const descricaoDaOrigem = (o: Origem) => {
-    const nome = `“${o.titulo}”, de ${dataHora(o.criadoEm)}`
+    const nome = `“${titulos.get(o.id) ?? o.titulo}”, de ${dataHora(o.criadoEm)}`
+    if (excluidos.has(o.id)) {
+      if (o.modo === 'duplicar') return `Cópia do cálculo salvo ${nome}, que foi excluído.`
+      return comSnapshotExcluido
+        ? `Veio do cálculo salvo ${nome}, que foi excluído. Os números ainda são os do dia em que ele foi salvo; calcule de novo para usar os índices de hoje.`
+        : `Veio do cálculo salvo ${nome}, que foi excluído: os números usam os índices de hoje. Salve para guardá-los.`
+    }
     if (idSalvo) return `Cálculo salvo ${nome}, com os índices daquele dia.`
     if (o.modo === 'duplicar') return `Cópia do cálculo salvo ${nome}.`
     if (o.modo === 'atualizar') return `Atualização do cálculo salvo ${nome}, com os índices de hoje. Salve para guardá-la.`
@@ -892,7 +934,7 @@ function App() {
                 }
               >
                 Em computador compartilhado, use Limpar ao terminar. O Limpar não apaga os cálculos salvos, que ficam no
-                servidor.
+                servidor até serem excluídos na lista de Cálculos salvos.
               </Dica>
             )}
           </div>
@@ -950,11 +992,18 @@ function App() {
             acao={invalido ? undefined : acaoDoErro}
             idSalvo={idSalvo}
             aoSalvar={() => setSalvarAberta(true)}
+            aoSalvoSumir={excluiuSalvo}
           />
         )}
       </div>
 
-      <ListaCalculosSalvos aberta={listaAberta} aoFechar={() => setListaAberta(false)} aoEscolher={escolherSalvo} />
+      <ListaCalculosSalvos
+        aberta={listaAberta}
+        aoFechar={() => setListaAberta(false)}
+        aoEscolher={escolherSalvo}
+        aoRenomear={(r) => setTitulos((t) => new Map(t).set(r.id, r.titulo))}
+        aoExcluir={excluiuSalvo}
+      />
       {calculo && (
         <SalvarCalculo
           aberta={salvarAberta}
