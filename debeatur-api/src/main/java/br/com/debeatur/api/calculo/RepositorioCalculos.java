@@ -24,14 +24,20 @@ import java.util.UUID;
 @Repository
 class RepositorioCalculos {
 
-    record Resumo(UUID id, String titulo, LocalDate dataBase, String regime, BigDecimal total, Instant criadoEm) {
+    /** @param processo o número do processo no pedido, ou nulo; não tem coluna própria, sai do pedido */
+    record Resumo(UUID id, String titulo, String processo, LocalDate dataBase, String regime, BigDecimal total,
+                  Instant criadoEm) {
     }
 
     /** @param pedidoJson o {@link CalculoRequest} em JSON, como foi gravado */
     record Salvo(Resumo resumo, String pedidoJson, SnapshotSeries snapshot) {
     }
 
-    private static final String SELECT_RESUMO = "SELECT id, titulo, data_base, regime, total, criado_em FROM calculo";
+    private static final String SELECT_RESUMO = """
+            SELECT id, titulo, NULLIF(btrim(pedido -> 'processo' ->> 'numero'), '') AS processo, data_base, regime,
+                   total, criado_em
+            FROM calculo
+            """;
 
     private final JdbcClient jdbc;
     /** O {@link JdbcClient} não grava em lote. */
@@ -60,7 +66,7 @@ class RepositorioCalculos {
 
     /** Do mais recente para o mais antigo. */
     List<Resumo> listar(UUID escritorio) {
-        return jdbc.sql(SELECT_RESUMO + " WHERE escritorio_id = ? ORDER BY criado_em DESC, id")
+        return jdbc.sql(SELECT_RESUMO + "WHERE escritorio_id = ? ORDER BY criado_em DESC, id")
                 .param(escritorio)
                 .query(RepositorioCalculos::resumo)
                 .list();
@@ -69,13 +75,37 @@ class RepositorioCalculos {
     @Transactional(readOnly = true)
     public Optional<Salvo> buscar(UUID escritorio, UUID id) {
         return jdbc.sql("""
-                        SELECT id, titulo, data_base, regime, total, criado_em, pedido::text AS pedido
+                        SELECT id, titulo, NULLIF(btrim(pedido -> 'processo' ->> 'numero'), '') AS processo,
+                               data_base, regime, total,
+                               criado_em, pedido::text AS pedido
                         FROM calculo WHERE escritorio_id = ? AND id = ?
                         """)
                 .params(escritorio, id)
                 .query((rs, linha) -> Map.entry(resumo(rs, linha), rs.getString("pedido")))
                 .optional()
                 .map(linha -> new Salvo(linha.getKey(), linha.getValue(), snapshot(id, linha.getKey().criadoEm())));
+    }
+
+    /** Troca só o título: o pedido, o total e o snapshot ficam como foram salvos. */
+    @Transactional
+    public Optional<Resumo> renomear(UUID escritorio, UUID id, String titulo) {
+        int alterados = jdbc.sql("UPDATE calculo SET titulo = ? WHERE escritorio_id = ? AND id = ?")
+                .params(titulo, escritorio, id)
+                .update();
+        if (alterados == 0) {
+            return Optional.empty();
+        }
+        return jdbc.sql(SELECT_RESUMO + "WHERE escritorio_id = ? AND id = ?")
+                .params(escritorio, id)
+                .query(RepositorioCalculos::resumo)
+                .optional();
+    }
+
+    /** Apaga o cálculo e, pelo {@code ON DELETE CASCADE}, o snapshot dele. */
+    boolean excluir(UUID escritorio, UUID id) {
+        return jdbc.sql("DELETE FROM calculo WHERE escritorio_id = ? AND id = ?")
+                .params(escritorio, id)
+                .update() > 0;
     }
 
     private SnapshotSeries snapshot(UUID calculo, Instant criadoEm) {
@@ -90,7 +120,7 @@ class RepositorioCalculos {
     }
 
     private static Resumo resumo(ResultSet rs, int linha) throws SQLException {
-        return new Resumo(rs.getObject("id", UUID.class), rs.getString("titulo"),
+        return new Resumo(rs.getObject("id", UUID.class), rs.getString("titulo"), rs.getString("processo"),
                 rs.getObject("data_base", LocalDate.class), rs.getString("regime"), rs.getBigDecimal("total"),
                 rs.getObject("criado_em", OffsetDateTime.class).toInstant());
     }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { CalculoRequest, Regime } from './api'
+import type { CalculoRequest, Regime, ResumoCalculo } from './api'
 import { paraPedido } from './caso'
-import { novaDataBase, paraRascunho, regimeSalvo, tituloPadrao } from './calculoSalvo'
+import { filtrarCalculos, novaDataBase, paraRascunho, regimeSalvo, tituloPadrao } from './calculoSalvo'
 import { chaveDoPedido } from './recalculo'
 
 const padrao: Regime = {
@@ -214,5 +214,52 @@ describe('novaDataBase', () => {
   it('não há o que atualizar num cálculo que já vai até lá', () => {
     expect(novaDataBase('2026-10-31', hoje)).toBeNull()
     expect(novaDataBase('2026-11-05', hoje)).toBeNull()
+  })
+})
+
+describe('filtrarCalculos', () => {
+  const resumo = (titulo: string, processo: string | null, regime = 'Regime cível padrão do TJMG'): ResumoCalculo => ({
+    id: titulo,
+    titulo,
+    processo,
+    dataBase: '2024-10-31',
+    regime,
+    total: 1000,
+    criadoEm: '2024-11-01T12:00:00Z',
+  })
+  const lista = [
+    resumo('Execução da Maria', '5001234-56.2024.8.13.0024'),
+    resumo('Pensão do João', null, 'Critérios fixados no título'),
+    resumo('Processo 0009876-12.2023.8.13.0702', '0009876-12.2023.8.13.0702'),
+  ]
+  const titulos = (busca: string) => filtrarCalculos(lista, busca).map((r) => r.titulo)
+
+  it('sem busca devolve todos, na mesma ordem', () => {
+    expect(titulos('')).toEqual(lista.map((r) => r.titulo))
+    expect(titulos('   ')).toEqual(lista.map((r) => r.titulo))
+  })
+
+  it('acha pelo título sem diferença de acento nem de maiúsculas', () => {
+    expect(titulos('execucao')).toEqual(['Execução da Maria'])
+    expect(titulos('PENSÃO')).toEqual(['Pensão do João'])
+  })
+
+  it('exige todas as palavras', () => {
+    expect(titulos('maria execução')).toEqual(['Execução da Maria'])
+    expect(titulos('maria joão')).toEqual([])
+  })
+
+  it('acha pelo regime', () => {
+    expect(titulos('fixados')).toEqual(['Pensão do João'])
+  })
+
+  it('acha o processo com a máscara do CNJ ou só pelos dígitos', () => {
+    expect(titulos('5001234-56.2024')).toEqual(['Execução da Maria'])
+    expect(titulos('500123456')).toEqual(['Execução da Maria'])
+    expect(titulos('8.13.0702')).toEqual(['Processo 0009876-12.2023.8.13.0702'])
+  })
+
+  it('um número que não está em processo nenhum não acha nada', () => {
+    expect(titulos('7777')).toEqual([])
   })
 })

@@ -46,7 +46,7 @@ public class CalculosSalvos {
         DemonstrativoResponse demonstrativo = calculos.calcular(request.calculo(), gravacao);
         CalculoRequest pedido = request.calculo().comRegime(demonstrativo.regime());
         RepositorioCalculos.Resumo resumo = new RepositorioCalculos.Resumo(UUID.randomUUID(), titulo(request),
-                pedido.dataBase(), demonstrativo.regime().nome(), demonstrativo.total(), agora());
+                numeroDoProcesso(pedido), pedido.dataBase(), demonstrativo.regime().nome(), demonstrativo.total(), agora());
         SnapshotSeries snapshot = gravacao.snapshot();
         repositorio.inserir(escritorio, resumo, json.writeValueAsString(pedido), snapshot);
         // O mesmo demonstrativo que a reabertura dará: os números e os valores das séries são os de
@@ -68,6 +68,29 @@ public class CalculosSalvos {
         DemonstrativoResponse demonstrativo = calculos.calcular(pedido, salvo.snapshot());
         RepositorioCalculos.Resumo resumo = salvo.resumo();
         return new CalculoSalvoDtos.CalculoSalvo(resumo.id(), resumo.titulo(), resumo.criadoEm(), pedido, demonstrativo);
+    }
+
+    /** @throws CalculoNaoEncontradoException se o cálculo não existir no escritório */
+    CalculoSalvoDtos.Resumo renomear(UUID escritorio, UUID id, String titulo) {
+        return repositorio.renomear(escritorio, id, titulo.strip())
+                .map(CalculoSalvoDtos.Resumo::de)
+                .orElseThrow(() -> new CalculoNaoEncontradoException(id));
+    }
+
+    /** @throws CalculoNaoEncontradoException se o cálculo não existir no escritório */
+    void excluir(UUID escritorio, UUID id) {
+        if (!repositorio.excluir(escritorio, id)) {
+            throw new CalculoNaoEncontradoException(id);
+        }
+    }
+
+    /** O número como o banco o lê do pedido gravado: sem espaços nas pontas, e nulo se vazio. */
+    private static String numeroDoProcesso(CalculoRequest pedido) {
+        if (pedido.processo() == null || pedido.processo().numero() == null) {
+            return null;
+        }
+        String numero = pedido.processo().numero().strip();
+        return numero.isEmpty() ? null : numero;
     }
 
     private static String titulo(CalculoSalvoDtos.SalvarRequest request) {

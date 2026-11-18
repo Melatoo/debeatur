@@ -116,7 +116,8 @@ Os raios são três: `raio-amostra` (3px) nas amostras e barras, `raio-controle`
 - **Foco:** contorno `foco` de 2px. Campos também trocam a borda para `foco`.
 - **Campo inválido:** `aria-invalid="true"`, borda em `erro` e a `MensagemErro` entre o rótulo e o campo, ligada por `aria-describedby`. Abaixo do campo, ela o desalinharia dos vizinhos da mesma linha, que se alinham pela base. A mensagem fica na tela até o dado ser corrigido e some assim que ele é.
 - **Quando o erro aparece:** antes do primeiro Calcular, só o valor mal escrito acusa, ao sair do campo; o obrigatório ainda vazio não, porque a pessoa está preenchendo. Depois de Calcular, todo campo inválido mostra a mensagem. Limpar volta ao começo; um cálculo salvo aberto já foi calculado, e acusa como depois de Calcular.
-- **Desabilitado:** `opacity: 0.6`. Só o botão que espera uma resposta (Calcular, Baixar PDF, Salvar, Entrar, Sair e o Abrir, Atualizar ou Duplicar de um cálculo salvo) mostra `cursor: progress`; os outros, `not-allowed`.
+- **Desabilitado:** `opacity: 0.6`. Só o botão que espera uma resposta (Calcular, Baixar PDF, Salvar, Entrar, Sair e o Abrir, Atualizar, Duplicar, Salvar título ou Excluir de um cálculo salvo) mostra `cursor: progress`; os outros, `not-allowed`.
+- **Ação sem volta:** excluir pede confirmação na própria linha, com o fato em negrito ("**Excluir este cálculo?**") e a consequência logo depois. O foco vai para o Cancelar, para um Enter a mais não apagar nada. Feita a ação, o status diz o que mudou, e o foco vai para um controle que continua na tela. Renomear e Excluir, que mexem no cálculo e não o trazem para o formulário, ficam como links (`button.link`) sob o título, para não competirem com Abrir, Atualizar e Duplicar.
 - **Situação do demonstrativo** (`data-situacao`): `atual` não mostra faixa; `atualizando` apaga os números a 0.6 e mostra "Atualizando o demonstrativo…"; `desatualizado` apaga a 0.4 e mostra a faixa em `aviso-fundo` com borda `aviso`. A faixa acompanha a rolagem e é uma região `role="status"`.
 - **Hover em linha de tabela:** `borda` a 35%, para seguir a linha com o olho. Some na impressão.
 
@@ -139,7 +140,7 @@ Não há ícones nem logotipo. O nome "Debeatur" aparece em texto, no estilo `ti
 
 ## Sigilo
 
-Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `CabecalhoProcesso` diz isso na tela, e o PDF, no alto de toda página: "Segredo de justiça (art. 189, II, do CPC)". O caso guardado no navegador fica só nele, e Limpar apaga também essa cópia. Um cálculo salvo vai para o servidor e não some com o Limpar; o pé do formulário diz isso junto da recomendação de limpar em computador compartilhado.
+Ações de alimentos tramitam em segredo de justiça (art. 189, II, do CPC). O `CabecalhoProcesso` diz isso na tela, e o PDF, no alto de toda página: "Segredo de justiça (art. 189, II, do CPC)". O caso guardado no navegador fica só nele, e Limpar apaga também essa cópia. Um cálculo salvo vai para o servidor e não some com o Limpar, só com o Excluir da lista; o pé do formulário diz isso junto da recomendação de limpar em computador compartilhado.
 
 ## Acessibilidade
 

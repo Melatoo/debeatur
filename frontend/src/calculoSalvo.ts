@@ -1,4 +1,4 @@
-import type { CalculoRequest, Regime } from './api'
+import type { CalculoRequest, Regime, ResumoCalculo } from './api'
 import { data } from './formato'
 import { fimDoMesAnterior, parcelaVazia } from './caso'
 import { paraCampo } from './numero'
@@ -111,6 +111,31 @@ export function paraRascunho(pedido: CalculoRequest, padrao: Regime | null): Ras
 export function tituloPadrao(pedido: Pick<CalculoRequest, 'dataBase' | 'processo'>): string {
   const numero = pedido.processo?.numero?.trim()
   return numero ? `Processo ${numero}` : `Cálculo com data-base em ${data(pedido.dataBase)}`
+}
+
+/** Sem acento e em minúsculas: "Execução" acha "execucao". */
+const semAcento = (texto: string) => texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+
+const soDigitos = (texto: string) => texto.replace(/\D/g, '')
+
+/**
+ * Os cálculos salvos que batem com a busca, na mesma ordem. Cada palavra precisa aparecer no
+ * título, no regime ou no número do processo, sem diferença de acento nem de maiúsculas. Uma
+ * palavra só de números e pontuação também acha o processo pelos dígitos: "5001234562024" acha
+ * "5001234-56.2024.8.13.0024", escrito com ou sem a máscara do CNJ.
+ */
+export function filtrarCalculos(lista: readonly ResumoCalculo[], busca: string): ResumoCalculo[] {
+  const palavras = semAcento(busca).split(/\s+/).filter(Boolean)
+  if (palavras.length === 0) return [...lista]
+  return lista.filter((r) => {
+    const texto = semAcento(`${r.titulo} ${r.regime} ${r.processo ?? ''}`)
+    const digitos = soDigitos(r.processo ?? '')
+    return palavras.every((p) => {
+      if (texto.includes(p)) return true
+      const numero = soDigitos(p)
+      return /^[\d.\-/]+$/.test(p) && numero !== '' && digitos.includes(numero)
+    })
+  })
 }
 
 /**

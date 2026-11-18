@@ -246,7 +246,8 @@ textarea:focus-visible {
 }
 
 /* Botão com cara de link, para não competir com as ações; a altura mínima é o alvo de 24px (WCAG 2.5.8). */
-button.saiba-mais {
+button.saiba-mais,
+button.link {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
@@ -260,7 +261,8 @@ button.saiba-mais {
   text-underline-offset: 2px;
 }
 
-button.saiba-mais:hover {
+button.saiba-mais:hover,
+button.link:hover {
   background: transparent;
   text-decoration-thickness: 2px;
 }
@@ -1172,6 +1174,14 @@ tfoot .total td {
   background: var(--veu);
 }
 
+/*
+ * A lista dos salvos tem seis colunas: com a do processo, as ações não cabem em 960px. Presa ao
+ * conteúdo da janela, e não à tabela, para a largura não pular quando a busca não acha nada.
+ */
+.janela:has(.lista-salvos) {
+  width: min(1200px, calc(100% - 32px));
+}
+
 .janela:has(.formulario-salvar) {
   width: min(560px, calc(100% - 32px));
 }
@@ -1199,10 +1209,87 @@ tfoot .total td {
   text-align: center;
 }
 
-/* Título, data-base, total, salvo em e ações. */
+.busca-salvos {
+  margin: 16px 0 0;
+}
+
+.busca-salvos input {
+  width: min(100%, 420px);
+  margin-top: 4px;
+}
+
+.busca-salvos label {
+  color: var(--texto);
+  font-weight: 600;
+}
+
+.busca-salvos .dica {
+  margin: 4px 0 0;
+}
+
+.status-salvos {
+  margin: 12px 0 0;
+  min-height: 1lh;
+  font-size: 0.875rem;
+  color: var(--texto-suave);
+}
+
+/* Título, processo, data-base, total, salvo em e ações. */
 .tabela-salvos {
-  min-width: 720px;
+  min-width: 860px;
   table-layout: auto;
+}
+
+/* O número do processo não quebra no meio da máscara do CNJ. */
+.processo-salvo {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.acoes-secundarias {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 0.875rem;
+}
+
+.acoes-secundarias button.link {
+  font-weight: 500;
+  color: var(--texto-suave);
+}
+
+.renomear-salvo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.renomear-salvo input {
+  width: 100%;
+  font-weight: 400;
+}
+
+.confirmar-exclusao {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 6px;
+  font-weight: 400;
+}
+
+.confirmar-exclusao p {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+}
+
+.acoes-linha {
+  display: flex;
+  gap: 8px;
+}
+
+.acoes-linha button {
+  padding: 3px 12px;
+  font-size: 0.875rem;
 }
 
 .tabela-salvos th,

@@ -379,6 +379,77 @@ class CalculoSalvoTest {
     }
 
     @Test
+    void aListaTrazONumeroDoProcessoDoPedido() throws Exception {
+        salvar("Com processo", PEDIDO);
+        salvar("Sem processo", PEDIDO.replaceAll(",\\s*\"processo\": \\{[^}]*}", ""));
+        // só o juízo preenchido: o formulário manda o número vazio
+        salvar("Só com o juízo", PEDIDO.replace("\"numero\": \"5001234-56.2024.8.13.0024\"",
+                "\"numero\": \"\", \"juizo\": \"1ª Vara de Família\""));
+
+        assertThat(mvc.get().uri("/api/calculos/salvos")).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$[0].processo", v -> v.assertThat().isNull())
+                .hasPathSatisfying("$[1].processo", v -> v.assertThat().isNull())
+                .hasPathSatisfying("$[2].processo", v -> v.assertThat().isEqualTo("5001234-56.2024.8.13.0024"));
+    }
+
+    @Test
+    void renomearTrocaSoOTitulo() throws Exception {
+        String salvo = salvar("Antigo", PEDIDO);
+        String id = JsonPath.read(salvo, "$.id");
+
+        assertThat(mvc.patch().uri("/api/calculos/salvos/" + id).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"titulo\": \"  Execução da Maria  \"}")).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.titulo", v -> v.assertThat().isEqualTo("Execução da Maria"))
+                .hasPathSatisfying("$.processo", v -> v.assertThat().isEqualTo("5001234-56.2024.8.13.0024"));
+
+        String reaberto = obter("/api/calculos/salvos/" + id);
+        assertThat((String) JsonPath.read(reaberto, "$.titulo")).isEqualTo("Execução da Maria");
+        assertThat(demonstrativo(reaberto)).isEqualTo(demonstrativo(salvo));
+        assertThat((String) JsonPath.read(reaberto, "$.criadoEm")).isEqualTo(JsonPath.read(salvo, "$.criadoEm"));
+    }
+
+    @Test
+    void renomearSemTituloDevolve400() throws Exception {
+        String id = JsonPath.read(salvar("Antigo", PEDIDO), "$.id");
+
+        assertThat(mvc.patch().uri("/api/calculos/salvos/" + id).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"titulo\": \"   \"}")).hasStatus(400);
+        assertThat(mvc.patch().uri("/api/calculos/salvos/" + id).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"titulo\": \"%s\"}".formatted("x".repeat(201)))).hasStatus(400);
+        assertThat((String) JsonPath.read(obter("/api/calculos/salvos/" + id), "$.titulo")).isEqualTo("Antigo");
+    }
+
+    @Test
+    void excluirApagaOCalculoEOSnapshot() throws Exception {
+        String id = JsonPath.read(salvar("Para excluir", PEDIDO), "$.id");
+        salvar("Fica", PEDIDO);
+
+        assertThat(mvc.delete().uri("/api/calculos/salvos/" + id)).hasStatus(204);
+
+        assertThat(mvc.get().uri("/api/calculos/salvos/" + id)).hasStatus(404);
+        assertThat(mvc.get().uri("/api/calculos/salvos")).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$", v -> v.assertThat().asArray().hasSize(1))
+                .hasPathSatisfying("$[0].titulo", v -> v.assertThat().isEqualTo("Fica"));
+        assertThat(jdbc.sql("SELECT count(*) FROM calculo_serie WHERE calculo_id = ?").param(UUID.fromString(id))
+                .query(Long.class).single()).isZero();
+        assertThat(mvc.delete().uri("/api/calculos/salvos/" + id)).hasStatus(404);
+    }
+
+    @Test
+    void umEscritorioNaoRenomeiaNemExcluiOsCalculosDeOutro() throws Exception {
+        UUID outro = UUID.randomUUID();
+        jdbc.sql("INSERT INTO escritorio (id, nome) VALUES (?, 'Outro escritório')").param(outro).update();
+        String id = JsonPath.read(salvar("Do escritório padrão", PEDIDO), "$.id");
+
+        assertThat(mvc.patch().uri("/api/calculos/salvos/" + id).with(ComUsuarioLogado.logadoNo(outro))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"titulo\": \"Tomado\"}")).hasStatus(404);
+        assertThat(mvc.delete().uri("/api/calculos/salvos/" + id).with(ComUsuarioLogado.logadoNo(outro)))
+                .hasStatus(404);
+        assertThat((String) JsonPath.read(obter("/api/calculos/salvos/" + id), "$.titulo"))
+                .isEqualTo("Do escritório padrão");
+    }
+
+    @Test
     void pedidoInvalidoNaoSalva() {
         String pensaoAlemDaDataBase = PEDIDO.replace("\"ultimoMes\": \"2024-09\"", "\"ultimoMes\": \"2024-11\"");
 
