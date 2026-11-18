@@ -114,7 +114,8 @@
           "mes": "2024-01",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -132,7 +133,8 @@
           "mes": "2024-02",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -150,7 +152,8 @@
           "mes": "2024-03",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 200
+          "valorPago": 200,
+          "decimoTerceiro": false
         }
       },
       {
@@ -168,7 +171,8 @@
           "mes": "2024-04",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -186,7 +190,8 @@
           "mes": "2024-05",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -204,7 +209,8 @@
           "mes": "2024-06",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -222,7 +228,8 @@
           "mes": "2024-07",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -240,7 +247,8 @@
           "mes": "2024-08",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -258,7 +266,8 @@
           "mes": "2024-09",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -276,7 +285,8 @@
           "mes": "2024-10",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -294,7 +304,8 @@
           "mes": "2024-11",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 300
+          "valorPago": 300,
+          "decimoTerceiro": false
         }
       },
       {
@@ -312,7 +323,8 @@
           "mes": "2024-12",
           "salarioMinimo": 1412,
           "valorDevido": 423.6,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -330,7 +342,8 @@
           "mes": "2025-01",
           "salarioMinimo": 1518,
           "valorDevido": 455.4,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -348,7 +361,8 @@
           "mes": "2025-02",
           "salarioMinimo": 1518,
           "valorDevido": 455.4,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -366,7 +380,8 @@
           "mes": "2025-03",
           "salarioMinimo": 1518,
           "valorDevido": 455.4,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -384,7 +399,8 @@
           "mes": "2025-04",
           "salarioMinimo": 1518,
           "valorDevido": 455.4,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -402,7 +418,8 @@
           "mes": "2025-05",
           "salarioMinimo": 1518,
           "valorDevido": 455.4,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       },
       {
@@ -420,7 +437,8 @@
           "mes": "2025-06",
           "salarioMinimo": 1518,
           "valorDevido": 455.4,
-          "valorPago": 0
+          "valorPago": 0,
+          "decimoTerceiro": false
         }
       }
     ],
@@ -429,6 +447,8 @@
     "debitoAtualizado": 7977.45,
     "multaArt523": 273.69,
     "honorariosArt523": 273.69,
+    "abatimentos": [],
+    "totalAbatido": 0,
     "total": 8524.83,
     "ritos": {
       "ajuizamento": "2024-09-15",
@@ -444,6 +464,9 @@
         "totalJuros": 245.48,
         "debitoAtualizado": 2736.86
       },
+      "abatidoPenhora": 0,
+      "abatidoPrisao": 0,
+      "totalPrisao": 5240.59,
       "totalPenhora": 3284.24
     },
     "series": [
