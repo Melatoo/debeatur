@@ -32,7 +32,8 @@ Rode só o que o diff toca, nesta ordem, e pare no primeiro vermelho para corrig
 
 Sem JDK 25 na máquina, rode o Maven no container, com o mesmo repositório local:
 `docker run --rm -v "$PWD:/w" -v "$HOME/.m2:/root/.m2" -w /w eclipse-temurin:25-jdk ./mvnw -B verify`
-(no Git Bash do Windows, prefixe `MSYS_NO_PATHCONV=1` e use `$(pwd -W)`).
+(no Git Bash do Windows, prefixe `MSYS_NO_PATHCONV=1` e use `$(pwd -W)`). O script do diferencial
+faz isso sozinho quando não acha o JDK 25, e busca a `origin/main` antes de comparar.
 
 **O diferencial** sai com 0 (nenhuma diferença), 1 (diferença; o diff fica em
 `target/diferencial/diferencas.diff`) ou 2 (não deu para comparar: a API pública do core mudou ou
