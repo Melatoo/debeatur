@@ -1,0 +1,14 @@
+# Usado pelo ci-local.sh no job "docker" (projeto debeatur-ci). A stack de teste não pode encostar
+# na do dia a dia:
+# - imagens com tag própria: com a tag do compose.yaml, o build da branch substituiria a imagem que
+#   um "docker compose up" sem --build usa, e a API da branch migraria o banco de verdade;
+# - sem portas no host, para não brigar com a 3000 e com a porta do banco. O healthcheck é o que
+#   decide se a stack subiu.
+services:
+  db:
+    ports: !reset []
+  api:
+    image: debeatur-ci-api
+  frontend:
+    image: debeatur-ci-frontend
+    ports: !reset []

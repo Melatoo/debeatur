@@ -24,10 +24,32 @@ Rode só o que o diff toca, nesta ordem, e pare no primeiro vermelho para corrig
 
 | Diff toca | Comando |
 |---|---|
-| `debeatur-core` | `./mvnw -B -q verify -pl debeatur-core` |
-| `debeatur-indices` ou `debeatur-api` | `./mvnw -B verify` (os testes com banco precisam do Docker; sem ele são pulados, e isso vai escrito no PR) |
+| `debeatur-core` | `./mvnw -B -q verify -pl debeatur-core` (gabarito e testes de propriedade do motor e da pensão) |
+| `debeatur-core/src/main` | `scripts/diferencial/diferencial-motor.sh`: os mesmos casos sorteados no core da `main` e no da branch. Ver abaixo |
+| `debeatur-indices` ou `debeatur-api` | `./mvnw -B verify` (os testes com banco precisam do Docker; sem ele são pulados, e isso vai escrito no PR). Inclui o `ContratoFixturesE2eTest`, que compara as fixtures do e2e com a resposta real |
 | `frontend/` | `cd frontend && npm run lint && npm test && npm run build` |
-| tela, CSS, impressão ou PDF | `cd frontend && npm run e2e` (Docker). Mudança visual intencional: `npm run e2e -- --update-snapshots`, e **abra as imagens** antes e depois |
+| tela, CSS, impressão ou PDF; DTO ou controller da API; `frontend/e2e/fixtures/` | `cd frontend && npm run e2e` (Docker). Mudança visual intencional: `npm run e2e -- --update-snapshots`, e **abra as imagens** antes e depois |
+
+Antes de abrir o PR, rode os jobs do CI na máquina, com os mesmos passos dos workflows:
+`scripts/ci-local/ci-local.sh` (backend, frontend, e2e, docker e a guarda do gabarito; acrescente
+`diferencial` quando o diff toca `debeatur-core/src/main`). Dá para rodar só alguns, como
+`scripts/ci-local/ci-local.sh backend fonte`, e passar a descrição do PR com `--descricao arquivo`
+para a guarda conferir as seções antes de o PR existir. Os logs ficam em `target/ci-local/`, e o
+resumo do fim vai para "Como verifiquei".
+
+O `ci-local.sh` usa o JDK 25 da máquina (acha o Temurin em `C:\Program Files\Eclipse Adoptium`
+mesmo fora do `PATH`) e roda com `CI=true`, como o runner. O diferencial usa o `java` do `PATH`.
+Sem JDK 25, os dois rodam o Maven no container `eclipse-temurin:25-jdk`. O diferencial busca a
+`origin/main` antes de comparar.
+
+**O diferencial** sai com 0 (nenhuma diferença), 1 (diferença; o diff fica em
+`target/diferencial/diferencas.diff`) ou 2 (não deu para comparar: a API pública do core mudou ou
+o build falhou). Diferença sem explicação é bug. Diferença pretendida vai para o PR, com os casos
+afetados e a fonte externa que justifica o novo valor, como no gabarito. Saída 2 vai para o PR como
+"diferencial não aplicável" com o motivo, e a mudança fica no risco alto.
+
+**O contrato das fixtures:** se o `ContratoFixturesE2eTest` falha depois de uma mudança intencional
+na API, regrave a fixture com uma resposta real e rode o e2e de novo. Não afrouxe a comparação.
 
 ## 3. Rodar a mudança de verdade
 
@@ -66,6 +88,8 @@ Pare e explique o que tentou, sem fazer o merge, quando:
 - Pular um teste instável, pôr `sleep` ou rodar de novo até ficar verde. Ache a causa. Se não
   achar, pare e chame o dono.
 - Afrouxar uma tolerância de gabarito ou regravar referências da impressão sem olhar as imagens.
+- Mudar o `DiferencialMotor.java` ou a comparação do `ContratoFixturesE2eTest` no mesmo PR que
+  eles julgariam. O script do diferencial usa o comparador da base, mas o teste de contrato não.
 - Editar `REVIEW.md`, o checklist, `.github/scripts` ou os workflows no mesmo PR que eles julgariam
   sem dizer isso em "Para revisar".
 
@@ -79,5 +103,5 @@ No PR (template em `.github/pull_request_template.md`):
 - **Gabarito / Impressão:** quando a guarda do CI pedir.
 
 No commit, acrescente o trailer `Verificado:` com o que rodou, por exemplo
-`Verificado: mvnw verify, npm test, e2e, preview, code-review` ou `Verificado: nenhum (só docs)`.
+`Verificado: mvnw verify, diferencial, npm test, e2e, preview, code-review` ou `Verificado: nenhum (só docs)`.
 Assim dá para achar depois os commits que entraram sem verificação.
