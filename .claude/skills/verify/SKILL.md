@@ -30,10 +30,17 @@ Rode só o que o diff toca, nesta ordem, e pare no primeiro vermelho para corrig
 | `frontend/` | `cd frontend && npm run lint && npm test && npm run build` |
 | tela, CSS, impressão ou PDF; DTO ou controller da API; `frontend/e2e/fixtures/` | `cd frontend && npm run e2e` (Docker). Mudança visual intencional: `npm run e2e -- --update-snapshots`, e **abra as imagens** antes e depois |
 
-Sem JDK 25 na máquina, rode o Maven no container, com o mesmo repositório local:
-`docker run --rm -v "$PWD:/w" -v "$HOME/.m2:/root/.m2" -w /w eclipse-temurin:25-jdk ./mvnw -B verify`
-(no Git Bash do Windows, prefixe `MSYS_NO_PATHCONV=1` e use `$(pwd -W)`). O script do diferencial
-faz isso sozinho quando não acha o JDK 25, e busca a `origin/main` antes de comparar.
+Antes de abrir o PR, rode os jobs do CI na máquina, com os mesmos passos dos workflows:
+`scripts/ci-local/ci-local.sh` (backend, frontend, e2e, docker e a guarda do gabarito; acrescente
+`diferencial` quando o diff toca `debeatur-core/src/main`). Dá para rodar só alguns, como
+`scripts/ci-local/ci-local.sh backend fonte`, e passar a descrição do PR com `--descricao arquivo`
+para a guarda conferir as seções antes de o PR existir. Os logs ficam em `target/ci-local/`, e o
+resumo do fim vai para "Como verifiquei".
+
+O `ci-local.sh` usa o JDK 25 da máquina (acha o Temurin em `C:\Program Files\Eclipse Adoptium`
+mesmo fora do `PATH`) e roda com `CI=true`, como o runner. O diferencial usa o `java` do `PATH`.
+Sem JDK 25, os dois rodam o Maven no container `eclipse-temurin:25-jdk`. O diferencial busca a
+`origin/main` antes de comparar.
 
 **O diferencial** sai com 0 (nenhuma diferença), 1 (diferença; o diff fica em
 `target/diferencial/diferencas.diff`) ou 2 (não deu para comparar: a API pública do core mudou ou
