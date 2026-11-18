@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
+  ErroDaApi,
   gerarPdf,
   gerarPdfSalvo,
   type CalculoRequest,
@@ -12,6 +13,7 @@ import {
 import { lerColunasOcultas, salvarColunasOcultas, type ColunaOpcional } from './colunas'
 import { contar, data, decimal, fator, mes, moeda, percentual } from './formato'
 import { competenciasQuitadas, parcelasAntigas, textoDoAviso } from './prescricao'
+import { chaveDoPedido } from './recalculo'
 import { FatorMesAMes } from './FatorMesAMes'
 import { LinhaDoTempo } from './LinhaDoTempo'
 import { useAlturaFixa } from './alturaFixa'
@@ -41,6 +43,8 @@ interface Props {
   idSalvo?: string
   /** Abre a janela de salvar; sem ele, o botão nem aparece. */
   aoSalvar?: () => void
+  /** O servidor não acha mais o cálculo salvo (excluído em outra aba ou por outra pessoa). */
+  aoSalvoSumir?: (id: string) => void
 }
 
 export type Situacao = 'atual' | 'atualizando' | 'desatualizado'
@@ -87,7 +91,7 @@ const nomeDaParcela = (l: LinhaDemonstrativo) => {
 const notaDosJuros = (l: LinhaDemonstrativo) =>
   l.inicioJuros == null ? 'sem juros' : l.inicioJuros !== l.inicioCorrecao ? `juros desde ${data(l.inicioJuros)}` : null
 
-export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, acao, idSalvo, aoSalvar }: Props) {
+export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, acao, idSalvo, aoSalvar, aoSalvoSumir }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null)
   const faixa = useRef<HTMLParagraphElement>(null)
   useAlturaFixa(faixa, '--altura-situacao')
@@ -95,8 +99,17 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
    * Aviso de PDF ou cópia, preso ao pedido de que fala: o recálculo automático troca os números sem
    * remontar, e "PDF baixado" não pode ficar ao lado de números que não estão nele.
    */
-  const [aviso, setAviso] = useState<{ de: CalculoRequest; texto: string } | null>(null)
+  const [aviso, setAviso] = useState<{ de: CalculoRequest | string; texto: string } | null>(null)
   const avisar = (texto: string) => setAviso({ de: pedido, texto })
+  /**
+   * Um aviso que não fala dos números, preso à chave do pedido: ele continua depois do recálculo
+   * do mesmo pedido (que traz outro objeto) e some quando a pessoa muda o formulário.
+   */
+  const avisarSobreOPedido = (texto: string) => setAviso({ de: chaveDoPedido(pedido), texto })
+  const avisoNaTela =
+    aviso && (aviso.de === pedido || (typeof aviso.de === 'string' && aviso.de === chaveDoPedido(pedido)))
+      ? aviso.texto
+      : null
   /** O pedido na tela agora, para um PDF que fica pronto depois de um recálculo não baixar o antigo. */
   const pedidoNaTela = useRef(pedido)
   useEffect(() => {
@@ -302,6 +315,14 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
       avisar(`PDF baixado: ${nome}`)
     } catch (e) {
+      if (idSalvo && e instanceof ErroDaApi && e.status === 404) {
+        // Excluído em outra aba ou por outra pessoa: o snapshot não existe mais, e a tela deixa de
+        // tratá-lo como salvo, como na exclusão feita aqui. O recálculo que vem a seguir troca o
+        // objeto do pedido, e o aviso precisa continuar na tela.
+        aoSalvoSumir?.(idSalvo)
+        avisarSobreOPedido('Este cálculo salvo foi excluído em outra janela. Os números são refeitos com os índices de hoje; baixe o PDF de novo.')
+        return
+      }
       avisar(`Não foi possível gerar o PDF. ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setGerandoPdf(false)
@@ -430,7 +451,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           </button>
         </div>
         <p className="status" role="status">
-          {aviso?.de === pedido && aviso.texto}
+          {avisoNaTela}
         </p>
       </div>
 

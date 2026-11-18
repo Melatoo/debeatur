@@ -992,6 +992,7 @@ function App() {
             acao={invalido ? undefined : acaoDoErro}
             idSalvo={idSalvo}
             aoSalvar={() => setSalvarAberta(true)}
+            aoSalvoSumir={excluiuSalvo}
           />
         )}
       </div>

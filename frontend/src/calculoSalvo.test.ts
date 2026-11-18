@@ -262,4 +262,17 @@ describe('filtrarCalculos', () => {
   it('um número que não está em processo nenhum não acha nada', () => {
     expect(titulos('7777')).toEqual([])
   })
+
+  it('um número não procura no regime, que tem datas e leis no nome', () => {
+    const comRegimePadrao = [
+      resumo('Execução da Maria', '5001234-56.2024.8.13.0024', 'Cível padrão TJMG (tabela CGJ: INPC até 07/2024; Lei 14.905/2024)'),
+      resumo('Pensão do João', '0009876-12.2023.8.13.0702', 'Cível padrão TJMG (tabela CGJ: INPC até 07/2024; Lei 14.905/2024)'),
+    ]
+    const achados = (busca: string) => filtrarCalculos(comRegimePadrao, busca).map((r) => r.titulo)
+    expect(achados('2024')).toEqual(['Execução da Maria'])
+    expect(achados('14.905')).toEqual([])
+    expect(achados('07/2024')).toEqual([])
+    // Palavra com letras continua procurando no regime.
+    expect(achados('inpc')).toEqual(['Execução da Maria', 'Pensão do João'])
+  })
 })

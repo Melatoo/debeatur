@@ -267,7 +267,44 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
             <tbody>
               {achados.map((r) => (
                 <tr key={r.id}>
+                  {/* O cabeçalho da linha é lido em cada célula: só o título e o regime, sem controles. */}
                   <th scope="row">
+                    {r.titulo}
+                    <span className="nota">{r.regime}</span>
+                  </th>
+                  <td className="processo-salvo">
+                    {r.processo || (
+                      <>
+                        <span aria-hidden="true">—</span>
+                        <span className="sr-only">Sem número</span>
+                      </>
+                    )}
+                  </td>
+                  <td>{data(r.dataBase)}</td>
+                  <td>{moeda(r.total)}</td>
+                  <td>{dataHora(new Date(r.criadoEm))}</td>
+                  <td className="acoes-salvo">
+                    <div className="acoes-principais">
+                      {(['abrir', 'atualizar', 'duplicar'] as const)
+                        // Um cálculo que já vai até o fim do mês anterior não tem o que atualizar.
+                        .filter((acao) => acao !== 'atualizar' || novaDataBase(r.dataBase) !== null)
+                        .map((acao) => {
+                          const esta = andamento(r.id, acao)
+                          return (
+                            <button
+                              key={acao}
+                              type="button"
+                              // Só o botão que espera o servidor mostra o andamento; os outros, só travados.
+                              className={[acao !== 'abrir' && 'secundario', esta && 'esperando'].filter(Boolean).join(' ') || undefined}
+                              aria-label={`${ROTULOS[acao].botao} ${r.titulo}`}
+                              disabled={travado}
+                              onClick={() => void escolher(acao, r)}
+                            >
+                              {esta ? ROTULOS[acao].andamento : ROTULOS[acao].botao}
+                            </button>
+                          )
+                        })}
+                    </div>
                     {editando?.id === r.id ? (
                       <form className="renomear-salvo" onSubmit={(e) => void renomear(e, r)}>
                         <label className="sr-only" htmlFor={`titulo-${r.id}`}>
@@ -296,13 +333,7 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
                           </button>
                         </div>
                       </form>
-                    ) : (
-                      <>
-                        {r.titulo}
-                        <span className="nota">{r.regime}</span>
-                      </>
-                    )}
-                    {confirmando === r.id ? (
+                    ) : confirmando === r.id ? (
                       <div className="confirmar-exclusao" role="group" aria-labelledby={`pergunta-${r.id}`}>
                         <p id={`pergunta-${r.id}`}>
                           <strong>Excluir este cálculo?</strong> Ele sai da lista com os índices guardados, e não dá
@@ -329,8 +360,7 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
                         </div>
                       </div>
                     ) : (
-                      editando?.id !== r.id && (
-                        <span className="acoes-secundarias">
+                      <div className="acoes-secundarias">
                           <button
                             type="button"
                             id={`renomear-${r.id}`}
@@ -351,41 +381,8 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
                           >
                             Excluir
                           </button>
-                        </span>
-                      )
+                      </div>
                     )}
-                  </th>
-                  <td className="processo-salvo">
-                    {r.processo || (
-                      <>
-                        <span aria-hidden="true">—</span>
-                        <span className="sr-only">Sem número</span>
-                      </>
-                    )}
-                  </td>
-                  <td>{data(r.dataBase)}</td>
-                  <td>{moeda(r.total)}</td>
-                  <td>{dataHora(new Date(r.criadoEm))}</td>
-                  <td className="acoes-salvo">
-                    {(['abrir', 'atualizar', 'duplicar'] as const)
-                      // Um cálculo que já vai até o fim do mês anterior não tem o que atualizar.
-                      .filter((acao) => acao !== 'atualizar' || novaDataBase(r.dataBase) !== null)
-                      .map((acao) => {
-                        const esta = andamento(r.id, acao)
-                        return (
-                          <button
-                            key={acao}
-                            type="button"
-                            // Só o botão que espera o servidor mostra o andamento; os outros, só travados.
-                            className={[acao !== 'abrir' && 'secundario', esta && 'esperando'].filter(Boolean).join(' ') || undefined}
-                            aria-label={`${ROTULOS[acao].botao} ${r.titulo}`}
-                            disabled={travado}
-                            onClick={() => void escolher(acao, r)}
-                          >
-                            {esta ? ROTULOS[acao].andamento : ROTULOS[acao].botao}
-                          </button>
-                        )
-                      })}
                   </td>
                 </tr>
               ))}

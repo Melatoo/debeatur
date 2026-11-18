@@ -126,3 +126,43 @@ test('o título vazio acusa no próprio campo, sem esconder a busca', async ({ p
   await campo.fill('Execução de A. B. C.')
   await expect(campo).not.toHaveAttribute('aria-invalid')
 })
+
+test('o cabeçalho de cada linha tem só o título e o regime, também ao renomear e ao excluir', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Cálculos salvos' }).click()
+  const janela = page.getByRole('dialog', { name: 'Cálculos salvos' })
+  // O leitor de tela repete o cabeçalho da linha em cada célula: um controle ali seria lido com cada valor.
+  const cabecalho = janela.getByRole('rowheader', { name: new RegExp(TITULO) })
+  const semControles = async () => {
+    await expect(cabecalho.getByRole('button')).toHaveCount(0)
+    await expect(cabecalho.getByRole('textbox')).toHaveCount(0)
+    await expect(cabecalho).not.toContainText(/Renomear|Excluir|Cancelar/)
+  }
+  await semControles()
+
+  await janela.getByRole('button', { name: `Renomear ${TITULO}` }).click()
+  await expect(janela.getByLabel(`Novo título de “${TITULO}”`)).toBeFocused()
+  await semControles()
+  await janela.getByLabel(`Novo título de “${TITULO}”`).press('Escape')
+
+  await janela.getByRole('button', { name: `Excluir ${TITULO}` }).click()
+  await expect(janela.getByRole('group', { name: /Excluir este cálculo\?/ })).toBeVisible()
+  await semControles()
+  await semViolacoes(page)
+})
+
+test('o PDF de um cálculo excluído em outra janela avisa e deixa de tratá-lo como salvo', async ({ page, api }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Cálculos salvos' }).click()
+  const janela = page.getByRole('dialog', { name: 'Cálculos salvos' })
+  await janela.getByRole('button', { name: `Abrir ${TITULO}` }).click()
+  await expect(page.getByRole('button', { name: 'Salvo', exact: true })).toBeDisabled()
+
+  api.excluidoEmOutraJanela = true
+  await page.getByRole('button', { name: 'Baixar PDF' }).click()
+  // O aviso continua depois do recálculo com os índices de hoje, que troca o objeto do pedido.
+  await expect.poll(() => api.pedidos.length).toBe(1)
+  await expect(page.getByText(/que foi excluído: os números usam os índices de hoje/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeEnabled()
+  await expect(page.getByRole('status').filter({ hasText: /Este cálculo salvo foi excluído em outra janela/ })).toBeVisible()
+})

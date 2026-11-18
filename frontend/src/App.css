@@ -1246,22 +1246,28 @@ tfoot .total td {
   font-variant-numeric: tabular-nums;
 }
 
+/* Renomear e Excluir: links sob Abrir, Atualizar e Duplicar, na célula de ações. */
 .acoes-secundarias {
   display: flex;
+  justify-content: flex-end;
   gap: 12px;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 0.875rem;
 }
 
 .acoes-secundarias button.link {
-  font-weight: 500;
   color: var(--texto-suave);
 }
 
+/* O formulário e a confirmação ocupam o lugar dos links, alinhados à esquerda para ler. */
 .renomear-salvo {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 22rem;
+  margin: 8px 0 0 auto;
+  text-align: left;
+  white-space: normal;
 }
 
 .renomear-salvo input {
@@ -1269,8 +1275,12 @@ tfoot .total td {
   font-weight: 400;
 }
 
+/* O td não quebra linha (valores); a pergunta, a consequência e o erro do título precisam quebrar. */
 .confirmar-exclusao {
-  margin-top: 8px;
+  width: 22rem;
+  margin: 8px 0 0 auto;
+  text-align: left;
+  white-space: normal;
   padding: 10px 12px;
   border: 1px solid var(--borda-forte);
   border-radius: 6px;
@@ -1301,13 +1311,14 @@ tfoot .total td {
   width: auto;
 }
 
-.acoes-salvo {
+.acoes-principais {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.acoes-salvo button {
+.acoes-principais button,
+.acoes-linha button {
   padding: 3px 12px;
   font-size: 0.875rem;
 }
