@@ -651,7 +651,12 @@ final class DemonstrativoPdf {
         List<String> itens = new ArrayList<>();
         for (Indice indice : indices) {
             String valores = indice.corrigeMoeda() ? "variações mensais" : "taxas mensais";
-            itens.add(indice.descricao() + ": " + valores + " da série " + SgsClient.codigo(indice) + " do SGS/BCB.");
+            // a série que deu os valores deste cálculo: a SELIC de um cálculo salvo antes da SGS 11 veio da 4390
+            List<BigDecimal> usados = resultado.series().stream()
+                    .filter(s -> s.serie().equals(indice.name()))
+                    .flatMap(s -> s.valores().stream().map(DemonstrativoResponse.ValorMensal::valor))
+                    .toList();
+            itens.add(indice.descricao() + ": " + valores + " da " + SgsClient.fonte(indice, usados) + ".");
         }
         if (indices.isEmpty()) {
             itens.add("Nenhuma série de índice incidiu na correção ou nos juros deste cálculo.");
