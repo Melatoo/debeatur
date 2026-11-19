@@ -121,7 +121,7 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
               regra seguinte: use a SELIC até 07/2024, salvo se o título mandar outra coisa.
             </p>
           )}
-          {agostoNaViradaDaSelic(r) === 'regra-seguinte' && (
+          {agostoNaViradaDaSelic(r) === 'regra-seguinte' && i < regras.length - 1 && (
             <p className="dica">
               Agosto/2024 fica inteiro com o critério da regra seguinte, como no CADEJ do TJMG.
             </p>

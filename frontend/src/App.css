@@ -393,6 +393,11 @@ fieldset {
   color: var(--aviso);
 }
 
+.regra .dica {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .aviso-prescricao {
   margin: 12px 0 0;
   max-width: 72ch;

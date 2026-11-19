@@ -133,19 +133,30 @@ relatório. Ele não passa em branco.
      mês.
 
    **O Debeatur segue o CADEJ: SELIC até 07/2024 (decisão de 19/11/2026).** Agosto/2024 vai
-   inteiro para a regra seguinte (IPCA + taxa legal do mês inteiro, como no CADEJ), e a SELIC
-   de agosto não se divide por dias, porque nenhuma fonte de fora faz isso. A planilha da DPMG
-   não tem modelo com a virada da SELIC, então não decide o mês. Ela concorda na correção (o
-   modelo "Taxa legal (Bacen)" corrige agosto/2024 inteiro pelo IPCA, divergência 3), mas
-   divide os juros do mês por dias entre o critério anterior e a taxa legal. Dividir assim no
-   Tema 1368 seria convenção nossa, sem fonte, e a SELIC de 29 dias somada ao IPCA do mês
-   corrigiria agosto duas vezes. O editor recomenda a SELIC até 07/2024 e avisa quando ela vai
+   inteiro para a regra seguinte, com IPCA e taxa legal do mês inteiro. O CADEJ mostra a taxa
+   legal de agosto inteira; o IPCA de agosto vem da regra seguinte, como no regime padrão
+   (divergência 3), porque o CADEJ simplificado só aplica um índice por cálculo. A SELIC de
+   agosto não se divide por dias: nenhuma fonte de fora faz isso, e a SELIC de 29 dias somada
+   ao IPCA do mês corrigiria agosto duas vezes.
+
+   **A decisão se afasta da Res. CMN 5.171/2024, como o CADEJ.** Pelo art. 8º, parágrafo
+   único, a taxa legal de agosto/2024 vale só em 2/31 do mês (0,039052%), e o regime padrão
+   segue isso. Aqui agosto leva a taxa legal inteira (0,605306%), e os dias 1 a 29/08 ficam sem
+   a SELIC (cerca de 0,87% no mês). Em R$ 10.000,00, são cerca de R$ 60,53 de juros em agosto,
+   contra uns R$ 83 a R$ 85 se o mês se dividisse por dias (úteis ou corridos). Dividir exigiria a SELIC pro rata, que é
+   convenção sem fonte, e mudar o motor sem gabarito (#32).
+
+   A planilha da DPMG não tem modelo com a virada da SELIC, então não decide o mês. Ela
+   concorda na correção (o modelo "Taxa legal (Bacen)" corrige agosto/2024 inteiro pelo IPCA),
+   mas divide os juros de agosto. O editor recomenda a SELIC até 07/2024 e avisa quando ela vai
    até 08/2024 (a regra do Manual da Justiça Federal). O motor não muda: a regra por mês
-   inteiro já faz isso.
+   inteiro já faz isso. Falta um cálculo homologado ou da contadoria do TJMG que confirme o
+   mês.
 
    A divisão por dias do regime padrão (29/30 de 1% + 2/31 da taxa legal) continua, porque
-   reproduz a planilha da DPMG, que é o gabarito dele. São convenções diferentes para critérios
-   diferentes.
+   reproduz a planilha da DPMG, que é o gabarito dele. Os 2/31 da taxa legal são norma nos dois
+   critérios; o que muda é a parte de convenção: os 29/30 de 1% no regime padrão têm fonte (a
+   planilha), e a SELIC pro rata no Tema 1368 não tem.
 5. **Base dos honorários do art. 523, §1º.** O CADEJ calcula os honorários de 10% sobre o
    débito já acrescido da multa (casos 1 e 4: R$ 1.771,65 sobre R$ 17.716,53). O motor calcula
    sobre o débito atualizado (R$ 1.610,59 sobre R$ 16.105,94), como o STJ: a multa não integra a
