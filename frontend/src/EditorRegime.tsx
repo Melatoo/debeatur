@@ -117,14 +117,13 @@ export function EditorRegime({ nome, onNome, regras, onRegras }: Props) {
           )}
           {agostoNaViradaDaSelic(r) === 'selic' && (
             <p className="aviso">
-              Agosto/2024 fica inteiro com a SELIC, como no Manual de Cálculos da Justiça Federal. O CADEJ do TJMG deixa
-              agosto com a taxa legal (SELIC até 07/2024): confira o critério do título.
+              <strong>Agosto/2024 fica inteiro com a SELIC.</strong> O CADEJ do TJMG deixa agosto com o critério da
+              regra seguinte: use a SELIC até 07/2024, salvo se o título mandar outra coisa.
             </p>
           )}
           {agostoNaViradaDaSelic(r) === 'regra-seguinte' && (
-            <p className="aviso">
-              Agosto/2024 fica inteiro com o critério da regra seguinte, como no CADEJ do TJMG. O Manual de Cálculos da
-              Justiça Federal mantém a SELIC até 08/2024: confira o critério do título.
+            <p className="dica">
+              Agosto/2024 fica inteiro com o critério da regra seguinte, como no CADEJ do TJMG.
             </p>
           )}
         </fieldset>

@@ -79,7 +79,7 @@ relatório. Ele não passa em branco.
 | Meses do termo inicial (inclusive) até o mês da data-base (exclusive) | Confirmada para correção e juros pela tabela da CGJ (#18) e pelos cinco casos do CADEJ |
 | Fator sem arredondamento, acumulando as variações do SGS | Divergência de até 3 × 10⁻⁷ contra a CGJ e o CADEJ; os valores corrigidos batem (ver abaixo) |
 | Taxa legal | Confirmada: usa a série 29543 do BCB, que reproduz a Res. CMN 5.171/2024 (#19) |
-| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). Ainda falta cálculo homologado. A exceção é o mês da virada no regime padrão, dividido como na planilha da DPMG (#3). No critério do Tema 1368, agosto/2024 vai inteiro para um critério só, e o Manual da Justiça Federal e o CADEJ divergem sobre qual (divergência 4) |
+| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). Ainda falta cálculo homologado. A exceção é o mês da virada no regime padrão, dividido como na planilha da DPMG (#3). No critério do Tema 1368, agosto/2024 vai inteiro para um critério só, e o Manual da Justiça Federal e o CADEJ divergem sobre qual; o Debeatur segue o CADEJ, com a SELIC até 07/2024 (divergência 4, decisão de 19/11/2026) |
 | Juros simples sobre o valor corrigido | Confirmada pelo CADEJ (casos 1, 3, 4 e 5) |
 | HALF_UP em duas casas a cada valor monetário | Confirmada pelo CADEJ em todas as linhas dos cinco casos |
 | Multa de 10% sobre o débito atualizado | Confirmada pelo CADEJ (casos 1, 3 e 4) |
@@ -132,10 +132,16 @@ relatório. Ele não passa em branco.
    - os acórdãos do TJMG fixam o corte em 29 ou 30/08/2024, mas não dizem como se calcula o
      mês.
 
-   O tribunal de referência é o TJMG, o que pesa a favor do CADEJ, mas o CADEJ é uma
-   ferramenta de simulação, não um cálculo homologado. Até que um cálculo homologado ou a
-   contadoria do TJMG decida, o editor não recomenda nenhum dos dois: avisa, nos dois casos,
-   para onde vai agosto e que as fontes divergem.
+   **O Debeatur segue o CADEJ: SELIC até 07/2024 (decisão de 19/11/2026).** Agosto/2024 vai
+   inteiro para a regra seguinte (IPCA + taxa legal do mês inteiro, como no CADEJ), e a SELIC
+   de agosto não se divide por dias, porque nenhuma fonte de fora faz isso. A planilha da DPMG
+   não tem modelo com a virada da SELIC, então não decide o mês. Ela concorda na correção (o
+   modelo "Taxa legal (Bacen)" corrige agosto/2024 inteiro pelo IPCA, divergência 3), mas
+   divide os juros do mês por dias entre o critério anterior e a taxa legal. Dividir assim no
+   Tema 1368 seria convenção nossa, sem fonte, e a SELIC de 29 dias somada ao IPCA do mês
+   corrigiria agosto duas vezes. O editor recomenda a SELIC até 07/2024 e avisa quando ela vai
+   até 08/2024 (a regra do Manual da Justiça Federal). O motor não muda: a regra por mês
+   inteiro já faz isso.
 
    A divisão por dias do regime padrão (29/30 de 1% + 2/31 da taxa legal) continua, porque
    reproduz a planilha da DPMG, que é o gabarito dele. São convenções diferentes para critérios

@@ -65,11 +65,10 @@ export const paraRegime = (nome: string, regras: RegraEditavel[]): Regime => ({
  * Quem fica com agosto/2024 quando a regra é a SELIC terminando junto à virada da Lei 14.905/2024
  * (30/08/2024), ou {@code null} se a regra não é essa.
  * <p>
- * As regras valem por mês inteiro, e o mês da virada não se divide (#32). Com a SELIC até 08/2024,
- * o cálculo segue o Manual de Cálculos da Justiça Federal (devedor privado: SELIC até ago./2024,
- * taxa legal desde set./2024). Até 07/2024, agosto inteiro passa para o critério da regra
- * seguinte, como no CADEJ do TJMG, que deixa agosto com a taxa legal. As fontes divergem
- * (divergência 4 do docs/gabarito.md), então o editor avisa nos dois casos.
+ * As regras valem por mês inteiro, e o mês da virada não se divide (#32). O Debeatur segue o CADEJ
+ * do TJMG: SELIC até 07/2024 e agosto inteiro com o critério da regra seguinte (divergência 4 do
+ * docs/gabarito.md). Com a SELIC até 08/2024, como no Manual de Cálculos da Justiça Federal, o
+ * editor avisa e recomenda 07/2024.
  */
 export function agostoNaViradaDaSelic(regra: RegraEditavel): 'selic' | 'regra-seguinte' | null {
   if (regra.correcao !== 'SELIC') return null
