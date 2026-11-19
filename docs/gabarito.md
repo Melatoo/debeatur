@@ -79,7 +79,7 @@ relatório. Ele não passa em branco.
 | Meses do termo inicial (inclusive) até o mês da data-base (exclusive) | Confirmada para correção e juros pela tabela da CGJ (#18) e pelos cinco casos do CADEJ |
 | Fator sem arredondamento, acumulando as variações do SGS | Divergência de até 3 × 10⁻⁷ contra a CGJ e o CADEJ; os valores corrigidos batem (ver abaixo) |
 | Taxa legal | Confirmada: usa a série 29543 do BCB, que reproduz a Res. CMN 5.171/2024 (#19) |
-| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). Ainda falta cálculo homologado. A exceção é o mês da virada no regime padrão, dividido como na planilha da DPMG (#3). No critério do Tema 1368, agosto/2024 vai inteiro para um critério só, e o Manual da Justiça Federal e o CADEJ divergem sobre qual (divergência 4) |
+| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). Ainda falta cálculo homologado. A exceção é o mês da virada no regime padrão, dividido como na planilha da DPMG (#3). No critério do Tema 1368, agosto/2024 vai inteiro para um critério só, e o Manual da Justiça Federal e o CADEJ divergem sobre qual; o Debeatur segue o CADEJ, com a SELIC até 07/2024 (divergência 4, decisão de 19/11/2026) |
 | Juros simples sobre o valor corrigido | Confirmada pelo CADEJ (casos 1, 3, 4 e 5) |
 | HALF_UP em duas casas a cada valor monetário | Confirmada pelo CADEJ em todas as linhas dos cinco casos |
 | Multa de 10% sobre o débito atualizado | Confirmada pelo CADEJ (casos 1, 3 e 4) |
@@ -132,14 +132,31 @@ relatório. Ele não passa em branco.
    - os acórdãos do TJMG fixam o corte em 29 ou 30/08/2024, mas não dizem como se calcula o
      mês.
 
-   O tribunal de referência é o TJMG, o que pesa a favor do CADEJ, mas o CADEJ é uma
-   ferramenta de simulação, não um cálculo homologado. Até que um cálculo homologado ou a
-   contadoria do TJMG decida, o editor não recomenda nenhum dos dois: avisa, nos dois casos,
-   para onde vai agosto e que as fontes divergem.
+   **O Debeatur segue o CADEJ: SELIC até 07/2024 (decisão de 19/11/2026).** Agosto/2024 vai
+   inteiro para a regra seguinte, com IPCA e taxa legal do mês inteiro. O CADEJ mostra a taxa
+   legal de agosto inteira; o IPCA de agosto vem da regra seguinte, como no regime padrão
+   (divergência 3), porque o CADEJ simplificado só aplica um índice por cálculo. A SELIC de
+   agosto não se divide por dias: nenhuma fonte de fora faz isso, e a SELIC de 29 dias somada
+   ao IPCA do mês corrigiria agosto duas vezes.
+
+   **A decisão se afasta da Res. CMN 5.171/2024, como o CADEJ.** Pelo art. 8º, parágrafo
+   único, a taxa legal de agosto/2024 vale só em 2/31 do mês (0,039052%), e o regime padrão
+   segue isso. Aqui agosto leva a taxa legal inteira (0,605306%), e os dias 1 a 29/08 ficam sem
+   a SELIC (cerca de 0,87% no mês). Em R$ 10.000,00, são cerca de R$ 60,53 de juros em agosto,
+   contra uns R$ 83 a R$ 85 se o mês se dividisse por dias (úteis ou corridos). Dividir exigiria a SELIC pro rata, que é
+   convenção sem fonte, e mudar o motor sem gabarito (#32).
+
+   A planilha da DPMG não tem modelo com a virada da SELIC, então não decide o mês. Ela
+   concorda na correção (o modelo "Taxa legal (Bacen)" corrige agosto/2024 inteiro pelo IPCA),
+   mas divide os juros de agosto. O editor recomenda a SELIC até 07/2024 e avisa quando ela vai
+   até 08/2024 (a regra do Manual da Justiça Federal). O motor não muda: a regra por mês
+   inteiro já faz isso. Falta um cálculo homologado ou da contadoria do TJMG que confirme o
+   mês.
 
    A divisão por dias do regime padrão (29/30 de 1% + 2/31 da taxa legal) continua, porque
-   reproduz a planilha da DPMG, que é o gabarito dele. São convenções diferentes para critérios
-   diferentes.
+   reproduz a planilha da DPMG, que é o gabarito dele. Os 2/31 da taxa legal são norma nos dois
+   critérios; o que muda é a parte de convenção: os 29/30 de 1% no regime padrão têm fonte (a
+   planilha), e a SELIC pro rata no Tema 1368 não tem.
 5. **Base dos honorários do art. 523, §1º.** O CADEJ calcula os honorários de 10% sobre o
    débito já acrescido da multa (casos 1 e 4: R$ 1.771,65 sobre R$ 17.716,53). O motor calcula
    sobre o débito atualizado (R$ 1.610,59 sobre R$ 16.105,94), como o STJ: a multa não integra a
