@@ -123,7 +123,9 @@ Os raios são três: `raio-amostra` (3px) nas amostras e barras, `raio-controle`
 
 ## Movimento
 
-Só um: as barras da linha do tempo crescem de baixo para cima em 0,8s (`cubic-bezier(0.16, 1, 0.3, 1)`) quando o gráfico aparece, e só com `prefers-reduced-motion: no-preference`. A transição de opacidade do demonstrativo espera 0,15s para não piscar a cada tecla.
+Só um movimento com deslocamento: as barras da linha do tempo crescem de baixo para cima em 0,8s (`cubic-bezier(0.16, 1, 0.3, 1)`) quando o gráfico aparece, e só com `prefers-reduced-motion: no-preference`. A transição de opacidade do demonstrativo espera 0,15s ao apagar, para não piscar a cada tecla, e
+leva 0,2s; a volta para `atual` não espera e leva 0,1s, porque é a resposta chegando e não pode
+parecer mais lenta que o cálculo.
 
 ## Iconografia
 

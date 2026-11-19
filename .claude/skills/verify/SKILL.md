@@ -73,6 +73,14 @@ Rode `/code-review` sobre o diff, ou um subagente sem o histórico desta sessão
 `REVIEW.md` como instrução. Quem escreveu a mudança não é quem revisa. Corrija os Important e
 repita no máximo 3 vezes.
 
+Quando o diff toca `frontend/src` (tela, CSS, textos), use o subagente, que recebe instrução, e
+entregue a ele também o `docs/design-system.md`, com o pedido de ler a mudança contra o documento:
+cor fora dos tokens, formato de número, texto de botão e de erro, estado, movimento,
+acessibilidade. Cada achado cita a seção e a regra quebrada, como "Cor: `destaque` é a mesma
+tinta de `texto`". Regra que a mudança altera de propósito precisa vir alterada no próprio
+`design-system.md`, no mesmo PR; sem isso, é achado. O review do CI segue só o `REVIEW.md`, que
+ainda não aponta para o design system, então esta conferência existe só aqui.
+
 ## 6. Quando parar e chamar o dono
 
 Pare e explique o que tentou, sem fazer o merge, quando:

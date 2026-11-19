@@ -531,16 +531,21 @@ button:disabled.esperando {
 }
 
 /* Os números ficam à vista para comparar, mas apagados, para ninguém copiá-los como se valessem. */
+/* A transição que vale é a do estado de destino. A volta para `atual` é a resposta chegando:
+   acende logo, sem espera. */
 .demonstrativo > :not(.situacao, .cabecalho-resultado) {
-  transition: opacity 0.2s ease 0.15s;
+  transition: opacity 0.1s ease-out;
 }
 
+/* Só o apagar espera 0,15s, para os números não piscarem a cada tecla. */
 .demonstrativo[data-situacao='atualizando'] > :not(.situacao, .cabecalho-resultado) {
   opacity: 0.6;
+  transition: opacity 0.2s ease-out 0.15s;
 }
 
 .demonstrativo[data-situacao='desatualizado'] > :not(.situacao, .cabecalho-resultado) {
   opacity: 0.4;
+  transition: opacity 0.2s ease-out 0.15s;
 }
 
 .cabecalho-resultado {
