@@ -162,6 +162,22 @@ relatório. Ele não passa em branco.
    termo inicial até o mês anterior ao pagamento, mais 1% no mês do pagamento, como nos
    tributos federais. Como o tribunal de referência é o TJMG, o caminho é seguir o CADEJ:
    montar o fator mensal a partir da SGS 11 e transcrever esse caso em `CasosCadej`.
+
+   A planilha "SELIC Acumulada" da DPMG faz como o CADEJ. Num caso gerado no iadefensor em
+   18/11/2026 (R$ 1.000,00 por mês de 01/2024 a 12/2024, fim do cálculo em 11/2026), o fator de
+   cada parcela é o **produto** de (1 + taxa do mês), do mês da parcela (inclusive) até o mês
+   anterior ao fim do cálculo. A razão entre os fatores de duas parcelas seguidas devolve a
+   taxa do mês, e as de 01/2024 a 11/2024 batem, em seis casas, com o produto da SGS 11 nos
+   dias úteis do mês (janeiro/2024: 0,966690%, contra 0,97% da SGS 4390). A aba "TJMG" da
+   planilha traz as taxas de 01/1995 a 05/2025; de 01/2024 a 05/2025, batem com a SGS 11, salvo
+   março/2024, que vem com cinco casas (0,83167, contra 0,831674 no fator). O fator segue até
+   10/2026, embora a aba pare em 05/2025: o trecho de 06/2025 a 10/2026 também bate com a
+   SGS 11, com diferença de 2 × 10⁻⁷. O valor corrigido é (pago − valor) × fator, sem
+   arredondamento (como na divergência 9). O modelo aplica a SELIC no período todo, sem a
+   virada da Lei 14.905/2024, então não serve de gabarito para o Tema 1368 (#28, #32), só para
+   o trecho em SELIC. O caso e as taxas estão em `selic-acumulada-dpmg-caso-2026-11.csv` e
+   `selic-acumulada-dpmg-taxas-2026-11.csv`, ainda sem teste: o motor, com a SGS 4390,
+   divergiria, e trocar a série muda o `debeatur-core`.
 7. **Ritos: os três últimos meses do cálculo (DPMG) × a regra do art. 528, §7º.** Ao separar os
    ritos, a planilha da DPMG põe na prisão os três últimos meses do cálculo. O motor segue a
    lei e a Súmula 309 do STJ: as três parcelas anteriores ao ajuizamento e as que vencerem no
@@ -183,8 +199,9 @@ relatório. Ele não passa em branco.
 O gerador público da planilha da DPMG ([iadefensor](https://www.iadefensor.com.br/planilha/planilha_sem_menu),
 modelo "Taxa legal (Bacen)") produz o modelo de outubro/2026 que está em
 `planilha-dpmg-alimentos-2026-10.csv`: os fatores e os percentuais de juros vêm gravados como
-números, idênticos aos do CSV, e o Excel só multiplica. Gerar outros casos nele não traz
-fatores novos, mas mostra as convenções dos recursos opcionais. Em 14/11/2026:
+números, idênticos aos do CSV, e o Excel só multiplica. Gerar outros casos nesse modelo não
+traz fatores novos, mas mostra as convenções dos recursos opcionais; o modelo "SELIC
+Acumulada" traz fatores próprios. Em 14/11/2026, salvo onde indicado:
 
 - **13º salário:** o valor de dezembro dobra. Não há 13º proporcional: a pensão que começa
   no meio do ano dobra dezembro inteiro, e a que termina antes de dezembro fica sem 13º.
@@ -194,6 +211,11 @@ fatores novos, mas mostra as convenções dos recursos opcionais. Em 14/11/2026:
 - **Percentual dos rendimentos:** o percentual incide sobre um valor de rendimentos
   informado, igual em todos os meses.
 - **Valor fixo:** só nos modelos cíveis, em períodos com valor próprio e sem reajuste.
+- **SELIC Acumulada** (modelo cível, conferido em 18/11/2026): fator pelo produto das taxas
+  mensais tiradas da SELIC diária, sem juros à parte e sem a virada da Lei 14.905/2024. A
+  coluna "DIFERENÇA" é `pago − valor`, e o valor corrigido é diferença × fator; sem
+  pagamentos, as duas colunas saem negativas. A multa de 2% que o gerador anuncia para os modelos cíveis não aparece no
+  arquivo. Ver a divergência 6.
 
 O Debeatur segue essas convenções (decisão de 14/11/2026). `GabaritoRendimentosDecimoTerceiroDpmgTest`
 transcreve um caso gerado no iadefensor em 15/11/2026: 30% de rendimentos de R$ 3.000,00 de
