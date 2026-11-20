@@ -22,6 +22,12 @@ public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
     /** Início do Plano Real: primeiro mês coberto pelos regimes de fábrica. */
     private static final YearMonth INICIO_REAL = YearMonth.of(1994, 7);
 
+    /** Mês em que o CC/2002 entrou em vigor (11/01/2003), primeiro do regime do Tema 1368. */
+    private static final YearMonth INICIO_CC_2002 = YearMonth.of(2003, 1);
+
+    /** Último mês da SELIC no Tema 1368: agosto/2024 fica com a Lei 14.905/2024, como no CADEJ. */
+    private static final YearMonth FIM_SELIC_TEMA_1368 = YearMonth.of(2024, 7);
+
     public RegimeAtualizacao {
         Objects.requireNonNull(nome, "nome");
         regras = List.copyOf(regras);
@@ -62,13 +68,32 @@ public record RegimeAtualizacao(String nome, List<RegraPeriodo> regras) {
      * INPC até 07/2024, IPCA desde 08/2024 e taxa legal desde 09/2024 (#24). O nome traz o
      * último mês de INPC para que o demonstrativo identifique o critério que o produziu.
      * <p>
-     * O critério anterior à lei varia conforme o tribunal e o título (ex.: SELIC até
-     * 30/08/2024, tabela prática do TJSP) e deve ser configurável por cálculo (#3).
+     * Vale quando o título fixou a tabela da CGJ + 1% a.m. Para o título omisso, o critério é o
+     * do Tema 1368/STJ ({@link #tema1368()}); outros critérios vêm do título, por cálculo (#3).
      */
     public static RegimeAtualizacao civelPadrao() {
         return transicaoTabelaCgjParaLei14905(
                 "Cível padrão TJMG (tabela CGJ: INPC até 07/2024; Lei 14.905/2024)",
                 LocalDate.of(2024, 8, 29));
+    }
+
+    /**
+     * Título omisso ou "juros legais", pelo Tema 1368/STJ (REsp 2.199.164/PR): SELIC até 07/2024,
+     * sem outra taxa, porque ela engloba correção e juros, e, desde 08/2024, IPCA + taxa legal
+     * (Lei 14.905/2024).
+     * <p>
+     * Agosto/2024 vai inteiro para a lei nova, como no CADEJ do TJMG (decisão da #32, divergência
+     * 4 do docs/gabarito.md). O regime começa em 01/2003, mês em que o CC/2002 entrou em vigor
+     * (11/01/2003): antes disso a taxa do art. 406 não era a SELIC, e um termo inicial anterior a
+     * 01/2003 é recusado como fora do regime, para que os critérios venham do título (#28). Pela
+     * granularidade mensal, um termo de 1º a 10/01/2003 leva a SELIC de janeiro inteiro.
+     */
+    public static RegimeAtualizacao tema1368() {
+        return new RegimeAtualizacao(
+                "Tema 1368/STJ (SELIC até 07/2024; Lei 14.905/2024)",
+                List.of(
+                        new RegraPeriodo(INICIO_CC_2002, FIM_SELIC_TEMA_1368, Indice.SELIC, new Juros.SemJuros()),
+                        new RegraPeriodo(FIM_SELIC_TEMA_1368.plusMonths(1), null, Indice.IPCA, new Juros.TaxaLegal())));
     }
 
     /**

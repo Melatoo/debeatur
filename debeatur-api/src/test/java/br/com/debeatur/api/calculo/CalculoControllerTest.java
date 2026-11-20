@@ -179,6 +179,35 @@ class CalculoControllerTest {
     }
 
     @Test
+    void devolveORegimeDoTema1368ParaEnviarComoCriterio() {
+        assertThat(mvc.get().uri("/api/regimes/tema-1368")).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.nome", v -> v.assertThat().asString().contains("Tema 1368"))
+                .hasPathSatisfying("$.regras", v -> v.assertThat().asArray().hasSize(2))
+                .hasPathSatisfying("$.regras[0].inicio", v -> v.assertThat().isEqualTo("2003-01"))
+                .hasPathSatisfying("$.regras[0].fim", v -> v.assertThat().isEqualTo("2024-07"))
+                .hasPathSatisfying("$.regras[0].correcao", v -> v.assertThat().isEqualTo("SELIC"))
+                .hasPathSatisfying("$.regras[0].juros", v -> v.assertThat().isEqualTo("SEM_JUROS"))
+                .hasPathSatisfying("$.regras[1].inicio", v -> v.assertThat().isEqualTo("2024-08"))
+                .hasPathSatisfying("$.regras[1].fim", v -> v.assertThat().isNull())
+                .hasPathSatisfying("$.regras[1].correcao", v -> v.assertThat().isEqualTo("IPCA"))
+                .hasPathSatisfying("$.regras[1].juros", v -> v.assertThat().isEqualTo("TAXA_LEGAL"));
+    }
+
+    @Test
+    void oRegimeDoTema1368RecusaTermoInicialAnteriorAoCc2002() throws Exception {
+        String regime = mvc.get().uri("/api/regimes/tema-1368").exchange()
+                .getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String pedido = """
+                {"dataBase": "2024-10-15", "aplicarArt523": false,
+                 "parcelas": [{"descricao": "Pensão de dezembro", "valor": 1000.00, "inicioCorrecao": "2002-12-10"}],
+                 "regime": %s}
+                """.formatted(regime);
+
+        assertThat(calcular(pedido)).hasStatus4xxClientError().bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("não cobre"));
+    }
+
+    @Test
     void regimePadraoReenviadoSemAlteracaoDaOMesmoCalculo() throws Exception {
         when(series.carregar(any(), any(), any())).thenReturn(new SerieIndicesEmMemoria()
                 .com(Indice.INPC, YearMonth.of(2024, 7), "0.26")
