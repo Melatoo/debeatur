@@ -117,6 +117,10 @@ public class SgsClient {
         }
         // o último mês com valor ainda pode estar aberto; os anteriores, não
         YearMonth ultimoFechado = diaria.lastKey().minusMonths(1);
+        if (ultimoFechado.isBefore(de)) {
+            // a consulta começa no mês aberto, como a reconsulta do cache: nenhum mês fechou ainda
+            return new TreeMap<>();
+        }
         return new TreeMap<>(diaria.subMap(de, true, ultimoFechado.isBefore(ate) ? ultimoFechado : ate, true));
     }
 

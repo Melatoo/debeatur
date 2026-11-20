@@ -174,6 +174,16 @@ class SgsClientTest {
     }
 
     @Test
+    void consultaQueComecaNoMesAbertoDevolveSerieVazia() throws IOException {
+        // a reconsulta do cache parte do primeiro mês sem valor, que é o mês corrente
+        List<String> consultas = new ArrayList<>();
+        SgsClient sgs = sgsSelic("""
+                [{"data":"03/11/2026","valor":"0.05"},{"data":"19/11/2026","valor":"0.05"}]""", consultas);
+
+        assertThat(sgs.buscar(Indice.SELIC, YearMonth.of(2026, 11), YearMonth.of(2026, 12))).isEmpty();
+    }
+
+    @Test
     void periodoSemSelicDiariaDevolveSerieVazia() throws IOException {
         SgsClient sgs = sgsRespondendo(404, """
                 {"erro":{"statusCode":404,"detail":"br.gov.bcb.pec.sgs.comum.excecoes.SGSNegocioException: Value(s) not found"}}""");
