@@ -137,7 +137,7 @@ public record DemonstrativoResponse(
                     continue;
                 }
                 Optional<FonteSeries.Captura> captura = fonte.captura(indice.name());
-                series.add(new SerieUsada(indice.name(), indice.descricao(), "SGS/BCB, série " + SgsClient.codigo(indice),
+                series.add(new SerieUsada(indice.name(), indice.descricao(), "SGS/BCB, série " + SgsClient.codigo(indice, meses.values()),
                         captura.map(FonteSeries.Captura::em).orElse(null),
                         captura.map(FonteSeries.Captura::snapshot).orElse(false),
                         meses.entrySet().stream().map(e -> new ValorMensal(e.getKey(), e.getValue())).toList()));

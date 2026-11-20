@@ -10,7 +10,7 @@ monetária, juros de mora e acréscimos do art. 523, §1º, com memória de cál
 | Módulo | Responsabilidade |
 |---|---|
 | `debeatur-core` | Motor de cálculo puro (sem framework): `Dinheiro`, índices, regimes, `MotorCalculo` |
-| `debeatur-indices` | Cliente do SGS/Banco Central (IPCA 433, INPC 188, IPCA-E 10764, SELIC 4390) |
+| `debeatur-indices` | Cliente do SGS/Banco Central (IPCA 433, INPC 188, IPCA-E 10764, SELIC diária 11, acumulada no mês) |
 | `debeatur-api` | API REST Spring Boot 4, com PostgreSQL + Flyway e o cache local das séries do SGS |
 | `frontend` | React + TypeScript (Vite) |
 

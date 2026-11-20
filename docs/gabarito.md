@@ -12,6 +12,7 @@ nunca do próprio motor.
 | `GabaritoHomologadoTest` | Cálculos homologados em `CasosHomologados` | Demonstrativo completo, linha a linha e totais |
 | `GabaritoHomologadoTest` | Cinco cálculos do CADEJ/TJMG em `CasosCadej` | Demonstrativo completo, com ICGJ ou IPCA e juros de taxa fixa |
 | `GabaritoRendimentosDecimoTerceiroDpmgTest` | Planilha da DPMG gerada no iadefensor em 15/11/2026 | Pensão em rendimentos, 13º, abatimento nominal e art. 523 sobre o saldo |
+| `GabaritoSelicDiariaTest` (`debeatur-indices`) | Planilha "SELIC Acumulada" da DPMG (18/11/2026) e uma simulação no CADEJ (11/11/2026) | SELIC do mês pela SGS 11 e fator pela SELIC, 01/2024 a 10/2026 (divergência 6) |
 
 ### CADEJ
 
@@ -169,16 +170,21 @@ relatório. Ele não passa em branco.
    planilha gerada no [iadefensor](https://www.iadefensor.com.br/planilha/planilha_sem_menu),
    que produz o mesmo modelo de outubro/2026). Um cálculo homologado do TJMG ainda confirmaria
    a prática local.
-6. **SELIC: série mensal do SGS × SELIC diária do CADEJ (#28).** O CADEJ multiplica a SELIC
-   diária (SGS 11) dos dias úteis. A parcela de 15/01/2024 atualizada até 29/08/2024 dá fator
-   1,0617101, que é o produto exato dos 147 dias úteis de 01/01 a 31/07/2024. O motor multiplica
-   a SELIC mensal (SGS 4390), publicada com duas casas, e chega a 1,0617743: R$ 0,64 a mais em
-   R$ 10.000,00. A forma de acumular é a mesma (produto de fatores); a diferença vem só do
-   arredondamento da série mensal. O Manual de Cálculos da Justiça Federal, ao contrário,
-   **soma** as taxas mensais ("capitalizada de forma simples") e conta do mês seguinte ao
-   termo inicial até o mês anterior ao pagamento, mais 1% no mês do pagamento, como nos
-   tributos federais. Como o tribunal de referência é o TJMG, o caminho é seguir o CADEJ:
-   montar o fator mensal a partir da SGS 11 e transcrever esse caso em `CasosCadej`.
+6. **SELIC: série mensal do SGS × SELIC diária do CADEJ (#28). Resolvida: a SELIC vem da SGS
+   11.** O CADEJ multiplica a SELIC diária (SGS 11) dos dias úteis. A parcela de 15/01/2024
+   atualizada até 29/08/2024 dá fator 1,0617101, que é o produto exato dos 147 dias úteis de
+   01/01 a 31/07/2024. O motor multiplicava a SELIC mensal (SGS 4390), publicada com duas
+   casas, e chegava a 1,0617743: R$ 0,64 a mais em R$ 10.000,00. A forma de acumular é a mesma
+   (produto de fatores); a diferença vinha só do arredondamento da série mensal. O Manual de
+   Cálculos da Justiça Federal, ao contrário, **soma** as taxas mensais ("capitalizada de forma
+   simples") e conta do mês seguinte ao termo inicial até o mês anterior ao pagamento, mais 1%
+   no mês do pagamento, como nos tributos federais. O tribunal de referência é o TJMG, então o
+   Debeatur segue o CADEJ e a DPMG: o `SgsClient` monta a SELIC de cada mês pelo produto da SGS
+   11 nos dias do mês, sem arredondar. Um mês só entra quando a SGS 11 já tem um dia do mês
+   seguinte; a SGS 4390 não serve para isso, porque publica o mês corrente pela metade (em
+   19/11/2026, novembro com 0,66). Os cálculos salvos antes guardam a SELIC da 4390 no
+   snapshot, e o demonstrativo deles continua citando a 4390. O motor não muda. O `GabaritoSelicDiariaTest` (`debeatur-indices`) confere esse caso do
+   CADEJ em sete casas.
 
    A planilha "SELIC Acumulada" da DPMG faz como o CADEJ. Num caso gerado no iadefensor em
    18/11/2026 (R$ 1.000,00 por mês de 01/2024 a 12/2024, fim do cálculo em 11/2026), o fator de
@@ -192,9 +198,16 @@ relatório. Ele não passa em branco.
    SGS 11, com diferença de 2 × 10⁻⁷. O valor corrigido é (pago − valor) × fator, sem
    arredondamento (como na divergência 9). O modelo aplica a SELIC no período todo, sem a
    virada da Lei 14.905/2024, então não serve de gabarito para o Tema 1368 (#28, #32), só para
-   o trecho em SELIC. O caso e as taxas estão em `selic-acumulada-dpmg-caso-2026-11.csv` e
-   `selic-acumulada-dpmg-taxas-2026-11.csv`, ainda sem teste: o motor, com a SGS 4390,
-   divergiria, e trocar a série muda o `debeatur-core`.
+   o trecho em SELIC. O caso e as taxas estão em `debeatur-indices/src/test/resources/gabarito`
+   (`selic-acumulada-dpmg-caso-2026-11.csv` e `selic-acumulada-dpmg-taxas-2026-11.csv`), e o
+   `GabaritoSelicDiariaTest` os confere contra uma resposta gravada da SGS 11 de 01/2024 a
+   10/2026: as taxas de 01/2024 a 05/2025 com tolerância de 5 × 10⁻⁶ ponto percentual (por
+   causa de março/2024), e o fator das doze parcelas com 5 × 10⁻⁷. A diferença do fator é de
+   2,4 a 2,8 × 10⁻⁷ (cerca de R$ 0,0003 por R$ 1.000,00), e a causa não é conhecida: não é o
+   arredondamento das taxas mensais a seis casas, que deixa a mesma diferença. Vale como a
+   divergência 1, da mesma ordem. A resposta gravada da SGS 11 é a de
+   `https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=01/01/2024&dataFinal=31/10/2026`,
+   consultada em 19/11/2026, e fica em `debeatur-indices/src/test/resources/sgs`.
 7. **Ritos: os três últimos meses do cálculo (DPMG) × a regra do art. 528, §7º.** Ao separar os
    ritos, a planilha da DPMG põe na prisão os três últimos meses do cálculo. O motor segue a
    lei e a Súmula 309 do STJ: as três parcelas anteriores ao ajuizamento e as que vencerem no
