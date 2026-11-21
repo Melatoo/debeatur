@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   buscarRegimePadrao,
+  buscarRegimeTema1368,
   calcular,
   ErroDaApi,
   reabrirCalculo,
@@ -41,8 +42,11 @@ import { paraEditavel, regraVazia, type RegraEditavel } from './regime'
 import { avisoDeSerie, lerSerieIndisponivel, type AvisoDeSerie } from './serieIndisponivel'
 import './App.css'
 
-/** Critérios do título escolhidos, mas sem as regras: elas ainda precisam vir do servidor. */
-const faltamRegras = (r: Rascunho) => r.regimeProprio && r.regras.length === 0
+/**
+ * O regime escolhido ainda precisa vir do servidor: o do Tema 1368, ou as regras do padrão como
+ * ponto de partida dos critérios do título.
+ */
+const faltamRegras = (r: Rascunho) => (r.tema1368 ? r.regimeTema1368 === null : r.regimeProprio && r.regras.length === 0)
 
 /** O processo como texto comparável: mudar só ele não muda o cálculo, mas muda o PDF. */
 const textoDoProcesso = (processo: ProcessoRequest) => JSON.stringify(paraProcesso(processo) ?? null)
@@ -124,6 +128,8 @@ function App() {
     regimeProprio,
     nomeRegime,
     regras,
+    tema1368,
+    regimeTema1368,
   } = rascunho
   const alterar = <K extends keyof Rascunho>(campo: K, valor: Rascunho[K]) =>
     setRascunho((atual) => ({ ...atual, [campo]: valor }))
@@ -148,6 +154,10 @@ function App() {
   const [salvarAberta, setSalvarAberta] = useState(false)
   /** O regime padrão, buscado uma vez para reconhecê-lo num cálculo salvo; nulo se a busca falhou. */
   const regimePadrao = useRef<Promise<Regime | null> | null>(null)
+  /** O mesmo para o regime do Tema 1368, para reconhecê-lo num cálculo salvo. */
+  const regimeTema = useRef<Promise<Regime | null> | null>(null)
+  /** A busca do regime do Tema 1368 falhou: a opção fica marcada, e o aviso oferece tentar de novo. */
+  const [falhaTema1368, setFalhaTema1368] = useState(false)
   /** Erro do último cálculo, com a chave do formulário que o provocou: editar de novo o tira da tela. */
   const [erro, setErro] = useState<{ chave: string; mensagem: string; serie: AvisoDeSerie | null } | null>(null)
   const [carregando, setCarregando] = useState(false)
@@ -178,6 +188,11 @@ function App() {
   const [buscandoRegime, setBuscandoRegime] = useState(() => faltamRegras(inicio.rascunho))
   /** Muda quando o formulário é trocado inteiro, para respostas que chegam depois serem descartadas. */
   const versaoDoFormulario = useRef(0)
+  /**
+   * Muda a cada busca de regime: trocar de opção no meio de uma busca começa outra, e só a última
+   * pode entregar o regime e desligar `buscandoRegime`.
+   */
+  const buscaDoRegime = useRef(0)
 
   const ritosAtivos = comPensao && separarRitos
 
@@ -246,11 +261,32 @@ function App() {
   }
 
   /**
-   * Traz as regras do regime padrão para o editor. Sem elas, o pedido iria sem regime: quem chama
-   * marca `buscandoRegime`, e o recálculo espera a busca.
+   * Traz do servidor o regime que falta (ver `faltamRegras`): o do Tema 1368, ou as regras do
+   * regime padrão para o editor. Sem ele, o pedido iria sem regime: quem chama marca
+   * `buscandoRegime`, e o recálculo espera a busca.
    */
-  async function buscarRegras() {
+  async function buscarRegras(r: Rascunho) {
     const versao = versaoDoFormulario.current
+    const busca = ++buscaDoRegime.current
+    // Outra busca começou depois desta, ou o formulário foi trocado inteiro: a resposta chegou tarde.
+    const tarde = () => versaoDoFormulario.current !== versao || buscaDoRegime.current !== busca
+    if (r.tema1368) {
+      let tema: Regime
+      try {
+        tema = await buscarRegimeTema1368()
+      } catch (e) {
+        // Como abaixo: com a sessão vencida, a busca recomeça depois do login.
+        if (e instanceof ErroDaApi && e.status === 401) return
+        if (tarde()) return
+        setFalhaTema1368(true)
+        setBuscandoRegime(false)
+        return
+      }
+      if (tarde()) return
+      setRascunho((atual) => (atual.tema1368 && atual.regimeTema1368 === null ? { ...atual, regimeTema1368: tema } : atual))
+      setBuscandoRegime(false)
+      return
+    }
     let novas: RegraEditavel[]
     try {
       novas = paraEditavel((await buscarRegimePadrao()).regras)
@@ -260,30 +296,47 @@ function App() {
       if (e instanceof ErroDaApi && e.status === 401) return
       novas = [regraVazia()]
     }
-    // Um "Limpar" ou "Desfazer" durante a busca trocou o formulário inteiro: as regras chegaram tarde,
-    // e o aviso de busca em curso já é de outra busca, ou de nenhuma.
-    if (versaoDoFormulario.current !== versao) return
+    // Um "Limpar" ou "Desfazer" durante a busca trocou o formulário inteiro, ou a troca de opção
+    // começou outra busca: as regras chegaram tarde, e o aviso de busca em curso é de outra busca.
+    if (tarde()) return
     alterar('regras', novas)
     setBuscandoRegime(false)
   }
 
-  function usarRegimeProprio(proprio: boolean) {
-    alterar('regimeProprio', proprio)
-    if (proprio && regras.length === 0 && !buscandoRegime) {
-      setBuscandoRegime(true)
-      void buscarRegras()
+  /**
+   * Muda o critério de correção e juros. As regras dos critérios do título ficam guardadas quando
+   * se escolhe outro; sem regras, o editor começa pelas do Tema 1368, se foi dele que se veio, ou
+   * pelas do regime padrão.
+   */
+  function usarCriterio(criterio: 'padrao' | 'tema1368' | 'titulo') {
+    const r: Rascunho = { ...rascunho, tema1368: criterio === 'tema1368', regimeProprio: criterio === 'titulo' }
+    if (criterio === 'titulo' && r.regras.length === 0 && rascunho.regimeTema1368) {
+      r.regras = paraEditavel(rascunho.regimeTema1368.regras)
     }
+    setRascunho(r)
+    setFalhaTema1368(false)
+    if (faltamRegras(r)) {
+      setBuscandoRegime(true)
+      void buscarRegras(r)
+    }
+  }
+
+  /** Depois de uma falha, a opção do Tema 1368 continua marcada, e nada chamaria a busca de novo. */
+  function buscarTemaDeNovo() {
+    setFalhaTema1368(false)
+    setBuscandoRegime(true)
+    void buscarRegras(rascunho)
   }
 
   // O rascunho restaurado pode ter ficado sem as regras, se a aba fechou no meio da busca.
   const buscarRegrasDoInicio = useEffectEvent(() => {
-    if (faltamRegras(inicio.rascunho)) void buscarRegras()
+    if (faltamRegras(inicio.rascunho)) void buscarRegras(inicio.rascunho)
   })
   useEffect(() => buscarRegrasDoInicio(), [])
 
   // De volta depois de a sessão expirar: a busca das regras que levou 401 recomeça.
   const retomarRegras = useEffectEvent(() => {
-    if (buscandoRegime && faltamRegras(rascunho)) void buscarRegras()
+    if (buscandoRegime && faltamRegras(rascunho)) void buscarRegras(rascunho)
   })
   const geracao = sessao?.geracao ?? 0
   useEffect(() => {
@@ -296,12 +349,24 @@ function App() {
    */
   const atual = useMemo(() => {
     try {
-      const pedido = paraPedido({ dataBase, aplicarArt523, parcelas, comPensao, pensao, separarRitos, regimeProprio, nomeRegime, regras })
+      const pedido = paraPedido({
+        dataBase,
+        aplicarArt523,
+        parcelas,
+        comPensao,
+        pensao,
+        separarRitos,
+        regimeProprio,
+        nomeRegime,
+        regras,
+        tema1368,
+        regimeTema1368,
+      })
       return { pedido, chave: chaveDoPedido(pedido), falha: null }
     } catch (e) {
       return { pedido: null, chave: '', falha: e instanceof Error ? e.message : String(e) }
     }
-  }, [dataBase, aplicarArt523, parcelas, comPensao, pensao, separarRitos, regimeProprio, nomeRegime, regras])
+  }, [dataBase, aplicarArt523, parcelas, comPensao, pensao, separarRitos, regimeProprio, nomeRegime, regras, tema1368, regimeTema1368])
   const chaveAtual = atual.chave
   const chaveCalculada = calculo?.chave ?? null
 
@@ -487,9 +552,10 @@ function App() {
     setFocar(null)
     setRascunho(r)
     setCalculo(novoCalculo)
+    setFalhaTema1368(false)
     // O caso desfeito pode ter sido limpo no meio da busca das regras: ela recomeça para ele.
     setBuscandoRegime(faltamRegras(r))
-    if (faltamRegras(r)) void buscarRegras()
+    if (faltamRegras(r)) void buscarRegras(r)
   }
 
   /** Sem confirmação: o "Desfazer" devolve o caso enquanto o formulário não for preenchido de novo. */
@@ -521,6 +587,15 @@ function App() {
     return regimePadrao.current
   }
 
+  /** O regime do Tema 1368 de hoje, para reconhecê-lo num cálculo salvo; nulo se a busca falhou. */
+  function buscarTema(): Promise<Regime | null> {
+    regimeTema.current ??= buscarRegimeTema1368().catch(() => {
+      regimeTema.current = null
+      return null
+    })
+    return regimeTema.current
+  }
+
   /**
    * Traz um cálculo salvo para o formulário, no lugar do caso que estava nele, com "Desfazer".
    * Abrir mostra o demonstrativo do snapshot; atualizar também, mas com a data-base avançada, e o
@@ -530,11 +605,11 @@ function App() {
    * @throws Error se o cálculo não pôde ser buscado; a janela mostra a mensagem
    */
   async function escolherSalvo(acao: AcaoSalvo, resumo: ResumoCalculo, sinal: AbortSignal) {
-    const [salvo, padrao] = await Promise.all([reabrirCalculo(resumo.id, sinal), buscarPadrao()])
+    const [salvo, padrao, tema] = await Promise.all([reabrirCalculo(resumo.id, sinal), buscarPadrao(), buscarTema()])
     if (sinal.aborted) return
     // O formulário não muda com a janela aberta, mas o demonstrativo pode: um recálculo chega durante a espera.
     const calculo = calculoVigente.current
-    const aberto = paraRascunho(salvo.calculo, padrao)
+    const aberto = paraRascunho(salvo.calculo, padrao, tema)
     let novoCalculo: Calculo | null = null
     if (acao !== 'duplicar') {
       // O pedido sai do formulário, e não do servidor, para a chave bater com a do formulário aberto.
@@ -862,17 +937,47 @@ function App() {
 
           <section className="bloco" aria-labelledby="bloco-regime">
             <h2 id="bloco-regime">Correção e juros</h2>
-            <div className="opcoes-regime" role="radiogroup" aria-labelledby="bloco-regime">
+            <p id="pergunta-regime" className="dica">O que o título fixou?</p>
+            <div className="opcoes-regime" role="radiogroup" aria-labelledby="bloco-regime pergunta-regime">
               <label className="checkbox">
-                <input type="radio" name="regime" checked={!regimeProprio} onChange={() => usarRegimeProprio(false)} />
+                <input
+                  type="radio"
+                  name="regime"
+                  checked={!tema1368 && !regimeProprio}
+                  onChange={() => usarCriterio('padrao')}
+                />
                 Regime padrão do TJMG (tabela da CGJ + 1% a.m.; desde a Lei 14.905/2024, IPCA + taxa legal)
               </label>
               <label className="checkbox">
-                <input type="radio" name="regime" checked={regimeProprio} onChange={() => usarRegimeProprio(true)} />
-                Critérios fixados no título
+                <input type="radio" name="regime" checked={tema1368} onChange={() => usarCriterio('tema1368')} />
+                Título omisso ou “juros legais”: Tema 1368/STJ (SELIC até 07/2024; desde 08/2024, IPCA + taxa legal)
+              </label>
+              <label className="checkbox">
+                <input
+                  type="radio"
+                  name="regime"
+                  checked={!tema1368 && regimeProprio}
+                  onChange={() => usarCriterio('titulo')}
+                />
+                Outros critérios fixados no título
               </label>
             </div>
-            {regimeProprio && (
+            {tema1368 && (
+              <Dica curta="SELIC de 01/2003 a 07/2024, sem outros juros; agosto/2024 inteiro já com IPCA + taxa legal, como no CADEJ do TJMG. Parcela anterior a 01/2003 vai em “Outros critérios fixados no título”.">
+                A SELIC engloba correção e juros (Tema 1368/STJ, REsp 2.199.164/PR) e vale desde o CC/2002, em vigor em
+                11/01/2003. Antes disso, a taxa do art. 406 seguia o CC/1916, e os critérios vêm do título.
+              </Dica>
+            )}
+            {tema1368 && falhaTema1368 && regimeTema1368 === null && (
+              <p className="aviso" role="alert">
+                <strong>O regime do Tema 1368 não carregou.</strong> Sem ele, o cálculo não sai; confira a conexão e
+                tente de novo.{' '}
+                <button type="button" className="secundario" onClick={buscarTemaDeNovo}>
+                  Tentar de novo
+                </button>
+              </p>
+            )}
+            {!tema1368 && regimeProprio && (
               <EditorRegime nome={nomeRegime} onNome={(n) => alterar('nomeRegime', n)} regras={regras} onRegras={(r) => alterar('regras', r)} />
             )}
           </section>

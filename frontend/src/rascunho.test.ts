@@ -15,6 +15,8 @@ const vazio: Rascunho = {
   regimeProprio: false,
   nomeRegime: '',
   regras: [],
+  tema1368: false,
+  regimeTema1368: null,
 }
 
 const preenchido: Rascunho = {
@@ -48,6 +50,8 @@ describe('rascunho', () => {
       comoTexto({ ...preenchido, pensao: { ...preenchido.pensao, pagamentos: [{ mes: '2025-01' }] } }),
       comoTexto({ ...preenchido, pensao: { pagamentos: [] } }),
       comoTexto({ ...preenchido, regras: [{}] }),
+      comoTexto({ ...preenchido, tema1368: 'sim' }),
+      comoTexto({ ...preenchido, tema1368: true, regimeTema1368: { nome: 'x', regras: [{}] } }),
     ]) {
       armazenamento.setItem(CHAVE_RASCUNHO, texto)
       expect(lerRascunho(armazenamento)).toBeNull()
@@ -64,6 +68,28 @@ describe('rascunho', () => {
 
     armazenamento.setItem(CHAVE_RASCUNHO, comoTexto({ ...preenchido, pensao: { ...pensaoV1, pagamentos: null } }, 1))
     expect(lerRascunho(armazenamento)).toBeNull()
+  })
+
+  it('guarda a escolha do Tema 1368 com o regime que veio do servidor', () => {
+    const armazenamento = armazenamentoEmMemoria()
+    const regime = {
+      nome: 'Tema 1368/STJ (SELIC até 07/2024; Lei 14.905/2024)',
+      regras: [
+        { inicio: '2003-01', fim: '2024-07', correcao: 'SELIC' as const, juros: 'SEM_JUROS' as const, percentualJurosMensal: null, ultimoDiaTaxaFixa: null },
+        { inicio: '2024-08', fim: null, correcao: 'IPCA' as const, juros: 'TAXA_LEGAL' as const, percentualJurosMensal: null, ultimoDiaTaxaFixa: null },
+      ],
+    }
+    const comTema = { ...preenchido, tema1368: true, regimeTema1368: regime }
+    salvarRascunho(armazenamento, comTema, 'a')
+    expect(lerRascunho(armazenamento)?.rascunho).toEqual(comTema)
+  })
+
+  it('abre o rascunho de antes do Tema 1368 com a opção desmarcada', () => {
+    const armazenamento = armazenamentoEmMemoria()
+    const { tema1368, regimeTema1368, ...anterior } = { ...preenchido, regimeProprio: true, regras: [] }
+    expect([tema1368, regimeTema1368]).toEqual([false, null])
+    armazenamento.setItem(CHAVE_RASCUNHO, comoTexto(anterior))
+    expect(lerRascunho(armazenamento)?.rascunho).toEqual({ ...anterior, tema1368: false, regimeTema1368: null })
   })
 
   it('segue sem armazenamento, ou com um que lança exceção', () => {

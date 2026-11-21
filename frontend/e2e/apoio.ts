@@ -122,6 +122,8 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
         return route.fulfill({ status: 204, body: '' })
       case 'GET /api/regimes/padrao':
         return responder(route, 'regime-padrao.json')
+      case 'GET /api/regimes/tema-1368':
+        return responder(route, 'regime-tema-1368.json')
       case 'POST /api/calculos':
         api.pedidos.push(pedido.postDataJSON())
         return responder(route, api.calculo.arquivo, api.calculo.status)

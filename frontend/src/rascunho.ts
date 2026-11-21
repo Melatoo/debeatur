@@ -1,4 +1,4 @@
-import type { ParcelaRequest, ProcessoRequest } from './api'
+import type { ParcelaRequest, ProcessoRequest, Regime } from './api'
 import { apagar, gravar, ler, type Armazenamento } from './armazenamento'
 import { pensaoVazia, type PensaoEditavel } from './pensao'
 import type { RegraEditavel } from './regime'
@@ -19,6 +19,13 @@ export interface Rascunho {
   regimeProprio: boolean
   nomeRegime: string
   regras: RegraEditavel[]
+  /**
+   * Título omisso ou "juros legais": vale o regime do Tema 1368, e não o padrão nem as `regras`,
+   * que ficam guardadas para quem voltar aos critérios do título.
+   */
+  tema1368: boolean
+  /** O regime do Tema 1368 como o servidor o montou; nulo até a busca terminar. */
+  regimeTema1368: Regime | null
 }
 
 /** Rascunho lido do navegador, com o momento em que foi salvo e a aba que o salvou. */
@@ -58,6 +65,12 @@ const ehPensao = (v: unknown) =>
 
 const ehRegra = (v: unknown) => comTextos(v, ['inicio', 'fim', 'correcao', 'juros', 'percentual', 'ultimoDiaTaxaFixa'])
 
+/** O regime como a API o devolve: só a forma, que o servidor confere de novo no cálculo. */
+const ehRegime = (v: unknown) =>
+  ehObjeto(v) &&
+  (v.nome === null || typeof v.nome === 'string') &&
+  listaDe(v.regras, (r) => comTextos(r, ['inicio', 'correcao', 'juros']))
+
 /**
  * Confere a forma do rascunho inteiro, até os itens das listas: um rascunho corrompido, editado à
  * mão ou salvo por uma versão anterior do formulário não pode derrubar a tela na carga. O conteúdo
@@ -76,8 +89,16 @@ function ehRascunho(v: unknown): v is Rascunho {
     typeof v.outrasAbertas === 'boolean' &&
     typeof v.regimeProprio === 'boolean' &&
     typeof v.nomeRegime === 'string' &&
-    listaDe(v.regras, ehRegra)
+    listaDe(v.regras, ehRegra) &&
+    typeof v.tema1368 === 'boolean' &&
+    (v.regimeTema1368 === null || ehRegime(v.regimeTema1368))
   )
+}
+
+/** Rascunho de antes do Tema 1368: a opção entra desmarcada, e o regime fica como estava. */
+function semTema1368(rascunho: unknown): unknown {
+  if (!ehObjeto(rascunho) || 'tema1368' in rascunho) return rascunho
+  return { ...rascunho, tema1368: false, regimeTema1368: null }
 }
 
 /**
@@ -95,7 +116,7 @@ function interpretar(texto: string): RascunhoSalvo | null {
   try {
     const salvo: unknown = JSON.parse(texto)
     if (!ehObjeto(salvo) || (salvo.versao !== VERSAO && salvo.versao !== 1)) return null
-    const rascunho = salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho
+    const rascunho = semTema1368(salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho)
     if (!ehRascunho(rascunho)) return null
     const salvoEm = new Date(typeof salvo.salvoEm === 'string' ? salvo.salvoEm : NaN)
     return {

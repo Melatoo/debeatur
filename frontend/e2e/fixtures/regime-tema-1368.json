@@ -1,0 +1,23 @@
+{
+  "nome": "Tema 1368/STJ (SELIC até 07/2024; Lei 14.905/2024)",
+  "regras": [
+    {
+      "inicio": "2003-01",
+      "fim": "2024-07",
+      "correcao": "SELIC",
+      "juros": "SEM_JUROS",
+      "percentualJurosMensal": null,
+      "ultimoDiaTaxaFixa": null,
+      "descricaoJuros": "Sem juros"
+    },
+    {
+      "inicio": "2024-08",
+      "fim": null,
+      "correcao": "IPCA",
+      "juros": "TAXA_LEGAL",
+      "percentualJurosMensal": null,
+      "ultimoDiaTaxaFixa": null,
+      "descricaoJuros": "Taxa legal (Res. CMN 5.171/2024)"
+    }
+  ]
+}

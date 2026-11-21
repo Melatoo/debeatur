@@ -1,4 +1,5 @@
-import type { CalculoRequest, ParcelaRequest, ProcessoRequest } from './api'
+import type { CalculoRequest, ParcelaRequest, ProcessoRequest, Regime } from './api'
+import { mes } from './formato'
 import { exigirDecimal } from './numero'
 import { paraPensao, pensaoVazia } from './pensao'
 import type { Rascunho } from './rascunho'
@@ -41,12 +42,24 @@ export const rascunhoVazio = (): Rascunho => ({
   regimeProprio: false,
   nomeRegime: '',
   regras: [],
+  tema1368: false,
+  regimeTema1368: null,
 })
 
 /** O que do formulário entra no cálculo: o processo e as seções abertas ou fechadas ficam de fora. */
 export type DadosDoCalculo = Pick<
   Rascunho,
-  'dataBase' | 'aplicarArt523' | 'parcelas' | 'comPensao' | 'pensao' | 'separarRitos' | 'regimeProprio' | 'nomeRegime' | 'regras'
+  | 'dataBase'
+  | 'aplicarArt523'
+  | 'parcelas'
+  | 'comPensao'
+  | 'pensao'
+  | 'separarRitos'
+  | 'regimeProprio'
+  | 'nomeRegime'
+  | 'regras'
+  | 'tema1368'
+  | 'regimeTema1368'
 >
 
 /**
@@ -60,6 +73,34 @@ export function paraPedido(r: DadosDoCalculo): CalculoRequest {
     aplicarArt523: r.aplicarArt523,
     parcelas: r.parcelas.map((p) => ({ ...p, valor: exigirDecimal(p.valor, 'Valor da parcela'), inicioJuros: p.inicioJuros || null })),
     pensao: r.comPensao ? paraPensao(r.pensao, r.separarRitos) : undefined,
-    regime: r.regimeProprio ? paraRegime(r.nomeRegime, r.regras) : undefined,
+    regime: regimeDoPedido(r),
   }
+}
+
+/** O primeiro mês (AAAA-MM) com termo inicial no caso: da pensão ou das parcelas avulsas. */
+function primeiroMesDoCaso(r: DadosDoCalculo): string | undefined {
+  const meses = [
+    ...(r.comPensao && r.pensao.primeiroMes ? [r.pensao.primeiroMes] : []),
+    ...r.parcelas.flatMap((p) => [p.inicioCorrecao, p.inicioJuros ?? '']),
+  ]
+    .filter(Boolean)
+    .map((d) => d.slice(0, 7))
+  return meses.sort()[0]
+}
+
+function regimeDoPedido(r: DadosDoCalculo): Regime | undefined {
+  if (r.tema1368) {
+    // Sem o regime, o pedido iria ao padrão do TJMG: melhor não calcular que calcular com outro critério.
+    if (!r.regimeTema1368) throw new Error('O regime do Tema 1368 ainda não foi carregado.')
+    const inicio = r.regimeTema1368.regras[0]?.inicio
+    const primeiro = primeiroMesDoCaso(r)
+    if (inicio && primeiro && primeiro < inicio) {
+      throw new Error(
+        `O Tema 1368 vale desde ${mes(inicio)}, com o CC/2002, e o cálculo começa em ${mes(primeiro)}. ` +
+          'Informe os critérios do título em “Outros critérios fixados no título”.',
+      )
+    }
+    return r.regimeTema1368
+  }
+  return r.regimeProprio ? paraRegime(r.nomeRegime, r.regras) : undefined
 }

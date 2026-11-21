@@ -408,3 +408,8 @@ export async function gerarPdfSalvo(id: string): Promise<Anexo> {
 export async function buscarRegimePadrao(): Promise<Regime> {
   return lerResposta(await fetch('/api/regimes/padrao'), 'carregar o regime padrão')
 }
+
+/** Regime do título omisso ou de "juros legais" pelo Tema 1368/STJ, montado no servidor. */
+export async function buscarRegimeTema1368(): Promise<Regime> {
+  return lerResposta(await fetch('/api/regimes/tema-1368'), 'carregar o regime do Tema 1368')
+}
