@@ -860,6 +860,11 @@ function App() {
               </label>
             </div>
             <p className="dica">Opcionais: só identificam o processo no cabeçalho do PDF.</p>
+          </section>
+
+          {/* A data-base e o ajuizamento mudam o valor: ficam fora de "Processo", cujos campos são opcionais e só identificam o PDF. */}
+          <section className="bloco" aria-labelledby="bloco-execucao">
+            <h2 id="bloco-execucao">Execução</h2>
             <div className="campos quatro">
               <Campo rotulo="Data-base do cálculo">
                 <input
