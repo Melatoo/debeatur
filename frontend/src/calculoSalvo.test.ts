@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { CalculoRequest, Regime, ResumoCalculo } from './api'
-import { paraPedido } from './caso'
-import { filtrarCalculos, novaDataBase, paraRascunho, regimeSalvo, tituloPadrao } from './calculoSalvo'
+import { paraPedido, rascunhoVazio } from './caso'
+import { atualizarRascunho, filtrarCalculos, novaDataBase, paraRascunho, regimeSalvo, tituloPadrao } from './calculoSalvo'
 import { chaveDoPedido } from './recalculo'
+import type { Rascunho } from './rascunho'
 
 const padrao: Regime = {
   nome: 'Regime cível padrão do TJMG',
@@ -251,6 +252,46 @@ describe('novaDataBase', () => {
   it('não há o que atualizar num cálculo que já vai até lá', () => {
     expect(novaDataBase('2026-10-31', hoje)).toBeNull()
     expect(novaDataBase('2026-11-05', hoje)).toBeNull()
+  })
+})
+
+describe('atualizarRascunho', () => {
+  const hoje = new Date(2026, 10, 21)
+  const caso = (dataBase: string, ultimoMes: string, comPensao = true): Rascunho => {
+    const r = rascunhoVazio()
+    return { ...r, dataBase, comPensao, pensao: { ...r.pensao, primeiroMes: '2024-06', ultimoMes } }
+  }
+
+  it('estende até o mês da nova data-base a pensão que ainda corria', () => {
+    const { rascunho, ultimaParcela } = atualizarRascunho(caso('2026-08-21', '2026-08'), hoje)
+    expect(rascunho.dataBase).toBe('2026-10-31')
+    expect(rascunho.pensao.ultimoMes).toBe('2026-10')
+    expect(ultimaParcela).toEqual({ de: '2026-08', para: '2026-10' })
+  })
+
+  it('não mexe na pensão que terminou antes da data-base antiga', () => {
+    const { rascunho, ultimaParcela } = atualizarRascunho(caso('2026-08-21', '2026-05'), hoje)
+    expect(rascunho.dataBase).toBe('2026-10-31')
+    expect(rascunho.pensao.ultimoMes).toBe('2026-05')
+    expect(ultimaParcela).toBeNull()
+  })
+
+  it('não estende sem pensão, nem quando não há o que atualizar', () => {
+    expect(atualizarRascunho(caso('2026-08-21', '2026-08', false), hoje).ultimaParcela).toBeNull()
+    const atual = caso('2026-10-31', '2026-10')
+    expect(atualizarRascunho(atual, hoje)).toEqual({ rascunho: atual, ultimaParcela: null })
+  })
+
+  it('não recua a última parcela que já ia além da nova data-base', () => {
+    const { rascunho, ultimaParcela } = atualizarRascunho(caso('2026-08-21', '2027-02'), hoje)
+    expect(rascunho.pensao.ultimoMes).toBe('2027-02')
+    expect(ultimaParcela).toBeNull()
+  })
+
+  it('respeita o fim fixado depois da data-base antiga, mesmo antes da nova', () => {
+    const { rascunho, ultimaParcela } = atualizarRascunho(caso('2026-08-21', '2026-09'), hoje)
+    expect(rascunho.pensao.ultimoMes).toBe('2026-09')
+    expect(ultimaParcela).toBeNull()
   })
 })
 
