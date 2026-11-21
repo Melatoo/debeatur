@@ -209,7 +209,7 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
     <div ref={raiz} className="lista-salvos">
       <p className="dica">
         Abrir mostra o demonstrativo com os índices do dia em que foi salvo. Atualizar leva a data-base ao fim do mês
-        anterior e recalcula com os índices de hoje. Duplicar traz só o formulário, para um caso parecido.
+        anterior, estende até lá a pensão que ainda corria e recalcula com os índices de hoje. Duplicar traz só o formulário, para um caso parecido.
       </p>
       {/* Já na abertura, para receber o foco; some só quando não há o que buscar. */}
       {!erroLista && lista?.length !== 0 && (

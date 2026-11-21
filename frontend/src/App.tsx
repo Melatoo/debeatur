@@ -22,7 +22,7 @@ import { Campo, ResumoErros } from './Campo'
 import { Validacao, errosDoFormulario, type ErroDoResumo } from './validacao'
 import { armazenamentoDoNavegador } from './armazenamento'
 import { estaVazia, fimDoMesAnterior, paraPedido, paraProcesso, parcelaVazia, rascunhoVazio } from './caso'
-import { novaDataBase, paraRascunho, regimeSalvo, tituloPadrao, type RegimeSalvo } from './calculoSalvo'
+import { atualizarRascunho, paraRascunho, regimeSalvo, tituloPadrao, type RegimeSalvo } from './calculoSalvo'
 import { ListaCalculosSalvos, SalvarCalculo, type AcaoSalvo } from './CalculosSalvos'
 import { useSessao } from './sessao'
 import {
@@ -74,6 +74,8 @@ interface Origem {
   criadoEm: Date
   /** O regime salvo diante do padrão de hoje: um padrão antigo pede aviso quando os índices são os de hoje. */
   regime: RegimeSalvo
+  /** Na atualização, a última parcela da pensão em curso antes e depois de estendida; nula se não mudou. */
+  ultimaParcela: { de: string; para: string } | null
 }
 
 /** O caso que o "Limpar" ou a abertura de um cálculo salvo tirou da tela, para o "Desfazer" devolver. */
@@ -622,7 +624,8 @@ function App() {
         salvo: { id: salvo.id, processo: textoDoProcesso(aberto.processo) },
       }
     }
-    const depois = acao === 'atualizar' ? { ...aberto, dataBase: novaDataBase(aberto.dataBase) ?? aberto.dataBase } : aberto
+    const atualizacao = acao === 'atualizar' ? atualizarRascunho(aberto) : null
+    const depois = atualizacao?.rascunho ?? aberto
     // Logo depois de um "Limpar", o caso a devolver é o que ele tirou da tela, e não o formulário em branco.
     const anterior =
       podeDesfazer && troca.motivo === 'limpar' ? troca : !emBranco || calculo ? { rascunho, calculo, origem } : null
@@ -635,6 +638,7 @@ function App() {
       titulo: salvo.titulo,
       criadoEm: new Date(salvo.criadoEm),
       regime: regimeSalvo(salvo.calculo, padrao),
+      ultimaParcela: atualizacao?.ultimaParcela ?? null,
     })
     setListaAberta(false)
   }
@@ -653,7 +657,7 @@ function App() {
     // Se o demonstrativo mudou durante o salvamento, o salvo é o anterior, e o da tela não é ele.
     setCalculo((atual) => (atual === enviado ? { ...atual, resultado: salvo.demonstrativo, salvo: deste } : atual))
     // Um regime antigo que veio de outro salvo continua antigo neste: o aviso segue com ele.
-    setOrigem({ modo: 'salvo', id: salvo.id, titulo: salvo.titulo, criadoEm: new Date(salvo.criadoEm), regime: origem?.regime ?? 'padrao' })
+    setOrigem({ modo: 'salvo', id: salvo.id, titulo: salvo.titulo, criadoEm: new Date(salvo.criadoEm), regime: origem?.regime ?? 'padrao', ultimaParcela: null })
     setRestauradoDe(null)
     setSalvarAberta(false)
   }
@@ -699,7 +703,12 @@ function App() {
     }
     if (idSalvo) return `Cálculo salvo ${nome}, com os índices daquele dia.`
     if (o.modo === 'duplicar') return `Cópia do cálculo salvo ${nome}.`
-    if (o.modo === 'atualizar') return `Atualização do cálculo salvo ${nome}, com os índices de hoje. Salve para guardá-la.`
+    if (o.modo === 'atualizar') {
+      const estendida = o.ultimaParcela
+        ? ` A última parcela passou de ${mes(o.ultimaParcela.de)} para ${mes(o.ultimaParcela.para)}, com as que venceram desde então; se a pensão terminou antes, corrija a última parcela.`
+        : ''
+      return `Atualização do cálculo salvo ${nome}, com os índices de hoje.${estendida} Salve para guardá-la.`
+    }
     return `Alterado a partir do cálculo salvo ${nome}: os números usam os índices de hoje. Salve para guardar esta versão.`
   }
 
