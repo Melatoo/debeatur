@@ -851,6 +851,11 @@ function App() {
               </label>
             </div>
             <p className="dica">Opcionais: só identificam o processo no cabeçalho do PDF.</p>
+          </section>
+
+          {/* Fora de "Processo", que se diz opcional: no teste simulado, quem procurava a data-base e o ajuizamento estranhava achá-los lá. */}
+          <section className="bloco" aria-labelledby="bloco-execucao">
+            <h2 id="bloco-execucao">Execução</h2>
             <div className="campos quatro">
               <Campo rotulo="Data-base do cálculo">
                 <input
