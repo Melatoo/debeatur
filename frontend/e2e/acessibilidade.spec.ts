@@ -41,7 +41,7 @@ for (const [tema, nome] of [
     test('formulário com regime próprio e colagem de pagamentos com erro', async ({ page }) => {
       await page.goto('/')
       await preencherCaso(page)
-      await page.getByRole('radio', { name: 'Critérios fixados no título' }).check()
+      await page.getByRole('radio', { name: 'Outros critérios fixados no título' }).check()
       await page.getByText('Colar de uma planilha').click()
       await page.getByLabel('Mês e valor pago, um pagamento por linha').fill('13/2024\t100,00')
       await page.getByRole('button', { name: 'Incluir pagamentos' }).click()

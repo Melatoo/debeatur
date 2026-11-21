@@ -84,6 +84,14 @@ class ContratoFixturesE2eTest {
     }
 
     @Test
+    void oRegimeDoTema1368EIgualAFixture() {
+        MvcTestResult resposta = mvc.get().uri("/api/regimes/tema-1368").exchange();
+
+        assertThat(resposta).hasStatusOk();
+        assertThat(json.readTree(corpo(resposta))).as("regime-tema-1368.json").isEqualTo(arvore("regime-tema-1368.json"));
+    }
+
+    @Test
     void aSerieIndisponivelTemAFormaDaFixture() {
         seriesFicticias();
         when(series.carregar(any(), any(), any())).thenThrow(new IndiceIndisponivelException(Indice.IPCA,

@@ -68,11 +68,13 @@ export function regimeSalvo(pedido: CalculoRequest, padrao: Regime | null): Regi
  * Se o regime salvo ainda for o padrão de hoje, o formulário volta a "Regime padrão do TJMG", como
  * foi preenchido. Se o padrão mudou desde então, ou não se sabe qual é (`padrao` nulo), as regras
  * salvas entram como critérios do título: reabrir não pode mudar o regime de um cálculo que já foi
- * para os autos. Ver `regimeSalvo`.
+ * para os autos. Ver `regimeSalvo`. O Tema 1368 segue a mesma regra: só volta à opção dele se o
+ * regime salvo ainda for o de hoje, e o cálculo leva o regime salvo, e não o de hoje.
  *
  * @param padrao o regime de `GET /api/regimes/padrao`, ou nulo se não deu para buscá-lo
+ * @param tema o regime de `GET /api/regimes/tema-1368`, ou nulo se não deu para buscá-lo
  */
-export function paraRascunho(pedido: CalculoRequest, padrao: Regime | null): Rascunho {
+export function paraRascunho(pedido: CalculoRequest, padrao: Regime | null, tema: Regime | null = null): Rascunho {
   // Os campos do processo podem voltar nulos do servidor.
   const processo = pedido.processo
   const comPensao = pedido.pensao != null
@@ -84,6 +86,7 @@ export function paraRascunho(pedido: CalculoRequest, padrao: Regime | null): Ras
   }))
   const regras = pedido.regime ? paraEditavel(pedido.regime.regras) : []
   const ehPadrao = regimeSalvo(pedido, padrao) === 'padrao'
+  const ehTema = ehOTema1368(pedido.regime, tema)
   const nome = pedido.regime?.nome ?? ''
   return {
     processo: {
@@ -101,10 +104,18 @@ export function paraRascunho(pedido: CalculoRequest, padrao: Regime | null): Ras
     // Sem pensão, as parcelas avulsas são o cálculo, e o formulário pede ao menos uma.
     parcelas: !comPensao && parcelas.length === 0 ? [parcelaVazia()] : parcelas,
     outrasAbertas: comPensao && parcelas.length > 0,
-    regimeProprio: !ehPadrao,
-    nomeRegime: ehPadrao || nome === NOME_SEM_NOME ? '' : nome,
-    regras: ehPadrao ? [] : regras,
+    regimeProprio: !ehPadrao && !ehTema,
+    nomeRegime: ehPadrao || ehTema || nome === NOME_SEM_NOME ? '' : nome,
+    regras: ehPadrao || ehTema ? [] : regras,
+    tema1368: ehTema,
+    regimeTema1368: ehTema ? (pedido.regime ?? null) : null,
   }
+}
+
+/** Se o regime salvo é o do Tema 1368 de hoje: mesmo nome e mesmas regras. */
+function ehOTema1368(regime: Regime | undefined, tema: Regime | null): boolean {
+  if (!regime || !tema || regime.nome !== tema.nome) return false
+  return iguais(paraEditavel(regime.regras), paraEditavel(tema.regras))
 }
 
 /** O título que o servidor dá a um cálculo salvo sem título; o campo o mostra como exemplo. */

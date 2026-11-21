@@ -12,6 +12,14 @@ const padrao: Regime = {
   ],
 }
 
+const tema: Regime = {
+  nome: 'Tema 1368/STJ (SELIC até 07/2024; Lei 14.905/2024)',
+  regras: [
+    { inicio: '2003-01', fim: '2024-07', correcao: 'SELIC', juros: 'SEM_JUROS', percentualJurosMensal: null, ultimoDiaTaxaFixa: null },
+    { inicio: '2024-08', fim: null, correcao: 'IPCA', juros: 'TAXA_LEGAL', percentualJurosMensal: null, ultimoDiaTaxaFixa: null },
+  ],
+}
+
 /** Como o servidor devolve: decimais em número JSON, regime resolvido e com a descrição dos juros. */
 const salvo = {
   dataBase: '2025-09-30',
@@ -142,6 +150,35 @@ describe('paraRascunho', () => {
 
   it('sem o padrão em mãos, mantém as regras salvas, para o regime nunca mudar ao reabrir', () => {
     expect(paraRascunho(salvo, null).regimeProprio).toBe(true)
+  })
+
+  it('reconhece o regime do Tema 1368 de hoje e volta à opção dele, com o regime salvo no pedido', () => {
+    const comTema = { ...salvo, regime: tema }
+    const r = paraRascunho(comTema, padrao, tema)
+    expect([r.tema1368, r.regimeProprio, r.regras, r.nomeRegime]).toEqual([true, false, [], ''])
+    expect(paraPedido(r).regime).toEqual(tema)
+    // Sem o regime carregado, o pedido não sai: iria ao padrão do TJMG.
+    expect(() => paraPedido({ ...r, regimeTema1368: null })).toThrow('Tema 1368')
+  })
+
+  it('com o Tema 1368, recusa termo inicial anterior ao começo do regime e aponta os outros critérios', () => {
+    const r = paraRascunho({ ...salvo, regime: tema }, padrao, tema)
+    const avulsa = { descricao: 'Antiga', valor: '100,00', inicioCorrecao: '2002-12-10', inicioJuros: null }
+    expect(() => paraPedido({ ...r, parcelas: [...r.parcelas, avulsa] })).toThrow(
+      'O Tema 1368 vale desde 01/2003, com o CC/2002, e o cálculo começa em 12/2002.',
+    )
+    expect(() => paraPedido({ ...r, pensao: { ...r.pensao, primeiroMes: '2002-11' } })).toThrow('começa em 11/2002')
+    expect(paraPedido({ ...r, parcelas: [{ ...avulsa, inicioCorrecao: '2003-01-05' }] }).regime).toEqual(tema)
+  })
+
+  it('se o regime do Tema 1368 mudou, ou não veio, as regras salvas entram como critérios do título', () => {
+    const comTema = { ...salvo, regime: tema }
+    const temaDeHoje: Regime = { ...tema, regras: [{ ...tema.regras[0], fim: '2024-08' }, { ...tema.regras[1], inicio: '2024-09' }] }
+    for (const hoje of [temaDeHoje, null]) {
+      const r = paraRascunho(comTema, padrao, hoje)
+      expect([r.tema1368, r.regimeProprio, r.nomeRegime]).toEqual([false, true, tema.nome])
+      expect(paraPedido(r).regime).toEqual(tema)
+    }
   })
 
   it('critérios do título sem nome voltam sem o nome que o servidor deu', () => {
