@@ -287,6 +287,12 @@ describe('atualizarRascunho', () => {
     expect(rascunho.pensao.ultimoMes).toBe('2027-02')
     expect(ultimaParcela).toBeNull()
   })
+
+  it('respeita o fim fixado depois da data-base antiga, mesmo antes da nova', () => {
+    const { rascunho, ultimaParcela } = atualizarRascunho(caso('2026-08-21', '2026-09'), hoje)
+    expect(rascunho.pensao.ultimoMes).toBe('2026-09')
+    expect(ultimaParcela).toBeNull()
+  })
 })
 
 describe('filtrarCalculos', () => {

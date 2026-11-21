@@ -170,17 +170,18 @@ export interface Atualizacao {
 
 /**
  * O caso de um cálculo salvo trazido para hoje: a data-base avança como em `novaDataBase` e, se a
- * pensão ainda corria na data-base antiga (a última parcela é do mês dela ou posterior), a última
- * parcela vai ao mês da nova, com as prestações que venceram no meio. Uma pensão que já tinha
- * terminado antes fica como estava. No caso ambíguo (a pensão terminou justamente no mês da
- * data-base antiga), ela é estendida, e quem abre é avisado do mês de antes para poder voltá-lo.
+ * pensão ainda corria na data-base antiga (a última parcela é do mês dela), a última parcela vai
+ * ao mês da nova, com as prestações que venceram no meio. Uma pensão que terminou antes, ou cuja
+ * última parcela já ia além (um fim fixado no título, como a maioridade), fica como estava. No
+ * caso ambíguo (a pensão terminou justamente no mês da data-base antiga), ela é estendida, e quem
+ * abre é avisado do mês de antes para poder voltá-lo.
  */
 export function atualizarRascunho(rascunho: Rascunho, hoje = new Date()): Atualizacao {
   const dataBase = novaDataBase(rascunho.dataBase, hoje)
   if (!dataBase) return { rascunho, ultimaParcela: null }
   const de = rascunho.pensao.ultimoMes
   const para = dataBase.slice(0, 7)
-  const emCurso = rascunho.comPensao && /^\d{4}-\d{2}$/.test(de) && de >= rascunho.dataBase.slice(0, 7) && de < para
+  const emCurso = rascunho.comPensao && de === rascunho.dataBase.slice(0, 7) && de < para
   if (!emCurso) return { rascunho: { ...rascunho, dataBase }, ultimaParcela: null }
   return {
     rascunho: { ...rascunho, dataBase, pensao: { ...rascunho.pensao, ultimoMes: para } },
