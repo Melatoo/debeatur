@@ -14,4 +14,10 @@ public class RegimeController {
     public RegimeDto padrao() {
         return RegimeDto.de(RegimeAtualizacao.civelPadrao());
     }
+
+    /** Regime do título omisso ou de "juros legais" pelo Tema 1368/STJ, enviado como critério do cálculo. */
+    @GetMapping("/tema-1368")
+    public RegimeDto tema1368() {
+        return RegimeDto.de(RegimeAtualizacao.tema1368());
+    }
 }

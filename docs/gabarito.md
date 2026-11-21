@@ -147,6 +147,13 @@ relatório. Ele não passa em branco.
    contra uns R$ 83 a R$ 85 se o mês se dividisse por dias (úteis ou corridos). Dividir exigiria a SELIC pro rata, que é
    convenção sem fonte, e mudar o motor sem gabarito (#32).
 
+   O regime pronto do título omisso é o `RegimeAtualizacao.tema1368()` (`GET
+   /api/regimes/tema-1368`): SELIC sem outra taxa de 01/2003 a 07/2024 e IPCA + taxa legal desde
+   08/2024. Ele começa no mês em que o CC/2002 entrou em vigor (11/01/2003); antes disso a taxa
+   do art. 406 não era a SELIC, e um termo inicial anterior a 01/2003 é recusado para que os
+   critérios venham do título, pelo editor de regime. Pela granularidade mensal, um termo de 1º a
+   10/01/2003 leva a SELIC de janeiro inteiro.
+
    A planilha da DPMG não tem modelo com a virada da SELIC, então não decide o mês. Ela
    concorda na correção (o modelo "Taxa legal (Bacen)" corrige agosto/2024 inteiro pelo IPCA),
    mas divide os juros de agosto. O editor recomenda a SELIC até 07/2024 e avisa quando ela vai

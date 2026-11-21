@@ -33,6 +33,23 @@ class RegimeAtualizacaoTest {
     }
 
     @Test
+    void oRegimeDoTema1368TemSelicAteJulhoDe2024EDepoisALei14905() {
+        RegimeAtualizacao regime = RegimeAtualizacao.tema1368();
+
+        assertThat(regime.regras()).containsExactly(
+                new RegraPeriodo(YearMonth.of(2003, 1), YearMonth.of(2024, 7), Indice.SELIC, new Juros.SemJuros()),
+                new RegraPeriodo(YearMonth.of(2024, 8), null, Indice.IPCA, new Juros.TaxaLegal()));
+    }
+
+    @Test
+    void oRegimeDoTema1368NaoCobreTermoAnteriorAoCc2002() {
+        RegimeAtualizacao regime = RegimeAtualizacao.tema1368();
+
+        assertThat(regime.cobre(YearMonth.of(2003, 1), YearMonth.of(2026, 10))).isTrue();
+        assertThat(regime.cobre(YearMonth.of(2002, 12), YearMonth.of(2026, 10))).isFalse();
+    }
+
+    @Test
     void recusaRegrasSobrepostas() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> new RegimeAtualizacao("Título", List.of(regra("2020-01", "2021-12"), regra("2021-06", null))))
