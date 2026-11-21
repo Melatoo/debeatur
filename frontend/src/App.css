@@ -1374,7 +1374,9 @@ tfoot .total td {
 /*
  * Celular: cada cálculo vira um cartão, com o rótulo antes de cada valor e as ações embaixo, à
  * esquerda. Na tabela de 860px, Abrir e Atualizar ficavam fora da tela, sem pista de rolar de lado.
- * O cabeçalho sai da vista, mas fica para o leitor de tela, com a tabela.
+ * O cabeçalho sai da vista, mas fica para o leitor de tela: os `role` explícitos da marcação
+ * mantêm a semântica de tabela com `display: block` (o Safari a perde sem eles), e o rótulo do
+ * cartão tem texto alternativo vazio, para não ser lido junto com o cabeçalho da coluna.
  */
 @media (max-width: 699px) {
   .tabela-salvos {
@@ -1406,6 +1408,7 @@ tfoot .total td {
 
   .tabela-salvos td[data-rotulo]::before {
     content: attr(data-rotulo) ': ';
+    content: attr(data-rotulo) ': ' / '';
     color: var(--texto-suave);
   }
 
