@@ -993,6 +993,11 @@ button:disabled.esperando {
 
 .rolagem {
   overflow-x: auto;
+  /*
+   * Os `.sr-only` das células são `position: absolute`: sem um ancestral posicionado aqui, eles
+   * escapam do recorte e alargam a página no celular (590px numa tela de 390px).
+   */
+  position: relative;
 }
 
 table {
@@ -1168,6 +1173,39 @@ tfoot .total td {
   }
 }
 
+/*
+ * Notebook (1366×768 e parecidos): o cabeçalho e o pé fixo deixavam uns 300px de formulário à
+ * vista. Sem o subtítulo, os botões sobem para a linha do título, e o pé fica mais baixo; os
+ * textos do pé continuam, porque dizem de onde veio o caso.
+ */
+@media (min-width: 1200px) and (max-height: 900px) {
+  /* Os botões logo depois do título: na ponta da coluna, passariam da borda dos campos, que dão lugar à barra de rolagem. */
+  .topo {
+    justify-content: flex-start;
+    align-items: center;
+    gap: 8px 24px;
+    margin-bottom: 4px;
+  }
+
+  .topo .subtitulo {
+    display: none;
+  }
+
+  form .enviar {
+    margin-top: 8px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .enviar button[type='submit'] {
+    padding: 8px 32px;
+  }
+
+  .enviar .dica {
+    margin-top: 4px;
+  }
+}
+
 /* ---------- Janelas: cálculos salvos e salvar ---------- */
 
 .janela {
@@ -1331,6 +1369,61 @@ tfoot .total td {
 .acoes-linha button {
   padding: 3px 12px;
   font-size: 0.875rem;
+}
+
+/*
+ * Celular: cada cálculo vira um cartão, com o rótulo antes de cada valor e as ações embaixo, à
+ * esquerda. Na tabela de 860px, Abrir e Atualizar ficavam fora da tela, sem pista de rolar de lado.
+ * O cabeçalho sai da vista, mas fica para o leitor de tela, com a tabela.
+ */
+@media (max-width: 699px) {
+  .tabela-salvos {
+    min-width: 0;
+  }
+
+  .tabela-salvos thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .tabela-salvos tbody tr {
+    display: block;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--borda);
+  }
+
+  .tabela-salvos tbody th,
+  .tabela-salvos tbody td {
+    display: block;
+    padding: 2px 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .tabela-salvos td[data-rotulo]::before {
+    content: attr(data-rotulo) ': ';
+    color: var(--texto-suave);
+  }
+
+  .tabela-salvos .acoes-salvo {
+    padding-top: 8px;
+  }
+
+  .acoes-principais,
+  .acoes-secundarias {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .renomear-salvo,
+  .confirmar-exclusao {
+    width: auto;
+    margin-left: 0;
+  }
 }
 
 /* Desfaz o que vale para o formulário do cálculo, inclusive a coluna com rolagem própria. */

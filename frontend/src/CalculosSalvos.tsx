@@ -272,7 +272,7 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
                     {r.titulo}
                     <span className="nota">{r.regime}</span>
                   </th>
-                  <td className="processo-salvo">
+                  <td className="processo-salvo" data-rotulo="Processo">
                     {r.processo || (
                       <>
                         <span aria-hidden="true">—</span>
@@ -280,9 +280,10 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
                       </>
                     )}
                   </td>
-                  <td>{data(r.dataBase)}</td>
-                  <td>{moeda(r.total)}</td>
-                  <td>{dataHora(new Date(r.criadoEm))}</td>
+                  {/* Os rótulos são os do cabeçalho, para a tela estreita, onde cada linha vira um cartão. */}
+                  <td data-rotulo="Data-base">{data(r.dataBase)}</td>
+                  <td data-rotulo="Total">{moeda(r.total)}</td>
+                  <td data-rotulo="Salvo em">{dataHora(new Date(r.criadoEm))}</td>
                   <td className="acoes-salvo">
                     <div className="acoes-principais">
                       {(['abrir', 'atualizar', 'duplicar'] as const)

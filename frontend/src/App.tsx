@@ -763,7 +763,7 @@ function App() {
         <header className="topo">
           <div>
             <h1>Debeatur</h1>
-            <p>Execução de alimentos, do título ao demonstrativo.</p>
+            <p className="subtitulo">Execução de alimentos, do título ao demonstrativo.</p>
           </div>
           <div className="acoes-topo">
             <button type="button" className="secundario" onClick={() => setListaAberta(true)}>
