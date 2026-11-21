@@ -250,29 +250,29 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
       )}
       {achados && achados.length > 0 && (
         <div className="rolagem" tabIndex={0} role="region" aria-label="Lista de cálculos salvos">
-          <table className="tabela-salvos">
+          <table className="tabela-salvos" role="table">
             <caption className="sr-only">Cálculos salvos, do mais recente para o mais antigo</caption>
-            <thead>
-              <tr>
-                <th scope="col">Título</th>
-                <th scope="col">Processo</th>
-                <th scope="col">Data-base</th>
-                <th scope="col">Total</th>
-                <th scope="col">Salvo em</th>
-                <th scope="col">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">Título</th>
+                <th scope="col" role="columnheader">Processo</th>
+                <th scope="col" role="columnheader">Data-base</th>
+                <th scope="col" role="columnheader">Total</th>
+                <th scope="col" role="columnheader">Salvo em</th>
+                <th scope="col" role="columnheader">
                   <span className="sr-only">Ações</span>
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {achados.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} role="row">
                   {/* O cabeçalho da linha é lido em cada célula: só o título e o regime, sem controles. */}
-                  <th scope="row">
+                  <th scope="row" role="rowheader">
                     {r.titulo}
                     <span className="nota">{r.regime}</span>
                   </th>
-                  <td className="processo-salvo">
+                  <td className="processo-salvo" role="cell" data-rotulo="Processo">
                     {r.processo || (
                       <>
                         <span aria-hidden="true">—</span>
@@ -280,10 +280,11 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
                       </>
                     )}
                   </td>
-                  <td>{data(r.dataBase)}</td>
-                  <td>{moeda(r.total)}</td>
-                  <td>{dataHora(new Date(r.criadoEm))}</td>
-                  <td className="acoes-salvo">
+                  {/* Os rótulos são os do cabeçalho, para a tela estreita, onde cada linha vira um cartão. */}
+                  <td role="cell" data-rotulo="Data-base">{data(r.dataBase)}</td>
+                  <td role="cell" data-rotulo="Total">{moeda(r.total)}</td>
+                  <td role="cell" data-rotulo="Salvo em">{dataHora(new Date(r.criadoEm))}</td>
+                  <td className="acoes-salvo" role="cell">
                     <div className="acoes-principais">
                       {(['abrir', 'atualizar', 'duplicar'] as const)
                         // Um cálculo que já vai até o fim do mês anterior não tem o que atualizar.

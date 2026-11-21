@@ -94,9 +94,10 @@ Siga `frontend/src/formato.ts`; é a única fonte desses formatos.
 ## Espaço e layout
 
 - Use a escala `espaco-1` a `espaco-8` (4 a 80px). Os ajustes de 1 a 3px de alinhamento óptico são a única exceção.
-- Até `quebra-duas-colunas` (1200px), formulário e demonstrativo ficam empilhados, com `largura-pagina`. A partir dela, o formulário fica fixo à esquerda (380 a 460px, com rolagem própria e o botão Calcular sempre visível no pé) e o demonstrativo rola à direita.
+- Até `quebra-duas-colunas` (1200px), formulário e demonstrativo ficam empilhados, com `largura-pagina`. A partir dela, o formulário fica fixo à esquerda (380 a 460px, com rolagem própria e o botão Calcular sempre visível no pé) e o demonstrativo rola à direita. Com até 900px de altura (notebook), o subtítulo sai, os botões do topo sobem para a linha do título e o pé fica mais baixo, para o formulário não ficar com uns 300px à vista.
+- Abaixo de 700px de largura, a lista de cálculos salvos troca a tabela por um cartão por cálculo: o rótulo vem antes de cada valor, e as ações vão embaixo, à esquerda. O cabeçalho da tabela continua lá para o leitor de tela.
 - Grades de campos respondem à largura da própria coluna (container queries `formulario` e `resultado`), não à da tela.
-- A memória de cálculo nunca encolhe abaixo de `largura-coluna-tabela` por coluna: ela rola de lado dentro de `.rolagem`, nunca a página.
+- A memória de cálculo nunca encolhe abaixo de `largura-coluna-tabela` por coluna: ela rola de lado dentro de `.rolagem`, nunca a página. A `.rolagem` é posicionada, para os `.sr-only` das células (absolutos) ficarem dentro do recorte.
 - Tudo o que fica fixo na rolagem (a faixa de situação, o pé do formulário) reserva o próprio espaço com `scroll-padding`, para nunca cobrir o campo que recebeu o foco (WCAG 2.4.11).
 
 ## Bordas, fios e raios
