@@ -16,7 +16,7 @@ Cálculo de cumprimento de sentença (art. 524 do CPC). Escopo do MVP em `docs/r
   `gabarito.yml` sobre a árvore de trabalho, com `CI=true` e o log de cada um em `target/ci-local/`.
   O job `docker` sobe a stack num projeto à parte, com imagens e volume próprios e sem portas no
   host, e não mexe na stack nem no banco do dia a dia. O review do Claude fica de fora: localmente
-  ele é o `/code-review` da skill `verify`.
+  ele é o revisor e o refutador da skill `verify`.
 
 ## Preview
 
