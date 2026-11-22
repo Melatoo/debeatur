@@ -243,6 +243,23 @@ class CalculoPdfControllerTest {
     }
 
     @Test
+    void aRegraDosRitosDaDpmgApareceNoRitoDaPrisao() throws IOException {
+        indicesDaPensao();
+        String dpmg = PENSAO_COM_RITOS.replace("\"ajuizamento\": \"2024-03-01\",",
+                "\"ajuizamento\": \"2024-03-01\", \"regraRitos\": \"ULTIMOS_MESES_DO_CALCULO\",");
+
+        String pdfDpmg = texto(post("/api/calculos/pdf", dpmg).getResponse().getContentAsByteArray());
+        String pdfLei = texto(post("/api/calculos/pdf", PENSAO_COM_RITOS).getResponse().getContentAsByteArray());
+
+        // guarda do replace: se o pedido base mudar de forma, o teste falha em vez de comparar dois PDFs da lei
+        assertThat(dpmg).isNotEqualTo(PENSAO_COM_RITOS);
+        assertThat(pdfDpmg).containsIgnoringWhitespaces("As três últimas parcelas do cálculo, como a planilha da DPMG.");
+        // sem espaços, como os outros asserts: uma quebra de linha no meio da frase não esconde o texto da lei
+        assertThat(pdfDpmg.replaceAll("\\s+", "")).doesNotContain("asquevencemdepoisdele");
+        assertThat(pdfLei).containsIgnoringWhitespaces("as três parcelas vencidas até o ajuizamento e as que vencem depois dele");
+    }
+
+    @Test
     void trazABaseO13EOsAbatimentosNaPenhora() throws IOException {
         indicesDaPensao();
         String pedido = """

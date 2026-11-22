@@ -4,8 +4,8 @@ package br.com.debeatur.core.alimentos;
 public enum Rito {
 
     /**
-     * Rito da prisão civil (art. 528, §§3º e 7º, do CPC; Súmula 309 do STJ): as três parcelas
-     * anteriores ao ajuizamento e as que vencerem no curso do processo.
+     * Rito da prisão civil (art. 528, §§3º e 7º, do CPC; Súmula 309 do STJ). Quais parcelas vão
+     * para ele depende da {@link RegraRitos regra} do cálculo.
      */
     PRISAO,
 

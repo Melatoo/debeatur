@@ -101,6 +101,8 @@ export function paraRascunho(pedido: CalculoRequest, padrao: Regime | null, tema
     comPensao,
     // Sem pensão, a opção não aparece; marcada, ela volta como o formulário em branco a deixa.
     separarRitos: pedido.pensao ? pedido.pensao.ajuizamento != null : true,
+    // Salvo sem a regra foi calculado pela lei, e reabre assim para não mudar o valor.
+    ritosPelaLei: pedido.pensao?.ajuizamento != null && pedido.pensao.regraRitos !== 'ULTIMOS_MESES_DO_CALCULO',
     pensao: pedido.pensao ? paraPensaoEditavel(pedido.pensao) : pensaoVazia(),
     // Sem pensão, as parcelas avulsas são o cálculo, e o formulário pede ao menos uma.
     parcelas: !comPensao && parcelas.length === 0 ? [parcelaVazia()] : parcelas,

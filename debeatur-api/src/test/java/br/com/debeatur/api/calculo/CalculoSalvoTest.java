@@ -264,6 +264,23 @@ class CalculoSalvoTest {
     }
 
     @Test
+    void guardaARegraDosRitosEscolhidaEOSalvoSemElaSegueALei() throws Exception {
+        String dpmg = PEDIDO.replace("\"ajuizamento\": \"2024-09-01\",",
+                "\"ajuizamento\": \"2024-09-01\", \"regraRitos\": \"ULTIMOS_MESES_DO_CALCULO\",");
+        String salvoDpmg = salvar(null, dpmg);
+        String salvoLei = salvar(null, PEDIDO);
+
+        String reaberto = obter("/api/calculos/salvos/" + JsonPath.read(salvoDpmg, "$.id"));
+
+        assertThat(json.readTree(reaberto).get("calculo").get("pensao").get("regraRitos").asString())
+                .isEqualTo("ULTIMOS_MESES_DO_CALCULO");
+        assertThat(demonstrativo(reaberto)).isEqualTo(demonstrativo(salvoDpmg));
+        // 09/2024 vence no curso do processo: pela lei, a prisão fica com 06 a 09; pela DPMG, com 07 a 09
+        assertThat(demonstrativo(salvoLei).ritos().prisao().parcelas()).isEqualTo(4);
+        assertThat(demonstrativo(salvoDpmg).ritos().prisao().parcelas()).isEqualTo(3);
+    }
+
+    @Test
     void listaDoMaisRecenteParaOMaisAntigo() throws Exception {
         salvar("Primeiro", PEDIDO);
         salvar(null, PEDIDO);

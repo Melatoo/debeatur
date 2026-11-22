@@ -216,13 +216,16 @@ relatório. Ele não passa em branco.
    divergência 1, da mesma ordem. A resposta gravada da SGS 11 é a de
    `https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=01/01/2024&dataFinal=31/10/2026`,
    consultada em 19/11/2026, e fica em `debeatur-indices/src/test/resources/sgs`.
-7. **Ritos: os três últimos meses do cálculo (DPMG) × a regra do art. 528, §7º.** Ao separar os
-   ritos, a planilha da DPMG põe na prisão os três últimos meses do cálculo. O motor segue a
-   lei e a Súmula 309 do STJ: as três parcelas anteriores ao ajuizamento e as que vencerem no
-   curso do processo. As duas regras coincidem quando o cálculo termina no ajuizamento, que é
-   o uso da planilha na petição inicial. Num cálculo atualizado no curso do processo, a regra
-   da planilha mandaria para a penhora as parcelas vencidas depois do ajuizamento, que a lei
-   põe na prisão. A diferença é intencional (decisão de 14/11/2026).
+7. **Ritos: os três últimos meses do cálculo (DPMG) × a regra do art. 528, §7º. Virou opção
+   do cálculo (decisão de 22/11/2026, que substitui a de 14/11/2026).** Ao separar os ritos, a
+   planilha da DPMG põe na prisão os três últimos meses do cálculo (o gerador do iadefensor:
+   "os 3 últimos meses do cálculo" na prisão e "os meses anteriores" na penhora). A lei e a
+   Súmula 309 do STJ põem as três parcelas anteriores ao ajuizamento e as que vencerem no curso
+   do processo. As duas regras coincidem quando o cálculo termina no ajuizamento, que é o uso da
+   planilha na petição inicial. Num cálculo atualizado no curso do processo, a regra da planilha
+   manda para a penhora parcelas vencidas depois do ajuizamento, que a lei põe na prisão. Quem
+   calcula escolhe (`RegraRitos`), e a tela abre na regra da DPMG. Um pedido sem a regra segue a
+   lei, que era a única antes da opção, para os cálculos salvos não mudarem ao reabrir.
 8. **Juros de 0,5% a.m. até 10/01/2003 (CC/1916).** As notas da planilha da DPMG citam 6% a.a.
    antes de 11/01/2003, mas ela começa em 02/2003, mesmo quando se pede início em 01/2003. Sem
    fonte que mostre como dividir janeiro/2003, o motor fica como está (decisão de 14/11/2026).

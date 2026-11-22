@@ -370,15 +370,15 @@ fieldset {
   margin: 0;
 }
 
-/* A base dos honorários fica sob a opção do art. 523, recuada como as dicas dela. */
-.opcoes-honorarios {
+/* Escolhas que dependem da opção de cima (ritos, base dos honorários), recuadas como as dicas dela. */
+.opcoes-recuadas {
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin-left: 28px;
 }
 
-.opcoes-honorarios .dica {
+.opcoes-recuadas .dica {
   margin: 0 0 4px;
 }
 

@@ -28,8 +28,10 @@ import java.util.stream.IntStream;
  * <p>
  * Convenções:
  * <ul>
- *   <li>Vão para a prisão as três parcelas de vencimento mais recente até o ajuizamento,
- *       inclusive a que vence no próprio dia, e todas as que vencem depois dele.</li>
+ *   <li>Quais parcelas vão para a prisão depende da {@link RegraRitos regra}. Pela lei, as três
+ *       de vencimento mais recente até o ajuizamento, inclusive a que vence no próprio dia, e
+ *       todas as que vencem depois dele. Pela planilha da DPMG, as três de vencimento mais
+ *       recente do cálculo. Os métodos sem a regra seguem a lei.</li>
  *   <li>Conta-se por parcela, não por saldo: uma parcela quitada entre as três últimas ocupa o
  *       lugar dela, com saldo zero, e não puxa uma parcela mais antiga para a prisão.</li>
  *   <li>Os {@link Abatimento abatimentos} saem do débito da penhora pelo valor nominal, como na
@@ -51,7 +53,7 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
                                    Dinheiro abatidoPrisao, Dinheiro multaArt523, Dinheiro honorariosArt523,
                                    Dinheiro total) {
 
-    /** Parcelas anteriores ao ajuizamento que podem ser cobradas sob pena de prisão. */
+    /** Parcelas que vão para a prisão: as últimas até o ajuizamento (lei) ou as últimas do cálculo (DPMG). */
     public static final int PARCELAS_ANTERIORES_NA_PRISAO = 3;
 
     public DemonstrativoPorRito {
@@ -112,8 +114,21 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
     public static DemonstrativoPorRito separar(Demonstrativo demonstrativo, LocalDate ajuizamento,
                                                boolean aplicarArt523, List<Abatimento> abatimentos,
                                                BaseHonorarios baseHonorarios) {
+        return separar(demonstrativo, ajuizamento, RegraRitos.LEI, aplicarArt523, abatimentos, baseHonorarios);
+    }
+
+    /**
+     * @param regra quais parcelas vão para a prisão; com {@link RegraRitos#ULTIMOS_MESES_DO_CALCULO},
+     *              o ajuizamento não muda a separação
+     * @throws IllegalArgumentException nos mesmos casos de
+     *                                  {@link #separar(Demonstrativo, LocalDate, boolean, List)}
+     */
+    public static DemonstrativoPorRito separar(Demonstrativo demonstrativo, LocalDate ajuizamento, RegraRitos regra,
+                                               boolean aplicarArt523, List<Abatimento> abatimentos,
+                                               BaseHonorarios baseHonorarios) {
         Objects.requireNonNull(demonstrativo, "demonstrativo");
         Objects.requireNonNull(ajuizamento, "ajuizamento");
+        Objects.requireNonNull(regra, "regra");
         Objects.requireNonNull(abatimentos, "abatimentos");
         if (!demonstrativo.multaArt523().equals(Dinheiro.ZERO)
                 || !demonstrativo.honorariosArt523().equals(Dinheiro.ZERO)) {
@@ -121,10 +136,13 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
                     "Nos alimentos o art. 523 incide só sobre a penhora; calcule o demonstrativo sem ele");
         }
 
+        // Pela lei, contam só as anteriores ao ajuizamento, e as do curso do processo vão todas
+        // para a prisão; pela DPMG, contam as três últimas do cálculo, seja qual for o ajuizamento.
+        boolean pelaLei = regra == RegraRitos.LEI;
         // por posição: duas linhas iguais (mesmo valor e datas) são parcelas distintas
         List<LinhaDemonstrativo> linhas = demonstrativo.linhas();
-        Set<Integer> anterioresNaPrisao = IntStream.range(0, linhas.size()).boxed()
-                .filter(i -> !vencimento(linhas.get(i)).isAfter(ajuizamento))
+        Set<Integer> ultimasNaPrisao = IntStream.range(0, linhas.size()).boxed()
+                .filter(i -> !pelaLei || !vencimento(linhas.get(i)).isAfter(ajuizamento))
                 .sorted(Comparator.comparing((Integer i) -> vencimento(linhas.get(i))).reversed())
                 .limit(PARCELAS_ANTERIORES_NA_PRISAO)
                 .collect(Collectors.toSet());
@@ -134,8 +152,8 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
         List<LinhaDemonstrativo> penhora = new ArrayList<>();
         for (int i = 0; i < linhas.size(); i++) {
             LinhaDemonstrativo linha = linhas.get(i);
-            boolean noCurso = vencimento(linha).isAfter(ajuizamento);
-            Rito rito = noCurso || anterioresNaPrisao.contains(i) ? Rito.PRISAO : Rito.PENHORA;
+            boolean noCurso = pelaLei && vencimento(linha).isAfter(ajuizamento);
+            Rito rito = noCurso || ultimasNaPrisao.contains(i) ? Rito.PRISAO : Rito.PENHORA;
             ritos.add(rito);
             (rito == Rito.PRISAO ? prisao : penhora).add(linha);
         }

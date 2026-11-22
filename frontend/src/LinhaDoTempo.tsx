@@ -10,7 +10,9 @@ interface Props {
 
 /**
  * Parcelas da pensão no tempo: a altura é o valor atualizado, a cor o rito e a parte hachurada o
- * que foi pago no mês. A linha tracejada marca o ajuizamento, que define a separação dos ritos.
+ * que foi pago no mês. A linha tracejada marca o ajuizamento. Pela regra da lei, ele define a
+ * separação dos ritos; pela da DPMG, a prisão fica com os três últimos meses do cálculo, e a
+ * divisa das cores pode cair depois da linha.
  */
 export function LinhaDoTempo({ linhas, ajuizamento }: Props) {
   const meses = linhas.filter((l) => l.pensao)

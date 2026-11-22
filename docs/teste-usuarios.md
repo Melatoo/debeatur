@@ -66,7 +66,7 @@ meses. Atualize-o para hoje e diga quanto o devedor deve agora."
 | Ordem do formulário | Tarefa 1, pergunta 2 | Idas e voltas entre blocos; procurar a data de ajuizamento ou a data-base fora de Processo |
 | Total à vista | Tarefas 1 e 3 | Quanto tempo até dizer o total; se rola a página para achá-lo |
 | Conferência | Tarefa 2 | Se acha o vencimento errado, e por onde: parâmetros, memória de cálculo ou PDF |
-| Ritos e abatimentos | Tarefa 1 | Se separa os ritos sem ajuda; onde lança o bloqueio em conta |
+| Ritos e abatimentos | Tarefa 1 | Se separa os ritos sem ajuda e troca a regra para a da lei, que a sentença fixou (a tela abre na da DPMG, que neste caso põe parcelas do curso do processo na penhora); onde lança o bloqueio em conta |
 | Contadoria como usuária | Tarefa 2, pergunta 5 | O que o servidor procura e não encontra |
 | Celular | Pergunta 4 | Se existe o caso de uso, e em que momento |
 

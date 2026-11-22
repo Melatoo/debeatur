@@ -74,7 +74,12 @@ export interface PensaoRequest {
   abatimentos?: AbatimentoRequest[]
   /** Se informado, separa as linhas entre o rito da prisão e o da penhora; o art. 523 incide só na penhora. */
   ajuizamento: string | null
+  /** Quais parcelas vão para a prisão; sem ela, a API segue a lei, a regra dos cálculos salvos antes da opção. */
+  regraRitos?: RegraRitos
 }
+
+/** As três últimas parcelas do cálculo (DPMG) ou as três até o ajuizamento mais as do curso (lei). */
+export type RegraRitos = 'ULTIMOS_MESES_DO_CALCULO' | 'LEI'
 
 /** Identificação do processo no cabeçalho do PDF; nenhum campo entra no cálculo, e todos são opcionais. */
 export interface ProcessoRequest {

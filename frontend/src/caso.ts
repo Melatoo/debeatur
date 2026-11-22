@@ -37,6 +37,7 @@ export const rascunhoVazio = (): Rascunho => ({
   honorariosSobreAMulta: false,
   comPensao: true,
   separarRitos: true,
+  ritosPelaLei: false,
   pensao: pensaoVazia(),
   parcelas: [],
   outrasAbertas: false,
@@ -57,6 +58,7 @@ export type DadosDoCalculo = Pick<
   | 'comPensao'
   | 'pensao'
   | 'separarRitos'
+  | 'ritosPelaLei'
   | 'regimeProprio'
   | 'nomeRegime'
   | 'regras'
@@ -76,7 +78,7 @@ export function paraPedido(r: DadosDoCalculo): CalculoRequest {
     // O padrão (sobre o débito) não vai no pedido, que fica igual ao de antes da opção.
     ...(r.aplicarArt523 && r.honorariosSobreAMulta ? { baseHonorarios: 'DEBITO_COM_MULTA' as const } : {}),
     parcelas: r.parcelas.map((p) => ({ ...p, valor: exigirDecimal(p.valor, 'Valor da parcela'), inicioJuros: p.inicioJuros || null })),
-    pensao: r.comPensao ? paraPensao(r.pensao, r.separarRitos) : undefined,
+    pensao: r.comPensao ? paraPensao(r.pensao, r.separarRitos, r.ritosPelaLei) : undefined,
     regime: regimeDoPedido(r),
   }
 }

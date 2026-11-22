@@ -185,6 +185,48 @@ class CalculoPensaoControllerTest {
     }
 
     @Test
+    void pelaRegraDaDpmgAPrisaoFicaComAsTresUltimasDoCalculo() {
+        SerieIndicesEmMemoria serie = new SerieIndicesEmMemoria();
+        for (YearMonth mes = YearMonth.of(2023, 10); mes.isBefore(YearMonth.of(2024, 3)); mes = mes.plusMonths(1)) {
+            serie.com(Indice.INPC, mes, "0");
+        }
+        when(series.carregar(any(), any(), any())).thenReturn(serie);
+        when(series.carregarSalarioMinimo(any(), any())).thenReturn(new SalarioMinimoEmMemoria()
+                .com(YearMonth.of(2023, 10), "1320.00")
+                .com(YearMonth.of(2023, 11), "1320.00")
+                .com(YearMonth.of(2023, 12), "1320.00")
+                .com(YearMonth.of(2024, 1), "1412.00")
+                .com(YearMonth.of(2024, 2), "1412.00"));
+        String json = """
+                {"dataBase": "2024-03-15", "aplicarArt523": true, "regime": %s,
+                 "pensao": {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2023-10", "ultimoMes": "2024-02",
+                            "inicioJuros": "VENCIMENTO", "ajuizamento": "2024-02-01",
+                            "regraRitos": "ULTIMOS_MESES_DO_CALCULO"}}
+                """.formatted(SEM_JUROS);
+
+        // prisão: 12/2023, 01 e 02/2024 = 396,00 + 423,60 + 423,60 = 1.243,20, mesmo com 02/2024 no curso
+        // penhora: 10 e 11/2023 = 792,00; multa e honorários de 79,20 cada
+        assertThat(calcular(json)).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[1].rito", v -> v.assertThat().isEqualTo("PENHORA"))
+                .hasPathSatisfying("$.linhas[2].rito", v -> v.assertThat().isEqualTo("PRISAO"))
+                .hasPathSatisfying("$.ritos.prisao.parcelas", v -> v.assertThat().asNumber().isEqualTo(3))
+                .hasPathSatisfying("$.ritos.prisao.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(1243.2))
+                .hasPathSatisfying("$.ritos.penhora.debitoAtualizado", v -> v.assertThat().asNumber().isEqualTo(792.0))
+                .hasPathSatisfying("$.multaArt523", v -> v.assertThat().asNumber().isEqualTo(79.2))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(2193.6));
+    }
+
+    @Test
+    void recusaRegraDeRitosDesconhecida() {
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                 "inicioJuros": "VENCIMENTO", "ajuizamento": "2024-02-01", "regraRitos": "TODAS"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatus(400);
+    }
+
+    @Test
     void comAjuizamentoRecusaDuasParcelasNoMesmoMes() {
         when(series.carregarSalarioMinimo(any(), any()))
                 .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));

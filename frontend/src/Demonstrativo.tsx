@@ -67,6 +67,9 @@ const RITOS: Record<Rito, { titulo: string; regra: string }> = {
   },
 }
 
+/** A regra da prisão quando o cálculo segue a planilha da DPMG, igual à do PDF. */
+const PRISAO_PELA_DPMG = 'As três últimas parcelas do cálculo, como a planilha da DPMG.'
+
 /** O que o aviso diz de cada arquivo, com o gênero certo: "o PDF … gerado", "a planilha … gerada". */
 const TEXTOS_DO_ARQUIVO: Record<FormatoDoArquivo, { gerando: string; baixado: string; mudou: string }> = {
   pdf: { gerando: 'Gerando PDF…', baixado: 'PDF baixado', mudou: 'o PDF era gerado' },
@@ -719,7 +722,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           {tabela(
             'tabela-prisao',
             RITOS.PRISAO.titulo,
-            RITOS.PRISAO.regra,
+            pedido.pensao?.regraRitos === 'ULTIMOS_MESES_DO_CALCULO' ? PRISAO_PELA_DPMG : RITOS.PRISAO.regra,
             linhas.filter((l) => l.rito === 'PRISAO'),
             ritos.prisao,
             abatidoPrisao > 0 && (

@@ -6,6 +6,7 @@ import br.com.debeatur.core.alimentos.BasePensao;
 import br.com.debeatur.core.alimentos.InicioJuros;
 import br.com.debeatur.core.alimentos.PagamentosParciais;
 import br.com.debeatur.core.alimentos.Pensao;
+import br.com.debeatur.core.alimentos.RegraRitos;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -41,10 +42,14 @@ import java.util.TreeMap;
  *                       demonstrativo, inclusive as avulsas, são separadas entre o rito da prisão
  *                       e o da penhora pelo vencimento, e o art. 523 incide só sobre a penhora;
  *                       exige no máximo uma parcela, da pensão ou avulsa, por mês de vencimento
+ * @param regraRitos     quais parcelas vão para a prisão ao separar os ritos; nula vale
+ *                       {@link RegraRitos#LEI}, a regra dos cálculos salvos antes da opção, para
+ *                       que eles não mudem ao reabrir. A tela manda sempre a regra escolhida, com
+ *                       a da DPMG como padrão
  * <p>
- * Os campos da base, do 13º e dos abatimentos são omitidos do JSON quando nulos: uma pensão em
- * salário mínimo sem eles continua gravada no formato 1 dos cálculos salvos, e os pedidos já
- * gravados, que não os têm, são lidos com os padrões acima.
+ * Os campos da base, do 13º, dos abatimentos e da regra dos ritos são omitidos do JSON quando
+ * nulos: uma pensão em salário mínimo sem eles continua gravada no formato 1 dos cálculos salvos,
+ * e os pedidos já gravados, que não os têm, são lidos com os padrões acima.
  */
 public record PensaoRequest(
         @JsonInclude(JsonInclude.Include.NON_NULL) TipoBase base,
@@ -59,7 +64,8 @@ public record PensaoRequest(
         LocalDate citacao,
         List<@Valid PagamentoRequest> pagamentos,
         @JsonInclude(JsonInclude.Include.NON_NULL) List<@Valid AbatimentoRequest> abatimentos,
-        LocalDate ajuizamento) {
+        LocalDate ajuizamento,
+        @JsonInclude(JsonInclude.Include.NON_NULL) RegraRitos regraRitos) {
 
     /** Como o título fixou o valor mensal da pensão. */
     public enum TipoBase {
@@ -84,6 +90,11 @@ public record PensaoRequest(
     /** A base, com o padrão dos cálculos salvos antes de haver outras. */
     public TipoBase tipoBase() {
         return base == null ? TipoBase.SALARIO_MINIMO : base;
+    }
+
+    /** A regra dos ritos, com a dos cálculos salvos antes da opção. */
+    public RegraRitos regraDosRitos() {
+        return regraRitos == null ? RegraRitos.LEI : regraRitos;
     }
 
     public boolean comDecimoTerceiro() {

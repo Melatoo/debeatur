@@ -61,7 +61,7 @@ public class CalculoService {
         List<DemonstrativoResponse.SerieUsada> series = DemonstrativoResponse.SerieUsada.de(lidas.snapshot(), fonte);
         if (request.separaPorRito()) {
             DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo,
-                    request.pensao().ajuizamento(), request.aplicarArt523(),
+                    request.pensao().ajuizamento(), request.pensao().regraDosRitos(), request.aplicarArt523(),
                     request.pensao().abatimentosParaDominio(), parametros.baseHonorarios());
             return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), porRito, series);
         }
