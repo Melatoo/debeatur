@@ -64,14 +64,15 @@ planilha da DPMG (`docs/gabarito.md`).
 
 O MVP está pronto para uso em processo real quando:
 
-1. **Bate com o gabarito:** diferença zero (ou de centavos, justificada) contra cálculos de
-   alimentos homologados ou da contadoria (#2). *Em aberto: o gabarito tem a tabela da CGJ, o
-   CADEJ e a planilha da DPMG, mas nenhum cálculo homologado de alimentos.*
+1. **Bate com o gabarito:** diferença zero (ou de centavos, justificada) contra o gabarito de
+   `docs/gabarito.md`. Em alimentos, a referência é a planilha da DPMG: o modelo de
+   outubro/2026 (`planilha-dpmg-alimentos-2026-10.csv`) e os casos gerados no iadefensor. A
+   tabela da CGJ e o CADEJ conferem o regime padrão.
 2. **Alimentos:** pensão em salário mínimo, outras parcelas, pagamentos parciais e os dois
    ritos. *Feito (#34 a #41).* Percentual dos rendimentos, valor fixo, 13º salário e
    abatimentos, decididos em 14/11/2026, também.
-3. **Regime configurável:** o padrão do TJMG e um regime próprio por cálculo. *Feito; falta o
-   regime do Tema 1368 (#28).*
+3. **Regime configurável:** o padrão do TJMG e um regime próprio por cálculo. *Feito, com o
+   regime do Tema 1368 para o título omisso (#28).*
 4. **Pro rata die:** termos iniciais e data-base no meio do mês (#3). *Em parte: só a virada de
    agosto/2024 é proporcional; o resto do cálculo é mensal.*
 5. **Salva cálculos:** reabrir e atualizar um cálculo, com snapshot dos índices usados.

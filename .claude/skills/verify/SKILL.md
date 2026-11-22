@@ -69,12 +69,24 @@ motivo.
 
 ## 5. Review em contexto novo
 
-Rode `/code-review` sobre o diff, ou um subagente sem o histórico desta sessão, com o
-`REVIEW.md` como instrução. Quem escreveu a mudança não é quem revisa. Corrija os Important e
-repita no máximo 3 vezes.
+Quem escreveu a mudança não é quem revisa. O review tem duas etapas, cada uma num subagente
+(ferramenta `Agent`) sem o histórico desta sessão:
 
-Quando o diff toca `frontend/src` (tela, CSS, textos), use o subagente, que recebe instrução, e
-entregue a ele também o `docs/design-system.md`, com o pedido de ler a mudança contra o documento:
+1. **Revisor, em Sonnet** (`model: "sonnet"`): recebe o diff e o `REVIEW.md` como instrução e
+   devolve os achados, cada um com arquivo, linha, severidade (Important ou não) e a regra
+   quebrada.
+2. **Refutador, em Opus** (`model: "opus"`): recebe o diff, o `REVIEW.md` e a lista de achados do
+   revisor, com o pedido de tentar derrubar cada um lendo o código: o achado é falso, já está
+   tratado em outro ponto ou não quebra regra nenhuma. Para cada achado ele devolve `CONFIRMADO`
+   ou `REFUTADO`, com a evidência (arquivo:linha, teste, trecho da regra). Achado sem evidência
+   de refutação fica confirmado. Sem achados do revisor, o refutador não roda.
+
+Corrija os Important confirmados. Um Important refutado não se corrige, mas entra no "Como
+verifiquei" com o motivo da refutação, que é a resposta que o fluxo de review exige. Repita as
+duas etapas no máximo 3 vezes.
+
+Quando o diff toca `frontend/src` (tela, CSS, textos), entregue aos dois subagentes também o
+`docs/design-system.md`, com o pedido de ler a mudança contra o documento:
 cor fora dos tokens, formato de número, texto de botão e de erro, estado, movimento,
 acessibilidade. Cada achado cita a seção e a regra quebrada, como "Cor: `destaque` é a mesma
 tinta de `texto`". Regra que a mudança altera de propósito precisa vir alterada no próprio
@@ -111,5 +123,5 @@ No PR (template em `.github/pull_request_template.md`):
 - **Gabarito / Impressão:** quando a guarda do CI pedir.
 
 No commit, acrescente o trailer `Verificado:` com o que rodou, por exemplo
-`Verificado: mvnw verify, diferencial, npm test, e2e, preview, code-review` ou `Verificado: nenhum (só docs)`.
+`Verificado: mvnw verify, diferencial, npm test, e2e, preview, review` ou `Verificado: nenhum (só docs)`.
 Assim dá para achar depois os commits que entraram sem verificação.

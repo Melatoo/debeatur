@@ -1,7 +1,7 @@
 # Gabarito do motor
 
 Testes que comparam o `MotorCalculo` com cálculos feitos fora dele (issue #2). Os valores
-esperados vêm de cálculos homologados ou da contadoria do TJMG e de tabelas oficiais,
+esperados vêm de cálculos homologados, da contadoria do TJMG, da planilha da DPMG e de tabelas oficiais,
 nunca do próprio motor.
 
 ## O que existe
@@ -80,12 +80,12 @@ relatório. Ele não passa em branco.
 | Meses do termo inicial (inclusive) até o mês da data-base (exclusive) | Confirmada para correção e juros pela tabela da CGJ (#18) e pelos cinco casos do CADEJ |
 | Fator sem arredondamento, acumulando as variações do SGS | Divergência de até 3 × 10⁻⁷ contra a CGJ e o CADEJ; os valores corrigidos batem (ver abaixo) |
 | Taxa legal | Confirmada: usa a série 29543 do BCB, que reproduz a Res. CMN 5.171/2024 (#19) |
-| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). Ainda falta cálculo homologado. A exceção é o mês da virada no regime padrão, dividido como na planilha da DPMG (#3). No critério do Tema 1368, agosto/2024 vai inteiro para um critério só, e o Manual da Justiça Federal e o CADEJ divergem sobre qual; o Debeatur segue o CADEJ, com a SELIC até 07/2024 (divergência 4, decisão de 19/11/2026) |
+| Granularidade mensal, sem pro rata die | Confirmada pelo CADEJ, que também ignora a fração do mês (caso 3). A exceção é o mês da virada no regime padrão, dividido como na planilha da DPMG (#3). No critério do Tema 1368, agosto/2024 vai inteiro para um critério só, e o Manual da Justiça Federal e o CADEJ divergem sobre qual; o Debeatur segue o CADEJ, com a SELIC até 07/2024 (divergência 4, decisão de 19/11/2026) |
 | Juros simples sobre o valor corrigido | Confirmada pelo CADEJ (casos 1, 3, 4 e 5) |
 | HALF_UP em duas casas a cada valor monetário | Confirmada pelo CADEJ em todas as linhas dos cinco casos |
 | Multa de 10% sobre o débito atualizado | Confirmada pelo CADEJ (casos 1, 3 e 4) |
 | Honorários de 10% sobre o débito atualizado, sem a multa | Segue o STJ pela ementa do REsp 1.757.033/DF (inteiro teor pendente); **diverge** do CADEJ (ver divergência 5) |
-| Virada da Lei 14.905/2024 e taxa legal no demonstrativo | Pendente: o CADEJ simplificado não cobre; precisa de cálculo homologado |
+| Virada da Lei 14.905/2024 e taxa legal no demonstrativo | Confirmada pela planilha da DPMG, que corrige agosto/2024 pelo IPCA e divide os juros do mês (divergência 3); o CADEJ simplificado não cobre |
 
 ## Divergências registradas
 

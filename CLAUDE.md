@@ -16,7 +16,7 @@ Cálculo de cumprimento de sentença (art. 524 do CPC). Escopo do MVP em `docs/r
   `gabarito.yml` sobre a árvore de trabalho, com `CI=true` e o log de cada um em `target/ci-local/`.
   O job `docker` sobe a stack num projeto à parte, com imagens e volume próprios e sem portas no
   host, e não mexe na stack nem no banco do dia a dia. O review do Claude fica de fora: localmente
-  ele é o `/code-review` da skill `verify`.
+  ele é o revisor e o refutador da skill `verify`.
 
 ## Preview
 
@@ -36,7 +36,8 @@ O login usa o usuário do escritório que já está no banco; não crie nem alte
   altere as convenções do `MotorCalculo` (granularidade, fator, juros, arredondamento) sem um
   teste de gabarito que justifique a mudança.
 - **Gabarito vem de fora.** Os valores esperados dos testes de gabarito saem de cálculos
-  homologados ou da contadoria do TJMG, nunca do próprio motor. Não gere nem "corrija" valores
+  homologados, da contadoria do TJMG ou da planilha da DPMG (gerada no iadefensor, ver
+  `docs/gabarito.md`), nunca do próprio motor. Não gere nem "corrija" valores
   esperados para fazer um teste passar.
 - **Dinheiro:** sempre `Dinheiro`/`BigDecimal`, nunca `double`. HALF_UP em duas casas a cada
   valor monetário; fatores de correção usam precisão `DECIMAL128`, sem arredondamento a casas

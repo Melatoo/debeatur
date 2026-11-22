@@ -133,29 +133,31 @@ ar, valem os meses que o cache já tem.
 | Período | Correção | Juros de mora |
 |---|---|---|
 | até 07/2024 | INPC (tabela da CGJ-TJMG) | 1% a.m. (art. 406 CC, redação anterior) |
-| 08/2024 | IPCA | 1% a.m. |
+| 08/2024 | IPCA | 1% até 29/08 (29/30) + taxa legal nos dias 30 e 31 (2/31) |
 | a partir de 09/2024 | IPCA | taxa legal divulgada pelo BCB (Lei 14.905/2024, Res. CMN 5.171/2024) |
 
 A Lei 14.905/2024 vigora desde 30/08/2024. A tabela da CGJ vigente em 29/08/2024 só tem INPC
-até julho, então agosto/2024 já é corrigido pelo IPCA. Com granularidade mensal, a taxa legal
-é aplicada a partir de setembro/2024.
+até julho, então agosto/2024 já é corrigido pelo IPCA. Nos juros, agosto/2024 se divide como
+na planilha da DPMG: 29/30 de 1% mais 2/31 da taxa legal; a partir de setembro/2024, só a taxa
+legal.
 
-### Convenções provisórias (a validar contra cálculos homologados)
+### Convenções do motor
 
-- **Granularidade mensal:** entram os meses do termo inicial (inclusive) até o mês da data-base (exclusive), sem pro rata die.
+Conferidas contra a tabela da CGJ, o CADEJ e a planilha da DPMG (`docs/gabarito.md`).
+
+- **Granularidade mensal:** entram os meses do termo inicial (inclusive) até o mês da data-base (exclusive), sem pro rata die. A exceção são os juros de agosto/2024 no regime padrão, divididos como na planilha da DPMG.
 - **Correção:** produto de (1 + variação mensal), com precisão `DECIMAL128` e sem arredondar o fator a casas fixas.
 - **Juros:** simples, somando os percentuais mensais, aplicados sobre o valor corrigido.
-- **Taxa legal:** subtração direta SELIC − IPCA por mês; conferir com a metodologia da Res. CMN 5.171/2024.
+- **Taxa legal:** série 29543 do BCB, que reproduz a Res. CMN 5.171/2024.
 - **Arredondamento:** HALF_UP em duas casas a cada valor monetário.
 
 ## Próximos passos
 
 O escopo do MVP está em `docs/requisitos-mvp.md`, inclusive o que fica de fora.
 
-- [ ] Testes de gabarito com cálculos reais homologados
-- [ ] Pro rata die na correção e nos juros
-- [ ] Regime configurável por cálculo (critérios fixados na sentença)
+- [x] Testes de gabarito com a tabela da CGJ, o CADEJ e a planilha da DPMG
+- [x] Regime configurável por cálculo (critérios fixados na sentença)
 - [x] PostgreSQL + Flyway e cache das séries do SGS
 - [x] Cálculos salvos, com snapshot dos índices usados
-- [ ] Exportação do demonstrativo em PDF
-- [ ] Autenticação mínima (um usuário por escritório)
+- [x] Exportação do demonstrativo em PDF
+- [x] Autenticação mínima (um usuário por escritório)
