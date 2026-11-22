@@ -1,6 +1,7 @@
 package br.com.debeatur.core.alimentos;
 
 import br.com.debeatur.core.Dinheiro;
+import br.com.debeatur.core.calculo.BaseHonorarios;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.LinhaDemonstrativo;
 import br.com.debeatur.core.calculo.Parcela;
@@ -188,6 +189,26 @@ class DemonstrativoPorRitoTest {
         assertThat(porRito.honorariosArt523()).isEqualTo(Dinheiro.de("60.00"));
         assertThat(porRito.totalPenhora()).isEqualTo(Dinheiro.de("720.00"));
         assertThat(porRito.totalPrisao()).isEqualTo(porRito.prisao().debitoAtualizado());
+        assertThat(porRito.total()).isEqualTo(porRito.totalPrisao().mais(porRito.totalPenhora()));
+    }
+
+    @Test
+    void honorariosSobreAMultaIncidemSobreOSaldoDaPenhoraMaisAMulta() {
+        Demonstrativo demonstrativo = demonstrativo(
+                linha("01/2024", LocalDate.of(2024, 1, 10), "423.61", "50.83"),
+                linha("02/2024", LocalDate.of(2024, 2, 10), "423.15", "46.55"),
+                linha("03/2024", LocalDate.of(2024, 3, 10), "422.97", "42.30"),
+                linha("04/2024", LocalDate.of(2024, 4, 10), "422.49", "38.02"),
+                linha("05/2024", LocalDate.of(2024, 5, 10), "422.07", "33.77"));
+        List<Abatimento> abatimentos = List.of(new Abatimento(LocalDate.of(2024, 8, 1), Dinheiro.de("344.14"), null));
+
+        DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo, AJUIZAMENTO, true, abatimentos,
+                BaseHonorarios.DEBITO_COM_MULTA);
+
+        // saldo da penhora 600.00; multa 60.00; honorários 10% de 660.00 = 66.00
+        assertThat(porRito.multaArt523()).isEqualTo(Dinheiro.de("60.00"));
+        assertThat(porRito.honorariosArt523()).isEqualTo(Dinheiro.de("66.00"));
+        assertThat(porRito.totalPenhora()).isEqualTo(Dinheiro.de("726.00"));
         assertThat(porRito.total()).isEqualTo(porRito.totalPrisao().mais(porRito.totalPenhora()));
     }
 

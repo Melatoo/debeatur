@@ -34,8 +34,6 @@ final class CasosCadej {
 
     private static final String FATOR = "O CADEJ parte do número-índice e o motor acumula as variações do SGS "
             + "com duas casas; o valor corrigido bate (docs/gabarito.md, divergência 1)";
-    private static final String HONORARIOS = "O CADEJ calcula os honorários sobre o débito acrescido da multa; "
-            + "o motor, sobre o débito (docs/gabarito.md, divergência 5)";
 
     private CasosCadej() {
     }
@@ -49,18 +47,19 @@ final class CasosCadej {
                 ipcaComJurosContratuais());
     }
 
-    /** ICGJ + 1% a.m. desde o evento danoso, com multa e honorários de 10%. */
+    /**
+     * ICGJ + 1% a.m. desde o evento danoso, com multa e honorários de 10%, estes sobre o débito
+     * acrescido da multa, como o CADEJ calcula.
+     */
     private static CasoGabarito icgjComJurosEArt523() {
         return CasoGabarito.de("CADEJ 1: ICGJ, juros de 1% a.m. e art. 523", FONTE)
                 .dataBase("2026-09-30")
                 .regime(regime(Indice.INPC, "1"))
-                .comArt523()
+                .comArt523HonorariosSobreAMulta()
                 .parcela(parcela("Danos morais", "10000.00", "2023-03-15", "2023-05-10"),
                         linha("1.1504243", "11504.24", "40", "4601.70", "16105.94"))
                 .totais("16105.94", "1610.59", "1771.65", "19488.18")
                 .divergenciaConhecida("fator de correção", FATOR)
-                .divergenciaConhecida("honorários do art. 523", HONORARIOS)
-                .divergenciaConhecida("total", HONORARIOS)
                 .criar();
     }
 
@@ -99,7 +98,7 @@ final class CasosCadej {
         return CasoGabarito.de("CADEJ 4: ICGJ, três parcelas, juros e art. 523", FONTE)
                 .dataBase("2024-08-31")
                 .regime(regime(Indice.INPC, "1"))
-                .comArt523()
+                .comArt523HonorariosSobreAMulta()
                 .parcela(parcela("Conserto do veiculo", "3457.89", "2018-11-13", "2021-03-10"),
                         linha("1.3710796", "4741.04", "41", "1943.83", "6684.87"))
                 .parcela(parcela("Despesas medicas", "612.35", "2019-02-27", "2021-03-10"),
@@ -108,8 +107,6 @@ final class CasosCadej {
                         linha("1.2640430", "1404.49", "41", "575.84", "1980.33"))
                 .totais("9846.06", "984.61", "1083.07", "11913.74")
                 .divergenciaConhecida("fator de correção", FATOR)
-                .divergenciaConhecida("honorários do art. 523", HONORARIOS)
-                .divergenciaConhecida("total", HONORARIOS)
                 .criar();
     }
 

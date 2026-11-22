@@ -11,6 +11,8 @@ export interface Rascunho {
   processo: ProcessoRequest
   dataBase: string
   aplicarArt523: boolean
+  /** Honorários do art. 523 sobre o débito com a multa, como o CADEJ; desmarcado, sobre o débito, como a DPMG. */
+  honorariosSobreAMulta: boolean
   comPensao: boolean
   separarRitos: boolean
   pensao: PensaoEditavel
@@ -82,6 +84,7 @@ function ehRascunho(v: unknown): v is Rascunho {
     ehProcesso(v.processo) &&
     typeof v.dataBase === 'string' &&
     typeof v.aplicarArt523 === 'boolean' &&
+    typeof v.honorariosSobreAMulta === 'boolean' &&
     typeof v.comPensao === 'boolean' &&
     typeof v.separarRitos === 'boolean' &&
     ehPensao(v.pensao) &&
@@ -101,6 +104,12 @@ function semTema1368(rascunho: unknown): unknown {
   return { ...rascunho, tema1368: false, regimeTema1368: null }
 }
 
+/** Rascunho de antes da base dos honorários: vale o padrão, sobre o débito. */
+function semBaseHonorarios(rascunho: unknown): unknown {
+  if (!ehObjeto(rascunho) || 'honorariosSobreAMulta' in rascunho) return rascunho
+  return { ...rascunho, honorariosSobreAMulta: false }
+}
+
 /**
  * A versão 1 só tinha a pensão em salário mínimo: base, rendimentos, valores fixos, 13º e
  * abatimentos entram com o valor do formulário em branco. O resto é conferido por {@link ehRascunho}.
@@ -116,7 +125,7 @@ function interpretar(texto: string): RascunhoSalvo | null {
   try {
     const salvo: unknown = JSON.parse(texto)
     if (!ehObjeto(salvo) || (salvo.versao !== VERSAO && salvo.versao !== 1)) return null
-    const rascunho = semTema1368(salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho)
+    const rascunho = semBaseHonorarios(semTema1368(salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho))
     if (!ehRascunho(rascunho)) return null
     const salvoEm = new Date(typeof salvo.salvoEm === 'string' ? salvo.salvoEm : NaN)
     return {

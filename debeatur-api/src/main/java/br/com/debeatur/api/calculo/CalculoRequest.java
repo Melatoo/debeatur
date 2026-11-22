@@ -1,9 +1,11 @@
 package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.core.Dinheiro;
+import br.com.debeatur.core.calculo.BaseHonorarios;
 import br.com.debeatur.core.calculo.Parcela;
 import br.com.debeatur.core.calculo.ParametrosCalculo;
 import br.com.debeatur.core.regime.RegimeAtualizacao;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -18,14 +20,20 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * @param parcelas parcelas avulsas; opcionais se houver {@code pensao}
- * @param pensao   pensão alimentícia, cujas parcelas vêm antes das avulsas
- * @param regime   critérios fixados no título; sem ele, vale o regime cível padrão do TJMG
- * @param processo identificação do processo para o cabeçalho do PDF; não entra no cálculo
+ * @param baseHonorarios sobre o que incidem os honorários do art. 523; sem ela, sobre o débito,
+ *                       como a planilha da DPMG
+ * @param parcelas       parcelas avulsas; opcionais se houver {@code pensao}
+ * @param pensao         pensão alimentícia, cujas parcelas vêm antes das avulsas
+ * @param regime         critérios fixados no título; sem ele, vale o regime cível padrão do TJMG
+ * @param processo       identificação do processo para o cabeçalho do PDF; não entra no cálculo
+ * <p>
+ * A base dos honorários é omitida do JSON quando nula: o pedido sem ela continua gravado no
+ * formato 1 dos cálculos salvos, e os pedidos já gravados, que não a têm, são lidos com o padrão.
  */
 public record CalculoRequest(
         @NotNull LocalDate dataBase,
         boolean aplicarArt523,
+        @JsonInclude(JsonInclude.Include.NON_NULL) BaseHonorarios baseHonorarios,
         List<@Valid ParcelaRequest> parcelas,
         @Valid PensaoRequest pensao,
         @Valid RegimeDto regime,
@@ -44,7 +52,12 @@ public record CalculoRequest(
 
     /** O mesmo pedido com o regime informado; serve para fixar o regime padrão num cálculo salvo. */
     CalculoRequest comRegime(RegimeDto regime) {
-        return new CalculoRequest(dataBase, aplicarArt523, parcelas, pensao, regime, processo);
+        return new CalculoRequest(dataBase, aplicarArt523, baseHonorarios, parcelas, pensao, regime, processo);
+    }
+
+    /** A base informada ou, nos pedidos sem ela (inclusive os salvos antes da opção), o débito. */
+    BaseHonorarios baseHonorariosOuPadrao() {
+        return baseHonorarios == null ? BaseHonorarios.DEBITO : baseHonorarios;
     }
 
     /** @param parcelasDaPensao parcelas já geradas a partir de {@link #pensao()} */
@@ -56,7 +69,7 @@ public record CalculoRequest(
         }
         return new ParametrosCalculo(todas,
                 dataBase, regime == null ? RegimeAtualizacao.civelPadrao() : regime.paraDominio(),
-                aplicarArt523 && !art523ForaDoMotor());
+                aplicarArt523 && !art523ForaDoMotor(), baseHonorariosOuPadrao());
     }
 
     /**

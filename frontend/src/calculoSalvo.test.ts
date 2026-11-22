@@ -89,6 +89,17 @@ describe('paraRascunho', () => {
     })
   })
 
+  it('reabre a base dos honorários escolhida, e o padrão não vai no pedido', () => {
+    expect(paraRascunho(salvo, padrao).honorariosSobreAMulta).toBe(false)
+
+    const comMulta = { ...salvo, baseHonorarios: 'DEBITO_COM_MULTA' } as CalculoRequest
+    const r = paraRascunho(comMulta, padrao)
+    expect(r.honorariosSobreAMulta).toBe(true)
+    expect(paraPedido(r).baseHonorarios).toBe('DEBITO_COM_MULTA')
+    // sem o art. 523, a base não importa e fica fora do pedido
+    expect(paraPedido({ ...r, aplicarArt523: false })).not.toHaveProperty('baseHonorarios')
+  })
+
   it('reabre a pensão em valor fixo com 13º e abatimentos e gera o mesmo pedido', () => {
     const comNovidades = {
       ...salvo,

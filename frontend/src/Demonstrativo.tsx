@@ -141,9 +141,15 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
     .sort((a, b) => a.mes.localeCompare(b.mes))
   const comPagamento = pagos.length > 0
   const comAcrescimos = resultado.multaArt523 > 0 || resultado.honorariosArt523 > 0
+  const honorariosSobreAMulta = pedido.baseHonorarios === 'DEBITO_COM_MULTA'
+  const rotuloHonorarios = honorariosSobreAMulta
+    ? 'Honorários de 10%, com a multa na base (art. 523, §1º)'
+    : 'Honorários de 10% (art. 523, §1º)'
   // Respostas de antes dos abatimentos não trazem estes campos.
   const abatimentos = resultado.abatimentos ?? []
   const totalAbatido = resultado.totalAbatido ?? 0
+  const baseDoArt523 =
+    totalAbatido > 0 ? `o saldo, já abatido, ${ritos ? 'da penhora' : 'do débito'}` : ritos ? 'a penhora' : 'o débito'
   const abatidoPenhora = ritos?.abatidoPenhora ?? 0
   const abatidoPrisao = ritos?.abatidoPrisao ?? 0
   const totalPrisao = ritos ? (ritos.totalPrisao ?? ritos.prisao.debitoAtualizado) : 0
@@ -552,9 +558,9 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
           <dt>Art. 523, §1º</dt>
           <dd>
             {comAcrescimos
-              ? `Multa de 10% e honorários de 10% sobre ${
-                  totalAbatido > 0 ? `o saldo, já abatido, ${ritos ? 'da penhora' : 'do débito'}` : ritos ? 'a penhora' : 'o débito'
-                }`
+              ? honorariosSobreAMulta
+                ? `Multa de 10% sobre ${baseDoArt523} e honorários de 10% sobre esse valor com a multa, como o CADEJ`
+                : `Multa de 10% e honorários de 10% sobre ${baseDoArt523}`
               : pedido.aplicarArt523
                 ? `Multa e honorários de 10%, sem débito ${ritos ? 'na penhora' : 'a acrescer'}`
                 : 'Não aplicados'}
@@ -738,7 +744,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
               {comAcrescimos && (
                 <>
                   {linhaDeTotal('Multa de 10% (art. 523, §1º)', resultado.multaArt523)}
-                  {linhaDeTotal('Honorários de 10% (art. 523, §1º)', resultado.honorariosArt523)}
+                  {linhaDeTotal(rotuloHonorarios, resultado.honorariosArt523)}
                   {linhaDeTotal('Total da penhora', ritos.totalPenhora, 'total')}
                 </>
               )}
@@ -760,7 +766,7 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
             {comAcrescimos && (
               <>
                 {linhaDeTotal('Multa de 10% (art. 523, §1º)', resultado.multaArt523)}
-                {linhaDeTotal('Honorários de 10% (art. 523, §1º)', resultado.honorariosArt523)}
+                {linhaDeTotal(rotuloHonorarios, resultado.honorariosArt523)}
               </>
             )}
           </>,

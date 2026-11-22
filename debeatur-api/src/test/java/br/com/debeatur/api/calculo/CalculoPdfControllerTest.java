@@ -224,6 +224,25 @@ class CalculoPdfControllerTest {
     }
 
     @Test
+    void honorariosSobreAMultaApareceNosCriteriosENosTotais() throws IOException {
+        indicesDaPensao();
+        String pedido = PENSAO_COM_RITOS.replace("\"aplicarArt523\": true,",
+                "\"aplicarArt523\": true, \"baseHonorarios\": \"DEBITO_COM_MULTA\",");
+        MvcTestResult json = post("/api/calculos", pedido);
+
+        String pdf = texto(post("/api/calculos/pdf", pedido).getResponse().getContentAsByteArray());
+
+        assertThat(numero(json, "$.honorariosArt523"))
+                .isEqualByComparingTo(numero(json, "$.ritos.penhora.debitoAtualizado").add(numero(json, "$.multaArt523"))
+                        .divide(BigDecimal.TEN).setScale(2, RoundingMode.HALF_UP));
+        assertThat(pdf)
+                .containsIgnoringWhitespaces("Multa de 10% sobre o débito da penhora e honorários de 10% sobre esse"
+                        + " valor com a multa, como o CADEJ")
+                .containsIgnoringWhitespaces("Honorários de 10%, com a multa na base (art. 523, §1º, do CPC) R$ "
+                        + reais(json, "$.honorariosArt523"));
+    }
+
+    @Test
     void trazABaseO13EOsAbatimentosNaPenhora() throws IOException {
         indicesDaPensao();
         String pedido = """

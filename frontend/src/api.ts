@@ -84,9 +84,14 @@ export interface ProcessoRequest {
   executado: string
 }
 
+/** Sobre o que incidem os honorários do art. 523: o débito (DPMG e STJ) ou o débito com a multa (CADEJ). */
+export type BaseHonorarios = 'DEBITO' | 'DEBITO_COM_MULTA'
+
 export interface CalculoRequest {
   dataBase: string
   aplicarArt523: boolean
+  /** Sem ela, os honorários incidem sobre o débito, como na planilha da DPMG. */
+  baseHonorarios?: BaseHonorarios
   /** Parcelas avulsas; opcionais quando há pensão. */
   parcelas: ParcelaRequest[]
   pensao?: PensaoRequest

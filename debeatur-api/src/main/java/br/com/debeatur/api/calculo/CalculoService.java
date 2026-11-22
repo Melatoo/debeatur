@@ -62,12 +62,12 @@ public class CalculoService {
         if (request.separaPorRito()) {
             DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo,
                     request.pensao().ajuizamento(), request.aplicarArt523(),
-                    request.pensao().abatimentosParaDominio());
+                    request.pensao().abatimentosParaDominio(), parametros.baseHonorarios());
             return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), porRito, series);
         }
         if (request.temAbatimentos()) {
             TotalComAbatimentos fechamento = TotalComAbatimentos.de(demonstrativo,
-                    request.pensao().abatimentosParaDominio(), request.aplicarArt523());
+                    request.pensao().abatimentosParaDominio(), request.aplicarArt523(), parametros.baseHonorarios());
             return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), fechamento, series);
         }
         return DemonstrativoResponse.de(demonstrativo, parametros.regime(), pensao.memoria(), series);
