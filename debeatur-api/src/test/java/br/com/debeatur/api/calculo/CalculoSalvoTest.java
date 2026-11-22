@@ -250,6 +250,20 @@ class CalculoSalvoTest {
     }
 
     @Test
+    void guardaABaseDosHonorariosEscolhida() throws Exception {
+        String pedido = PEDIDO.replace("\"aplicarArt523\": true,",
+                "\"aplicarArt523\": true, \"baseHonorarios\": \"DEBITO_COM_MULTA\",");
+        String salvo = salvar(null, pedido);
+        String id = JsonPath.read(salvo, "$.id");
+
+        String reaberto = obter("/api/calculos/salvos/" + id);
+
+        assertThat(json.readTree(reaberto).get("calculo").get("baseHonorarios").asString()).isEqualTo("DEBITO_COM_MULTA");
+        assertThat(demonstrativo(reaberto)).isEqualTo(demonstrativo(salvo));
+        assertThat(demonstrativo(salvo).honorariosArt523()).isGreaterThan(demonstrativo(salvo).multaArt523());
+    }
+
+    @Test
     void listaDoMaisRecenteParaOMaisAntigo() throws Exception {
         salvar("Primeiro", PEDIDO);
         salvar(null, PEDIDO);

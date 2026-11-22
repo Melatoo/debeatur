@@ -84,7 +84,7 @@ relatório. Ele não passa em branco.
 | Juros simples sobre o valor corrigido | Confirmada pelo CADEJ (casos 1, 3, 4 e 5) |
 | HALF_UP em duas casas a cada valor monetário | Confirmada pelo CADEJ em todas as linhas dos cinco casos |
 | Multa de 10% sobre o débito atualizado | Confirmada pelo CADEJ (casos 1, 3 e 4) |
-| Honorários de 10% sobre o débito atualizado, sem a multa | Segue o STJ pela ementa do REsp 1.757.033/DF (inteiro teor pendente); **diverge** do CADEJ (ver divergência 5) |
+| Honorários de 10% sobre o débito atualizado, sem a multa | Padrão, como a planilha da DPMG e o STJ (REsp 1.757.033/DF); a base do CADEJ, com a multa, é opção do cálculo (divergência 5) |
 | Virada da Lei 14.905/2024 e taxa legal no demonstrativo | Confirmada pela planilha da DPMG, que corrige agosto/2024 pelo IPCA e divide os juros do mês (divergência 3); o CADEJ simplificado não cobre |
 
 ## Divergências registradas
@@ -165,18 +165,19 @@ relatório. Ele não passa em branco.
    reproduz a planilha da DPMG, que é o gabarito dele. Os 2/31 da taxa legal são norma nos dois
    critérios; o que muda é a parte de convenção: os 29/30 de 1% no regime padrão têm fonte (a
    planilha), e a SELIC pro rata no Tema 1368 não tem.
-5. **Base dos honorários do art. 523, §1º.** O CADEJ calcula os honorários de 10% sobre o
-   débito já acrescido da multa (casos 1 e 4: R$ 1.771,65 sobre R$ 17.716,53). O motor calcula
-   sobre o débito atualizado (R$ 1.610,59 sobre R$ 16.105,94), como o STJ: a multa não integra a
-   base dos honorários, porque as duas incidem sobre o débito (REsp 1.757.033/DF, 3ª Turma,
-   rel. Min. Ricardo Villas Bôas Cueva, julgado em 09/10/2018, DJe 15/10/2018, unânime). O
-   precedente foi conferido pela ementa e pelos informativos, e falta ler o inteiro teor. É
-   acórdão de turma, não repetitivo, então o motor fica como está e os casos do CADEJ seguem
-   registrando a divergência nos honorários e no total. A planilha da DPMG faz como o motor:
-   multa e honorários são, cada um, 10% do saldo do débito (conferido em 14/11/2026 numa
-   planilha gerada no [iadefensor](https://www.iadefensor.com.br/planilha/planilha_sem_menu),
-   que produz o mesmo modelo de outubro/2026). Um cálculo homologado do TJMG ainda confirmaria
-   a prática local.
+5. **Base dos honorários do art. 523, §1º. Virou opção do cálculo (decisão de 22/11/2026).**
+   O CADEJ calcula os honorários de 10% sobre o débito já acrescido da multa (casos 1 e 4:
+   R$ 1.771,65 sobre R$ 17.716,53). A planilha da DPMG calcula sobre o débito: multa e
+   honorários são, cada um, 10% do saldo do débito (conferido em 14/11/2026 numa planilha gerada
+   no [iadefensor](https://www.iadefensor.com.br/planilha/planilha_sem_menu), que produz o mesmo
+   modelo de outubro/2026), como o STJ: a multa não integra a base dos honorários, porque as
+   duas incidem sobre o débito (REsp 1.757.033/DF, 3ª Turma, rel. Min. Ricardo Villas Bôas
+   Cueva, julgado em 09/10/2018, DJe 15/10/2018, unânime; conferido pela ementa e pelos
+   informativos). Como as fontes divergem, quem calcula escolhe (`BaseHonorarios`): o padrão
+   é o da DPMG (R$ 1.610,59 sobre R$ 16.105,94), e a outra base reproduz o CADEJ. Os casos 1 e
+   4 do CADEJ usam essa base e batem nos honorários e no total; o padrão é conferido pelo
+   `GabaritoRendimentosDecimoTerceiroDpmgTest`. A escolha vale também sobre o saldo dos
+   abatimentos e da penhora.
 6. **SELIC: série mensal do SGS × SELIC diária do CADEJ (#28). Resolvida: a SELIC vem da SGS
    11.** O CADEJ multiplica a SELIC diária (SGS 11) dos dias úteis. A parcela de 15/01/2024
    atualizada até 29/08/2024 dá fator 1,0617101, que é o produto exato dos 147 dias úteis de

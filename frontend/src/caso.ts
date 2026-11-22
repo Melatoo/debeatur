@@ -34,6 +34,7 @@ export const rascunhoVazio = (): Rascunho => ({
   processo: processoVazio(),
   dataBase: fimDoMesAnterior(),
   aplicarArt523: true,
+  honorariosSobreAMulta: false,
   comPensao: true,
   separarRitos: true,
   pensao: pensaoVazia(),
@@ -51,6 +52,7 @@ export type DadosDoCalculo = Pick<
   Rascunho,
   | 'dataBase'
   | 'aplicarArt523'
+  | 'honorariosSobreAMulta'
   | 'parcelas'
   | 'comPensao'
   | 'pensao'
@@ -71,6 +73,8 @@ export function paraPedido(r: DadosDoCalculo): CalculoRequest {
   return {
     dataBase: r.dataBase,
     aplicarArt523: r.aplicarArt523,
+    // O padrão (sobre o débito) não vai no pedido, que fica igual ao de antes da opção.
+    ...(r.aplicarArt523 && r.honorariosSobreAMulta ? { baseHonorarios: 'DEBITO_COM_MULTA' as const } : {}),
     parcelas: r.parcelas.map((p) => ({ ...p, valor: exigirDecimal(p.valor, 'Valor da parcela'), inicioJuros: p.inicioJuros || null })),
     pensao: r.comPensao ? paraPensao(r.pensao, r.separarRitos) : undefined,
     regime: regimeDoPedido(r),

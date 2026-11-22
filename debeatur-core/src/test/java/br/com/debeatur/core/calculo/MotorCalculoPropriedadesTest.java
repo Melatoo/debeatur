@@ -141,6 +141,27 @@ class MotorCalculoPropriedadesTest {
                 assertThat(motor.calcular(parametros)).as("caso %d", n).isEqualTo(motor.calcular(parametros)));
     }
 
+    @Test
+    void aBaseDosHonorariosSoMudaOsHonorarios() {
+        paraCadaCaso((n, parametros) -> {
+            Demonstrativo padrao = motor.calcular(parametros);
+            Demonstrativo comMulta = motor.calcular(new ParametrosCalculo(parametros.parcelas(), parametros.dataBase(),
+                    parametros.regime(), parametros.aplicarArt523(), BaseHonorarios.DEBITO_COM_MULTA));
+
+            assertThat(comMulta.linhas()).as("caso %d: linhas", n).isEqualTo(padrao.linhas());
+            assertThat(comMulta.debitoAtualizado()).as("caso %d: débito", n).isEqualTo(padrao.debitoAtualizado());
+            assertThat(comMulta.multaArt523()).as("caso %d: multa", n).isEqualTo(padrao.multaArt523());
+            Dinheiro esperados = parametros.aplicarArt523()
+                    ? new Dinheiro(padrao.debitoAtualizado().mais(padrao.multaArt523()).valor().multiply(new BigDecimal("0.10")))
+                    : Dinheiro.ZERO;
+            assertThat(comMulta.honorariosArt523()).as("caso %d: honorários", n).isEqualTo(esperados);
+            assertThat(comMulta.honorariosArt523()).as("caso %d: não diminuem", n)
+                    .isGreaterThanOrEqualTo(padrao.honorariosArt523());
+            assertThat(comMulta.total()).as("caso %d: total", n).isEqualTo(comMulta.debitoAtualizado()
+                    .mais(comMulta.multaArt523()).mais(comMulta.honorariosArt523()));
+        });
+    }
+
     private interface Propriedade {
         void conferir(int caso, ParametrosCalculo parametros);
     }

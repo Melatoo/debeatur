@@ -27,7 +27,6 @@ import java.util.List;
 public final class MotorCalculo {
 
     private static final MathContext PRECISAO = MathContext.DECIMAL128;
-    private static final BigDecimal DEZ_PORCENTO = BigDecimal.TEN;
 
     private final SerieIndices serie;
 
@@ -55,11 +54,10 @@ public final class MotorCalculo {
         }
 
         Dinheiro debito = totalCorrigido.mais(totalJuros);
-        Dinheiro multa = parametros.aplicarArt523() ? debito.percentual(DEZ_PORCENTO) : Dinheiro.ZERO;
-        Dinheiro honorarios = parametros.aplicarArt523() ? debito.percentual(DEZ_PORCENTO) : Dinheiro.ZERO;
+        AcrescimosArt523 art523 = AcrescimosArt523.se(parametros.aplicarArt523(), debito, parametros.baseHonorarios());
 
-        return new Demonstrativo(parametros.dataBase(), regime.nome(), linhas,
-                totalCorrigido, totalJuros, debito, multa, honorarios, debito.mais(multa).mais(honorarios));
+        return new Demonstrativo(parametros.dataBase(), regime.nome(), linhas, totalCorrigido, totalJuros, debito,
+                art523.multa(), art523.honorarios(), debito.mais(art523.total()));
     }
 
     private BigDecimal fatorCorrecao(RegimeAtualizacao regime, LocalDate inicio, YearMonth mesBase) {

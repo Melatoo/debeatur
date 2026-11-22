@@ -7,6 +7,7 @@ const vazio: Rascunho = {
   processo: { numero: '', juizo: '', exequente: '', executado: '' },
   dataBase: '2026-10-31',
   aplicarArt523: true,
+  honorariosSobreAMulta: false,
   comPensao: true,
   separarRitos: true,
   pensao: pensaoVazia(),
@@ -90,6 +91,17 @@ describe('rascunho', () => {
     expect([tema1368, regimeTema1368]).toEqual([false, null])
     armazenamento.setItem(CHAVE_RASCUNHO, comoTexto(anterior))
     expect(lerRascunho(armazenamento)?.rascunho).toEqual({ ...anterior, tema1368: false, regimeTema1368: null })
+  })
+
+  it('abre o rascunho de antes da base dos honorários com o padrão, sobre o débito', () => {
+    const armazenamento = armazenamentoEmMemoria()
+    const { honorariosSobreAMulta, ...anterior } = preenchido
+    expect(honorariosSobreAMulta).toBe(false)
+    armazenamento.setItem(CHAVE_RASCUNHO, comoTexto(anterior))
+    expect(lerRascunho(armazenamento)?.rascunho).toEqual(preenchido)
+
+    salvarRascunho(armazenamento, { ...preenchido, honorariosSobreAMulta: true }, 'a')
+    expect(lerRascunho(armazenamento)?.rascunho.honorariosSobreAMulta).toBe(true)
   })
 
   it('segue sem armazenamento, ou com um que lança exceção', () => {

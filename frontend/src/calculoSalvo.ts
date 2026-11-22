@@ -97,6 +97,7 @@ export function paraRascunho(pedido: CalculoRequest, padrao: Regime | null, tema
     },
     dataBase: pedido.dataBase,
     aplicarArt523: pedido.aplicarArt523,
+    honorariosSobreAMulta: pedido.baseHonorarios === 'DEBITO_COM_MULTA',
     comPensao,
     // Sem pensão, a opção não aparece; marcada, ela volta como o formulário em branco a deixa.
     separarRitos: pedido.pensao ? pedido.pensao.ajuizamento != null : true,

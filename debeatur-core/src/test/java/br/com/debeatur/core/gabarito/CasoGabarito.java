@@ -1,6 +1,7 @@
 package br.com.debeatur.core.gabarito;
 
 import br.com.debeatur.core.Dinheiro;
+import br.com.debeatur.core.calculo.BaseHonorarios;
 import br.com.debeatur.core.calculo.Parcela;
 import br.com.debeatur.core.calculo.ParametrosCalculo;
 import br.com.debeatur.core.indice.SerieIndices;
@@ -96,6 +97,7 @@ public record CasoGabarito(
         private LocalDate dataBase;
         private RegimeAtualizacao regime;
         private boolean aplicarArt523;
+        private BaseHonorarios baseHonorarios = BaseHonorarios.DEBITO;
         private SerieIndices serie;
         private Totais totais;
         private Dinheiro tolerancia = Dinheiro.ZERO;
@@ -118,6 +120,13 @@ public record CasoGabarito(
 
         public Construtor comArt523() {
             this.aplicarArt523 = true;
+            return this;
+        }
+
+        /** Multa e honorários, estes sobre o débito acrescido da multa, como o CADEJ. */
+        public Construtor comArt523HonorariosSobreAMulta() {
+            this.aplicarArt523 = true;
+            this.baseHonorarios = BaseHonorarios.DEBITO_COM_MULTA;
             return this;
         }
 
@@ -151,7 +160,7 @@ public record CasoGabarito(
 
         public CasoGabarito criar() {
             return new CasoGabarito(nome, fonte,
-                    new ParametrosCalculo(parcelas, dataBase, regime, aplicarArt523),
+                    new ParametrosCalculo(parcelas, dataBase, regime, aplicarArt523, baseHonorarios),
                     serie != null ? serie : SeriesPublicadas.carregar(),
                     linhas, totais, tolerancia, justificativa, divergenciasConhecidas);
         }

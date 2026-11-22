@@ -6,6 +6,7 @@ import br.com.debeatur.api.calculo.RegimeDto.RegraDto;
 import br.com.debeatur.api.calculo.RegimeDto.TipoJuros;
 import br.com.debeatur.core.alimentos.InicioJuros;
 import br.com.debeatur.core.alimentos.Rito;
+import br.com.debeatur.core.calculo.BaseHonorarios;
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.core.regime.RegimeAtualizacao;
 import br.com.debeatur.indices.SgsClient;
@@ -281,12 +282,25 @@ final class ConteudoDemonstrativo {
     private String art523() {
         boolean ritos = resultado.ritos() != null;
         if (comAcrescimos) {
-            String saldo = resultado.abatimentos().isEmpty() ? "o débito" : "o saldo, já abatido,";
-            return "Multa de 10% e honorários de 10% sobre " + saldo + (ritos ? " da penhora" : " atualizado");
+            String saldo = (resultado.abatimentos().isEmpty() ? "o débito" : "o saldo, já abatido,")
+                    + (ritos ? " da penhora" : " atualizado");
+            return honorariosSobreAMulta()
+                    ? "Multa de 10% sobre " + saldo + " e honorários de 10% sobre esse valor com a multa, como o CADEJ"
+                    : "Multa de 10% e honorários de 10% sobre " + saldo;
         }
         return pedido.aplicarArt523()
                 ? "Multa e honorários de 10%, sem débito " + (ritos ? "na penhora" : "a acrescer")
                 : "Não aplicados";
+    }
+
+    private boolean honorariosSobreAMulta() {
+        return pedido.baseHonorariosOuPadrao() == BaseHonorarios.DEBITO_COM_MULTA;
+    }
+
+    private String rotuloHonorarios() {
+        return honorariosSobreAMulta()
+                ? "Honorários de 10%, com a multa na base (art. 523, §1º, do CPC)"
+                : "Honorários de 10% (art. 523, §1º, do CPC)";
     }
 
     /** Meses do cálculo, inclusive nas duas pontas. */
@@ -463,7 +477,7 @@ final class ConteudoDemonstrativo {
         }
         if (comAcrescimos) {
             linhas.add(new LinhaDeTotal("Multa de 10% (art. 523, §1º, do CPC)", resultado.multaArt523(), false));
-            linhas.add(new LinhaDeTotal("Honorários de 10% (art. 523, §1º, do CPC)", resultado.honorariosArt523(), false));
+            linhas.add(new LinhaDeTotal(rotuloHonorarios(), resultado.honorariosArt523(), false));
             if (ritos != null) {
                 linhas.add(new LinhaDeTotal("Total da penhora", ritos.totalPenhora(), true));
             }
@@ -499,7 +513,7 @@ final class ConteudoDemonstrativo {
         }
         if (comAcrescimos) {
             linhas.put("Multa de 10% (art. 523, §1º, do CPC)", resultado.multaArt523());
-            linhas.put("Honorários de 10% (art. 523, §1º, do CPC)", resultado.honorariosArt523());
+            linhas.put(rotuloHonorarios(), resultado.honorariosArt523());
             if (ritos != null) {
                 linhas.put("Rito da penhora: total com os acréscimos", ritos.totalPenhora());
             }

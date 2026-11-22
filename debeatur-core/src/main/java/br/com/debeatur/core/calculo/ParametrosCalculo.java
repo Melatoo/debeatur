@@ -10,15 +10,24 @@ import java.util.stream.Stream;
 
 /**
  * @param dataBase     data até a qual o débito é atualizado
- * @param aplicarArt523 inclui multa de 10% e honorários de 10% (art. 523, §1º, CPC)
+ * @param aplicarArt523  inclui multa de 10% e honorários de 10% (art. 523, §1º, CPC)
+ * @param baseHonorarios sobre o que incidem os honorários do art. 523
  */
 public record ParametrosCalculo(List<Parcela> parcelas, LocalDate dataBase,
-                                RegimeAtualizacao regime, boolean aplicarArt523) {
+                                RegimeAtualizacao regime, boolean aplicarArt523,
+                                BaseHonorarios baseHonorarios) {
+
+    /** Com os honorários sobre o débito, o padrão. */
+    public ParametrosCalculo(List<Parcela> parcelas, LocalDate dataBase, RegimeAtualizacao regime,
+                             boolean aplicarArt523) {
+        this(parcelas, dataBase, regime, aplicarArt523, BaseHonorarios.DEBITO);
+    }
 
     public ParametrosCalculo {
         parcelas = List.copyOf(parcelas);
         Objects.requireNonNull(dataBase, "dataBase");
         Objects.requireNonNull(regime, "regime");
+        Objects.requireNonNull(baseHonorarios, "baseHonorarios");
         if (parcelas.isEmpty()) {
             throw new IllegalArgumentException("Informe ao menos uma parcela");
         }

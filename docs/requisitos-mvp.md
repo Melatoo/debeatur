@@ -40,6 +40,8 @@ pedido.
   da DPMG, que põe na prisão os três últimos meses do cálculo (`docs/gabarito.md`,
   divergência 7). Os acréscimos do art. 523, §1º (multa e honorários de 10%), incidem só sobre
   a penhora.
+- **Base dos honorários do art. 523:** sobre o débito, como a planilha da DPMG (padrão), ou
+  sobre o débito com a multa, como o CADEJ (`docs/gabarito.md`, divergência 5).
 - **Prescrição:** aviso das parcelas vencidas mais de dois anos antes do ajuizamento (art. 206,
   §2º, do CC), lembrando que ela não corre contra absolutamente incapaz (art. 198, I) nem entre
   ascendentes e descendentes durante o poder familiar (art. 197, II). O cálculo não as exclui.

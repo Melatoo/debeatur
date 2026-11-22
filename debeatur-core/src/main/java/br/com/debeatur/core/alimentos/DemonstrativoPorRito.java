@@ -1,10 +1,11 @@
 package br.com.debeatur.core.alimentos;
 
 import br.com.debeatur.core.Dinheiro;
+import br.com.debeatur.core.calculo.AcrescimosArt523;
+import br.com.debeatur.core.calculo.BaseHonorarios;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.LinhaDemonstrativo;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -42,7 +43,7 @@ import java.util.stream.IntStream;
  * @param abatidoPenhora   parte dos abatimentos que saiu do débito da penhora
  * @param abatidoPrisao    parte dos abatimentos que passou do débito da penhora e saiu do da prisão
  * @param multaArt523      10% do saldo da penhora, ou zero
- * @param honorariosArt523 10% do saldo da penhora, ou zero
+ * @param honorariosArt523 10% do saldo da penhora (ou dele mais a multa), ou zero
  * @param total            saldo dos dois ritos mais multa e honorários
  */
 public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinhas, Subtotal prisao,
@@ -52,8 +53,6 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
 
     /** Parcelas anteriores ao ajuizamento que podem ser cobradas sob pena de prisão. */
     public static final int PARCELAS_ANTERIORES_NA_PRISAO = 3;
-
-    private static final BigDecimal DEZ_PORCENTO = BigDecimal.TEN;
 
     public DemonstrativoPorRito {
         Objects.requireNonNull(ajuizamento, "ajuizamento");
@@ -102,6 +101,17 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
      */
     public static DemonstrativoPorRito separar(Demonstrativo demonstrativo, LocalDate ajuizamento,
                                                boolean aplicarArt523, List<Abatimento> abatimentos) {
+        return separar(demonstrativo, ajuizamento, aplicarArt523, abatimentos, BaseHonorarios.DEBITO);
+    }
+
+    /**
+     * @param baseHonorarios sobre o que incidem os honorários da penhora
+     * @throws IllegalArgumentException nos mesmos casos de
+     *                                  {@link #separar(Demonstrativo, LocalDate, boolean, List)}
+     */
+    public static DemonstrativoPorRito separar(Demonstrativo demonstrativo, LocalDate ajuizamento,
+                                               boolean aplicarArt523, List<Abatimento> abatimentos,
+                                               BaseHonorarios baseHonorarios) {
         Objects.requireNonNull(demonstrativo, "demonstrativo");
         Objects.requireNonNull(ajuizamento, "ajuizamento");
         Objects.requireNonNull(abatimentos, "abatimentos");
@@ -142,11 +152,10 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
         Dinheiro abatidoPenhora = abatido.compareTo(debitoPenhora) > 0 ? debitoPenhora : abatido;
         Dinheiro abatidoPrisao = abatido.menos(abatidoPenhora);
         Dinheiro saldoPenhora = debitoPenhora.menos(abatidoPenhora);
-        Dinheiro multa = aplicarArt523 ? saldoPenhora.percentual(DEZ_PORCENTO) : Dinheiro.ZERO;
-        Dinheiro honorarios = aplicarArt523 ? saldoPenhora.percentual(DEZ_PORCENTO) : Dinheiro.ZERO;
-        Dinheiro total = debitoPrisao.menos(abatidoPrisao).mais(saldoPenhora).mais(multa).mais(honorarios);
+        AcrescimosArt523 art523 = AcrescimosArt523.se(aplicarArt523, saldoPenhora, baseHonorarios);
+        Dinheiro total = debitoPrisao.menos(abatidoPrisao).mais(saldoPenhora).mais(art523.total());
         return new DemonstrativoPorRito(ajuizamento, ritos, subtotalPrisao, subtotalPenhora, abatimentos,
-                abatidoPenhora, abatidoPrisao, multa, honorarios, total);
+                abatidoPenhora, abatidoPrisao, art523.multa(), art523.honorarios(), total);
     }
 
     /** Saldo da penhora mais multa e honorários do art. 523: o que se cobra nesse rito. */

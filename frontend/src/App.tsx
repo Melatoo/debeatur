@@ -122,6 +122,7 @@ function App() {
     processo,
     dataBase,
     aplicarArt523,
+    honorariosSobreAMulta,
     comPensao,
     separarRitos,
     pensao,
@@ -354,6 +355,7 @@ function App() {
       const pedido = paraPedido({
         dataBase,
         aplicarArt523,
+        honorariosSobreAMulta,
         parcelas,
         comPensao,
         pensao,
@@ -368,7 +370,7 @@ function App() {
     } catch (e) {
       return { pedido: null, chave: '', falha: e instanceof Error ? e.message : String(e) }
     }
-  }, [dataBase, aplicarArt523, parcelas, comPensao, pensao, separarRitos, regimeProprio, nomeRegime, regras, tema1368, regimeTema1368])
+  }, [dataBase, aplicarArt523, honorariosSobreAMulta, parcelas, comPensao, pensao, separarRitos, regimeProprio, nomeRegime, regras, tema1368, regimeTema1368])
   const chaveAtual = atual.chave
   const chaveCalculada = calculo?.chave ?? null
 
@@ -915,6 +917,35 @@ function App() {
                 ? 'Multa e honorários do art. 523, §1º, do CPC (10% + 10%) sobre a penhora'
                 : 'Multa e honorários do art. 523, §1º, do CPC (10% + 10%)'}
             </label>
+            {aplicarArt523 && (
+              <div className="opcoes-honorarios" role="radiogroup" aria-labelledby="pergunta-honorarios">
+                <p id="pergunta-honorarios" className="dica">
+                  Sobre o que incidem os honorários?
+                </p>
+                <label className="checkbox">
+                  <input
+                    type="radio"
+                    name="baseHonorarios"
+                    checked={!honorariosSobreAMulta}
+                    onChange={() => alterar('honorariosSobreAMulta', false)}
+                  />
+                  Sobre o débito, sem a multa (DPMG)
+                </label>
+                <label className="checkbox">
+                  <input
+                    type="radio"
+                    name="baseHonorarios"
+                    checked={honorariosSobreAMulta}
+                    onChange={() => alterar('honorariosSobreAMulta', true)}
+                  />
+                  Sobre o débito com a multa (CADEJ)
+                </label>
+                <Dica curta="As fontes divergem; o padrão é o da planilha da Defensoria.">
+                  A planilha da DPMG calcula multa e honorários, cada um, sobre o débito, como o STJ (REsp 1.757.033/DF).
+                  O CADEJ do TJMG, usado pelas contadorias, calcula os honorários sobre o débito já acrescido da multa.
+                </Dica>
+              </div>
+            )}
           </section>
 
           {comPensao ? (

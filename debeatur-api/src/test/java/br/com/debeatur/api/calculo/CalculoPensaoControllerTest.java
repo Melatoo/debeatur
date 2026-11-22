@@ -396,6 +396,66 @@ class CalculoPensaoControllerTest {
     }
 
     @Test
+    void honorariosSobreAMultaNosTresFechamentos() {
+        SerieIndicesEmMemoria serie = new SerieIndicesEmMemoria();
+        for (YearMonth mes = YearMonth.of(2023, 10); mes.isBefore(YearMonth.of(2024, 3)); mes = mes.plusMonths(1)) {
+            serie.com(Indice.INPC, mes, "0");
+        }
+        when(series.carregar(any(), any(), any())).thenReturn(serie);
+        when(series.carregarSalarioMinimo(any(), any())).thenReturn(new SalarioMinimoEmMemoria()
+                .com(YearMonth.of(2023, 10), "1320.00")
+                .com(YearMonth.of(2023, 11), "1320.00")
+                .com(YearMonth.of(2023, 12), "1320.00")
+                .com(YearMonth.of(2024, 1), "1412.00")
+                .com(YearMonth.of(2024, 2), "1412.00"));
+        String motor = """
+                {"dataBase": "2024-03-15", "aplicarArt523": true, "baseHonorarios": "DEBITO_COM_MULTA", "regime": %s,
+                 "pensao": {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                            "inicioJuros": "VENCIMENTO"}}
+                """.formatted(SEM_JUROS);
+        String abatimentos = """
+                {"dataBase": "2024-03-15", "aplicarArt523": true, "baseHonorarios": "DEBITO_COM_MULTA", "regime": %s,
+                 "pensao": {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2024-01", "valor": 500.00}],
+                            "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-02",
+                            "inicioJuros": "VENCIMENTO",
+                            "abatimentos": [{"data": "2024-05-02", "valor": 200.00, "origem": "Bloqueio"}]}}
+                """.formatted(SEM_JUROS);
+        String ritos = """
+                {"dataBase": "2024-03-15", "aplicarArt523": true, "baseHonorarios": "DEBITO_COM_MULTA", "regime": %s,
+                 "pensao": {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2023-10", "ultimoMes": "2024-02",
+                            "inicioJuros": "VENCIMENTO", "ajuizamento": "2024-02-01"}}
+                """.formatted(SEM_JUROS);
+
+        // 423,60; multa 42,36; honorários 10% de 465,96 = 46,596 → 46,60
+        assertThat(calcular(motor)).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.multaArt523", v -> v.assertThat().asNumber().isEqualTo(42.36))
+                .hasPathSatisfying("$.honorariosArt523", v -> v.assertThat().asNumber().isEqualTo(46.6))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(512.56));
+        // saldo 800,00; multa 80,00; honorários 10% de 880,00
+        assertThat(calcular(abatimentos)).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.multaArt523", v -> v.assertThat().asNumber().isEqualTo(80.0))
+                .hasPathSatisfying("$.honorariosArt523", v -> v.assertThat().asNumber().isEqualTo(88.0))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(968.0));
+        // penhora 396,00; multa 39,60; honorários 10% de 435,60 = 43,56
+        assertThat(calcular(ritos)).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.multaArt523", v -> v.assertThat().asNumber().isEqualTo(39.6))
+                .hasPathSatisfying("$.honorariosArt523", v -> v.assertThat().asNumber().isEqualTo(43.56))
+                .hasPathSatisfying("$.ritos.totalPenhora", v -> v.assertThat().asNumber().isEqualTo(479.16))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(2118.36));
+    }
+
+    @Test
+    void recusaBaseDeHonorariosDesconhecida() {
+        String json = """
+                {"dataBase": "2024-03-15", "aplicarArt523": true, "baseHonorarios": "SOBRE_TUDO", "regime": %s,
+                 "pensao": {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                            "inicioJuros": "VENCIMENTO"}}
+                """.formatted(SEM_JUROS);
+
+        assertThat(calcular(json)).hasStatus(400);
+    }
+
+    @Test
     void comRitosOAbatimentoSaiDaPenhora() {
         SerieIndicesEmMemoria serie = new SerieIndicesEmMemoria();
         for (YearMonth mes = YearMonth.of(2023, 10); mes.isBefore(YearMonth.of(2024, 3)); mes = mes.plusMonths(1)) {

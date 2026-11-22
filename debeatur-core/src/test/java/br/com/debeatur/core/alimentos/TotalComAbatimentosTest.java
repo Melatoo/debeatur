@@ -1,6 +1,7 @@
 package br.com.debeatur.core.alimentos;
 
 import br.com.debeatur.core.Dinheiro;
+import br.com.debeatur.core.calculo.BaseHonorarios;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import org.junit.jupiter.api.Test;
 
@@ -26,6 +27,18 @@ class TotalComAbatimentosTest {
         assertThat(total.multaArt523()).isEqualTo(Dinheiro.de("80.00"));
         assertThat(total.honorariosArt523()).isEqualTo(Dinheiro.de("80.00"));
         assertThat(total.total()).isEqualTo(Dinheiro.de("959.95"));
+    }
+
+    @Test
+    void honorariosSobreAMultaIncidemSobreOSaldoMaisAMulta() {
+        TotalComAbatimentos total = TotalComAbatimentos.de(Dinheiro.de("1000.00"),
+                List.of(new Abatimento(DATA, Dinheiro.de("200.05"), "Bloqueio")), true,
+                BaseHonorarios.DEBITO_COM_MULTA);
+
+        assertThat(total.multaArt523()).isEqualTo(Dinheiro.de("80.00"));
+        // 10% de 799,95 + 80,00 = 87,995 → 88,00
+        assertThat(total.honorariosArt523()).isEqualTo(Dinheiro.de("88.00"));
+        assertThat(total.total()).isEqualTo(Dinheiro.de("967.95"));
     }
 
     @Test
