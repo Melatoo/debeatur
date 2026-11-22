@@ -82,6 +82,15 @@ public class CalculoSalvoController {
         return CalculoController.anexo(salvo.calculo(), pdf);
     }
 
+    /** O demonstrativo do cálculo salvo em planilha, refeito com o snapshot, como o {@link #pdf}. */
+    @GetMapping(value = "/{id}/xlsx", produces = DemonstrativoXlsx.TIPO)
+    ResponseEntity<byte[]> xlsx(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
+        CalculoSalvoDtos.CalculoSalvo salvo = calculos.reabrir(usuario.escritorio(), id);
+        byte[] xlsx = DemonstrativoXlsx.gerarSalvo(salvo.calculo(), salvo.demonstrativo(), emBrasilia(relogio.instant()),
+                emBrasilia(salvo.criadoEm()));
+        return CalculoController.anexoXlsx(salvo.calculo(), xlsx);
+    }
+
     private static LocalDateTime emBrasilia(Instant instante) {
         return LocalDateTime.ofInstant(instante, CalculoController.FUSO_DA_EMISSAO);
     }

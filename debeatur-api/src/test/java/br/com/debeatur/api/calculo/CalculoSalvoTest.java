@@ -7,6 +7,8 @@ import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.indices.SgsClient;
 import br.com.debeatur.indices.SgsException;
 import com.jayway.jsonpath.JsonPath;
+import org.dhatim.fastexcel.reader.ReadableWorkbook;
+import org.dhatim.fastexcel.reader.Row;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openpdf.text.pdf.PdfReader;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -34,6 +37,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -342,6 +346,41 @@ class CalculoSalvoTest {
                 .containsIgnoringWhitespaces(reais(totalSalvo))
                 .containsIgnoringWhitespaces("Calculado em")
                 .containsIgnoringWhitespaces("quando o cálculo foi salvo");
+    }
+
+    @Test
+    void aPlanilhaDoCalculoSalvoUsaOSnapshotMesmoDepoisDeOBcbRevisarASerie() throws Exception {
+        String salvo = salvar(null, PEDIDO);
+        String id = JsonPath.read(salvo, "$.id");
+        BigDecimal totalSalvo = demonstrativo(salvo).total();
+
+        publicado.get(Indice.IPCA).put(YearMonth.of(2024, 9), new BigDecimal("0.54"));
+        cache.atualizarTodas();
+        when(sgs.buscar(any(), any(), any())).thenThrow(new SgsException("SGS respondeu 503"));
+        when(sgs.buscarSalarioMinimo(any(), any())).thenThrow(new SgsException("SGS respondeu 503"));
+        MediaType xlsx = MediaType.parseMediaType(DemonstrativoXlsx.TIPO);
+        MvcTestResult planilha = mvc.get().uri("/api/calculos/salvos/" + id + "/xlsx").accept(xlsx).exchange();
+
+        assertThat(planilha).hasStatusOk().hasContentType(xlsx);
+        assertThat(planilha.getResponse().getHeader("Content-Disposition"))
+                .contains("attachment").contains("demonstrativo-5001234-56.2024.8.13.0024-2024-10-15.xlsx");
+        try (ReadableWorkbook lida = new ReadableWorkbook(new ByteArrayInputStream(planilha.getResponse().getContentAsByteArray()))) {
+            List<Row> aba = lida.findSheet("Demonstrativo").orElseThrow().read();
+            Row total = aba.stream().filter(r -> r.getCellAsString(0).filter("Total da execução"::equals).isPresent())
+                    .findFirst().orElseThrow();
+            assertThat(total.getCell(1).asNumber()).isEqualByComparingTo(totalSalvo);
+            assertThat(aba.stream().map(r -> r.getCellText(0))).contains("Calculado em");
+        }
+    }
+
+    @Test
+    void planilhaDeOutroEscritorioDevolve404() throws Exception {
+        UUID outro = UUID.randomUUID();
+        jdbc.sql("INSERT INTO escritorio (id, nome) VALUES (?, 'Outro escritório')").param(outro).update();
+        String id = JsonPath.read(salvar("Do escritório padrão", PEDIDO), "$.id");
+
+        assertThat(mvc.get().uri("/api/calculos/salvos/" + id + "/xlsx").with(ComUsuarioLogado.logadoNo(outro))
+                .accept(MediaType.parseMediaType(DemonstrativoXlsx.TIPO), MediaType.APPLICATION_PROBLEM_JSON)).hasStatus(404);
     }
 
     @Test

@@ -442,7 +442,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Só o botão que espera uma resposta do servidor (Calcular, Baixar PDF, Salvar e as ações de um cálculo salvo) mostra o andamento. */
+/* Só o botão que espera uma resposta do servidor (Calcular, Baixar PDF, Baixar Excel, Salvar e as ações de um cálculo salvo) mostra o andamento. */
 button:disabled.esperando {
   cursor: progress;
 }
@@ -571,8 +571,10 @@ button:disabled.esperando {
   outline: none;
 }
 
+/* Cinco botões não cabem numa linha do celular: quebram, em vez de rolar a página de lado. */
 .acoes-resultado {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 

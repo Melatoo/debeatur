@@ -1,9 +1,11 @@
 import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   ErroDaApi,
-  gerarPdf,
-  gerarPdfSalvo,
+  O_ARQUIVO,
+  gerarArquivo,
+  gerarArquivoSalvo,
   type CalculoRequest,
+  type FormatoDoArquivo,
   type Demonstrativo as Resultado,
   type LinhaDemonstrativo,
   type ProcessoRequest,
@@ -65,6 +67,12 @@ const RITOS: Record<Rito, { titulo: string; regra: string }> = {
   },
 }
 
+/** O que o aviso diz de cada arquivo, com o gênero certo: "o PDF … gerado", "a planilha … gerada". */
+const TEXTOS_DO_ARQUIVO: Record<FormatoDoArquivo, { gerando: string; baixado: string; mudou: string }> = {
+  pdf: { gerando: 'Gerando PDF…', baixado: 'PDF baixado', mudou: 'o PDF era gerado' },
+  xlsx: { gerando: 'Gerando planilha…', baixado: 'Planilha baixada', mudou: 'a planilha era gerada' },
+}
+
 const porVencimento = (a: LinhaDemonstrativo, b: LinhaDemonstrativo) => a.inicioCorrecao.localeCompare(b.inicioCorrecao)
 
 /** Totais de um grupo de linhas, sempre os somados no servidor, em `Dinheiro`. */
@@ -115,7 +123,8 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
   useEffect(() => {
     pedidoNaTela.current = pedido
   }, [pedido])
-  const [gerandoPdf, setGerandoPdf] = useState(false)
+  /** O arquivo sendo gerado; um de cada vez. */
+  const [gerando, setGerando] = useState<FormatoDoArquivo | null>(null)
   /** A linha cujo fator está aberto na janela da série mês a mês. */
   const [fatorAberto, setFatorAberto] = useState<{ de: Resultado; linha: LinhaDemonstrativo } | null>(null)
   // O recálculo automático troca o resultado sem remontar: a janela fecha, em vez de misturar os dois.
@@ -295,15 +304,19 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
   /**
    * Refaz o cálculo do pedido no servidor, que monta o PDF com os mesmos critérios e índices da
    * tela, com as séries do cache (salvo revisão de alguma série no SGS entre um e outro). O PDF de
-   * um cálculo salvo e intacto vem do snapshot, como os números que ele mostra.
+   * um cálculo salvo e intacto vem do snapshot, como os números que ele mostra. A planilha sai
+   * do mesmo jeito, com os mesmos dados.
    */
-  async function baixarPdf() {
-    setGerandoPdf(true)
-    avisar('Gerando PDF…')
+  async function baixar(formato: FormatoDoArquivo) {
+    const textos = TEXTOS_DO_ARQUIVO[formato]
+    setGerando(formato)
+    avisar(textos.gerando)
     try {
-      const { conteudo, nome } = await (idSalvo ? gerarPdfSalvo(idSalvo) : gerarPdf({ ...pedido, processo }))
+      const { conteudo, nome } = await (idSalvo
+        ? gerarArquivoSalvo(idSalvo, formato)
+        : gerarArquivo({ ...pedido, processo }, formato))
       if (pedidoNaTela.current !== pedido) {
-        setAviso({ de: pedidoNaTela.current, texto: 'O demonstrativo mudou enquanto o PDF era gerado. Baixe de novo.' })
+        setAviso({ de: pedidoNaTela.current, texto: `O demonstrativo mudou enquanto ${textos.mudou}. Baixe de novo.` })
         return
       }
       const url = URL.createObjectURL(conteudo)
@@ -313,19 +326,21 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
       link.click()
       // o navegador já copiou o arquivo ao iniciar o download; liberar na hora cancela no Firefox
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
-      avisar(`PDF baixado: ${nome}`)
+      avisar(`${textos.baixado}: ${nome}`)
     } catch (e) {
       if (idSalvo && e instanceof ErroDaApi && e.status === 404) {
         // Excluído em outra aba ou por outra pessoa: o snapshot não existe mais, e a tela deixa de
         // tratá-lo como salvo, como na exclusão feita aqui. O recálculo que vem a seguir troca o
         // objeto do pedido, e o aviso precisa continuar na tela.
         aoSalvoSumir?.(idSalvo)
-        avisarSobreOPedido('Este cálculo salvo foi excluído em outra janela. Os números são refeitos com os índices de hoje; baixe o PDF de novo.')
+        avisarSobreOPedido(
+          `Este cálculo salvo foi excluído em outra janela. Os números são refeitos com os índices de hoje; baixe ${O_ARQUIVO[formato]} de novo.`,
+        )
         return
       }
-      avisar(`Não foi possível gerar o PDF. ${e instanceof Error ? e.message : String(e)}`)
+      avisar(`Não foi possível gerar ${O_ARQUIVO[formato]}. ${e instanceof Error ? e.message : String(e)}`)
     } finally {
-      setGerandoPdf(false)
+      setGerando(null)
     }
   }
 
@@ -431,11 +446,19 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
         <div className="acoes-resultado">
           <button
             type="button"
-            className={gerandoPdf ? 'esperando' : undefined}
-            onClick={baixarPdf}
-            disabled={gerandoPdf || travado}
+            className={gerando === 'pdf' ? 'esperando' : undefined}
+            onClick={() => baixar('pdf')}
+            disabled={gerando !== null || travado}
           >
-            {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
+            {gerando === 'pdf' ? TEXTOS_DO_ARQUIVO.pdf.gerando : 'Baixar PDF'}
+          </button>
+          <button
+            type="button"
+            className={gerando === 'xlsx' ? 'secundario esperando' : 'secundario'}
+            onClick={() => baixar('xlsx')}
+            disabled={gerando !== null || travado}
+          >
+            {gerando === 'xlsx' ? TEXTOS_DO_ARQUIVO.xlsx.gerando : 'Baixar Excel'}
           </button>
           {aoSalvar && (
             // Salvo e intacto, salvar de novo só faria uma cópia, com os índices de hoje no lugar dos dele.

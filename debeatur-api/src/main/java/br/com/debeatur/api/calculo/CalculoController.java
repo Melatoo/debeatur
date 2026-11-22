@@ -55,14 +55,34 @@ public class CalculoController {
         return anexo(request, pdf);
     }
 
+    /**
+     * O mesmo demonstrativo do {@link #pdf}, em planilha do Excel, com os mesmos dados. O de um
+     * cálculo salvo sai de {@code GET /api/calculos/salvos/{id}/xlsx}.
+     */
+    @PostMapping(value = "/xlsx", produces = DemonstrativoXlsx.TIPO)
+    public ResponseEntity<byte[]> xlsx(@Valid @RequestBody CalculoRequest request) {
+        DemonstrativoResponse resultado = calcular(request);
+        byte[] xlsx = DemonstrativoXlsx.gerar(request, resultado, LocalDateTime.ofInstant(relogio.instant(), FUSO_DA_EMISSAO));
+        return anexoXlsx(request, xlsx);
+    }
+
     /** O PDF como anexo, com o nome do {@link DemonstrativoPdf#nomeDoArquivo}. */
     static ResponseEntity<byte[]> anexo(CalculoRequest pedido, byte[] pdf) {
+        return anexo(DemonstrativoPdf.nomeDoArquivo(pedido), MediaType.APPLICATION_PDF, pdf);
+    }
+
+    /** A planilha como anexo, com o nome do {@link DemonstrativoXlsx#nomeDoArquivo}. */
+    static ResponseEntity<byte[]> anexoXlsx(CalculoRequest pedido, byte[] xlsx) {
+        return anexo(DemonstrativoXlsx.nomeDoArquivo(pedido), MediaType.parseMediaType(DemonstrativoXlsx.TIPO), xlsx);
+    }
+
+    private static ResponseEntity<byte[]> anexo(String nome, MediaType tipo, byte[] conteudo) {
         ContentDisposition anexo = ContentDisposition.attachment()
-                .filename(DemonstrativoPdf.nomeDoArquivo(pedido), StandardCharsets.UTF_8)
+                .filename(nome, StandardCharsets.UTF_8)
                 .build();
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
+                .contentType(tipo)
                 .header(HttpHeaders.CONTENT_DISPOSITION, anexo.toString())
-                .body(pdf);
+                .body(conteudo);
     }
 }

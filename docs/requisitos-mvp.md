@@ -89,7 +89,6 @@ O MVP está pronto para uso em processo real quando:
 - Fazenda Pública (EC 113/2021, Tema 810 do STF, RPV/precatório)
 - Trabalhista (ADC 58)
 - Tabelas e regimes pré-definidos de outros tribunais
-- Exportação em Excel
 - Múltiplos usuários por escritório e controle de permissões
 
 O cálculo cível em quantia certa, recorte original do MVP, continua no motor e na API, mas não

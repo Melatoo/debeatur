@@ -1,14 +1,9 @@
 package br.com.debeatur.api.calculo;
 
+import br.com.debeatur.api.calculo.ConteudoDemonstrativo.Coluna;
+import br.com.debeatur.api.calculo.ConteudoDemonstrativo.Grupo;
+import br.com.debeatur.api.calculo.ConteudoDemonstrativo.LinhaDeTotal;
 import br.com.debeatur.api.calculo.DemonstrativoResponse.Linha;
-import br.com.debeatur.api.calculo.DemonstrativoResponse.MesPensao;
-import br.com.debeatur.api.calculo.RegimeDto.RegraDto;
-import br.com.debeatur.api.calculo.RegimeDto.TipoJuros;
-import br.com.debeatur.core.alimentos.InicioJuros;
-import br.com.debeatur.core.alimentos.Rito;
-import br.com.debeatur.core.indice.Indice;
-import br.com.debeatur.core.regime.RegimeAtualizacao;
-import br.com.debeatur.indices.SgsClient;
 import org.openpdf.text.Chunk;
 import org.openpdf.text.Document;
 import org.openpdf.text.Element;
@@ -28,40 +23,23 @@ import org.openpdf.text.pdf.PdfWriter;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.EnumSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Stream;
+
+import static br.com.debeatur.api.calculo.ConteudoDemonstrativo.data;
+import static br.com.debeatur.api.calculo.ConteudoDemonstrativo.decimal;
+import static br.com.debeatur.api.calculo.ConteudoDemonstrativo.moeda;
 
 /**
  * Demonstrativo em PDF para juntar aos autos: identificação do processo, critérios do
  * cálculo, memória linha a linha, totais com o art. 523, §1º, e as fontes dos índices.
  * <p>
- * Só apresenta o que já está em {@link DemonstrativoResponse}: nenhum valor é recalculado
- * aqui, e os totais são os somados pelo motor.
+ * O conteúdo sai de {@link ConteudoDemonstrativo}, o mesmo da planilha; aqui fica só a forma.
  */
 final class DemonstrativoPdf {
-
-    private static final Locale PT_BR = Locale.forLanguageTag("pt-BR");
-    private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final DateTimeFormatter MES = DateTimeFormatter.ofPattern("MM/yyyy");
-    private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
     private static final Color TEXTO = new Color(0x1F, 0x29, 0x33);
     private static final Color SUAVE = new Color(0x5B, 0x67, 0x73);
@@ -81,49 +59,15 @@ final class DemonstrativoPdf {
     private static final float ENTRELINHA_NOTA = 9.5f;
     private static final Font MARCA =new Font(Font.HELVETICA, 8.5f, Font.BOLD, TEXTO);
 
-    private static final String SEGREDO_DE_JUSTICA = "Segredo de justiça (art. 189, II, do CPC)";
-
-    private static final Map<Rito, String[]> RITOS = Map.of(
-            Rito.PRISAO, new String[]{"Rito da prisão",
-                    "Art. 528, §3º, do CPC: as três parcelas vencidas até o ajuizamento e as que vencem depois dele."},
-            Rito.PENHORA, new String[]{"Rito da penhora",
-                    "Art. 528, §8º, do CPC: as parcelas mais antigas, com multa e honorários do art. 523, §1º."});
-
-    /** Colunas com total no rodapé, na ordem em que aparecem. */
-    private enum Total { CORRIGIDO, JUROS, ATUALIZADO }
-
-    private record Coluna(String titulo, float largura, boolean numero, Function<Linha, String> valor, Total total) {
-    }
-
-    /** Totais de um grupo de linhas, sempre os somados pelo motor. */
-    private record Totais(BigDecimal corrigido, BigDecimal juros, BigDecimal atualizado) {
-
-        BigDecimal de(Total total) {
-            return switch (total) {
-                case CORRIGIDO -> corrigido;
-                case JUROS -> juros;
-                case ATUALIZADO -> atualizado;
-            };
-        }
-    }
-
-    private final CalculoRequest pedido;
+    private final ConteudoDemonstrativo conteudo;
     private final DemonstrativoResponse resultado;
-    private final LocalDateTime emissao;
-    /** Quando o cálculo foi salvo e as séries guardadas no snapshot; nulo se não foi salvo. */
-    private final LocalDateTime salvoEm;
     private final List<Coluna> colunas;
-    private final boolean comAcrescimos;
     private PdfWriter writer;
 
-    private DemonstrativoPdf(CalculoRequest pedido, DemonstrativoResponse resultado, LocalDateTime emissao,
-                             LocalDateTime salvoEm) {
-        this.pedido = pedido;
-        this.resultado = resultado;
-        this.emissao = emissao;
-        this.salvoEm = salvoEm;
-        this.colunas = colunas(resultado.linhas());
-        this.comAcrescimos = resultado.multaArt523().signum() > 0 || resultado.honorariosArt523().signum() > 0;
+    private DemonstrativoPdf(ConteudoDemonstrativo conteudo) {
+        this.conteudo = conteudo;
+        this.resultado = conteudo.resultado();
+        this.colunas = conteudo.colunas();
     }
 
     /**
@@ -132,7 +76,7 @@ final class DemonstrativoPdf {
      * @param emissao data e hora impressas no cabeçalho e no rodapé
      */
     static byte[] gerar(CalculoRequest pedido, DemonstrativoResponse resultado, LocalDateTime emissao) {
-        return new DemonstrativoPdf(pedido, resultado, emissao, null).gerar();
+        return new DemonstrativoPdf(new ConteudoDemonstrativo(pedido, resultado, emissao, null)).gerar();
     }
 
     /**
@@ -143,14 +87,13 @@ final class DemonstrativoPdf {
      */
     static byte[] gerarSalvo(CalculoRequest pedido, DemonstrativoResponse resultado, LocalDateTime emissao,
                              LocalDateTime salvoEm) {
-        return new DemonstrativoPdf(pedido, resultado, emissao, Objects.requireNonNull(salvoEm)).gerar();
+        return new DemonstrativoPdf(new ConteudoDemonstrativo(pedido, resultado, emissao, Objects.requireNonNull(salvoEm)))
+                .gerar();
     }
 
     /** Ex.: {@code demonstrativo-5001234-56.2024.8.13.0024-2026-10-31.pdf}. */
     static String nomeDoArquivo(CalculoRequest pedido) {
-        String numero = pedido.processo() == null ? null : texto(pedido.processo().numero());
-        String identificacao = numero == null ? "" : numero.replaceAll("[^0-9A-Za-z.-]+", "_") + "-";
-        return "demonstrativo-" + identificacao + pedido.dataBase() + ".pdf";
+        return ConteudoDemonstrativo.nomeDoArquivo(pedido, "pdf");
     }
 
     private byte[] gerar() {
@@ -179,260 +122,47 @@ final class DemonstrativoPdf {
     // ---- cabeçalho -----------------------------------------------------------------------
 
     private void cabecalho(Document documento) {
-        Paragraph titulo = new Paragraph("Demonstrativo discriminado e atualizado do débito", TITULO);
-        documento.add(titulo);
-        Paragraph subtitulo = new Paragraph(pedido.pensao() == null
-                ? "Cumprimento de sentença (art. 524 do CPC)"
-                : "Execução de alimentos (arts. 524 e 528 do CPC)", ROTULO);
+        documento.add(new Paragraph(ConteudoDemonstrativo.TITULO, TITULO));
+        Paragraph subtitulo = new Paragraph(conteudo.subtitulo(), ROTULO);
         subtitulo.setSpacingAfter(10);
         documento.add(subtitulo);
-
-        Map<String, String> campos = new LinkedHashMap<>();
-        ProcessoRequest processo = pedido.processo();
-        if (processo != null) {
-            campos.put("Processo", texto(processo.numero()));
-            campos.put("Juízo", texto(processo.juizo()));
-            campos.put("Exequente", texto(processo.exequente()));
-            campos.put("Executado", texto(processo.executado()));
-        }
-        campos.put("Data-base do cálculo", data(resultado.dataBase()));
-        if (salvoEm != null) {
-            campos.put("Calculado em", salvoEm.format(DATA) + " às " + salvoEm.format(HORA));
-        }
-        campos.put("Emitido em", emissao.format(DATA) + " às " + emissao.format(HORA));
-        campos.values().removeIf(Objects::isNull);
-        documento.add(pares(campos));
+        documento.add(pares(conteudo.cabecalho()));
     }
 
     // ---- critérios -----------------------------------------------------------------------
 
     private void criterios(Document documento) {
         documento.add(secao("Critérios do cálculo"));
-        Map<String, String> campos = new LinkedHashMap<>();
-        PensaoRequest pensao = pedido.pensao();
-        int avulsas = pedido.parcelas() == null ? 0 : pedido.parcelas().size();
-        if (pensao != null) {
-            campos.put("Pensão", descricaoDaPensao(pensao) + ", com vencimento no dia " + pensao.diaVencimento());
-            campos.put("13º salário", pensao.comDecimoTerceiro() ? "Incluído: a parcela de dezembro vale o dobro" : "Não incluído");
-            campos.put("Parcelas", pensao.primeiroMes().format(MES) + " a " + pensao.ultimoMes().format(MES)
-                    + (avulsas > 0 ? ", mais " + contar(avulsas, "parcela avulsa", "parcelas avulsas") : ""));
-            campos.put("Juros", pensao.inicioJuros() == InicioJuros.CITACAO
-                    ? "Desde a citação (" + data(pensao.citacao()) + ") para as parcelas vencidas antes dela; as seguintes, desde o vencimento"
-                    : "Desde o vencimento de cada parcela");
-            campos.put("Pagamentos parciais", pagamentos());
-            campos.put("Abatimentos", abatimentos());
-            campos.put("Ajuizamento", resultado.ritos() == null
-                    ? "Ritos não separados" : data(resultado.ritos().ajuizamento()));
-        } else {
-            campos.put("Parcelas", contar(avulsas, "parcela", "parcelas"));
-        }
-        campos.put("Art. 523, §1º", art523());
-        campos.put("Correção e juros", resultado.regime().nome());
-        documento.add(pares(campos));
-
-        List<String> regras = regrasDoCalculo().stream()
-                .map(r -> periodo(r) + ": " + nomeIndice(r.correcao()) + " + " + r.descricaoJuros())
-                .toList();
+        documento.add(pares(conteudo.criterios()));
         PdfPTable tabela = semBordas(2, new float[]{1.6f, 8.4f});
-        for (String regra : regras) {
+        for (String regra : conteudo.regras()) {
             tabela.addCell(celulaLivre("", ROTULO));
             tabela.addCell(celulaLivre("• " + regra, NORMAL));
         }
         documento.add(tabela);
     }
 
-    private static String descricaoDaPensao(PensaoRequest pensao) {
-        return switch (pensao.tipoBase()) {
-            case SALARIO_MINIMO -> numeroLivre(pensao.percentual()) + "% do salário mínimo vigente em cada mês";
-            case RENDIMENTOS -> numeroLivre(pensao.percentual()) + "% dos rendimentos de " + moeda(pensao.rendimentos())
-                    + ", iguais em todos os meses";
-            case VALOR_FIXO -> "Valor fixo, sem reajuste: " + String.join("; ", pensao.valoresFixos().stream()
-                    .sorted(Comparator.comparing(PensaoRequest.ValorFixoRequest::aPartirDe))
-                    .map(v -> moeda(v.valor()) + " a partir de " + v.aPartirDe().format(MES))
-                    .toList());
-        };
-    }
-
-    private String abatimentos() {
-        if (resultado.abatimentos().isEmpty()) {
-            return "Nenhum";
-        }
-        String destino = resultado.ritos() == null ? "do débito atualizado" : "do débito da penhora";
-        return "Pelo valor nominal, sem correção, " + destino + ": " + String.join("; ",
-                resultado.abatimentos().stream().map(DemonstrativoPdf::abatimento).toList());
-    }
-
-    private static String abatimento(DemonstrativoResponse.AbatimentoResponse a) {
-        return data(a.data()) + (a.origem() == null || a.origem().isBlank() ? "" : " (" + a.origem() + ")")
-                + ": " + moeda(a.valor());
-    }
-
-    private String pagamentos() {
-        List<MesPensao> pagos = resultado.linhas().stream()
-                .map(Linha::pensao)
-                .filter(p -> p != null && p.valorPago().signum() > 0)
-                .sorted(Comparator.comparing(MesPensao::mes))
-                .toList();
-        if (pagos.isEmpty()) {
-            return "Nenhum";
-        }
-        return String.join("; ", pagos.stream().map(p -> p.mes().format(MES) + ": " + moeda(p.valorPago())).toList());
-    }
-
-    private String art523() {
-        boolean ritos = resultado.ritos() != null;
-        if (comAcrescimos) {
-            String saldo = resultado.abatimentos().isEmpty() ? "o débito" : "o saldo, já abatido,";
-            return "Multa de 10% e honorários de 10% sobre " + saldo + (ritos ? " da penhora" : " atualizado");
-        }
-        return pedido.aplicarArt523()
-                ? "Multa e honorários de 10%, sem débito " + (ritos ? "na penhora" : "a acrescer")
-                : "Não aplicados";
-    }
-
-    /** Meses do cálculo, inclusive nas duas pontas. */
-    private record Periodo(YearMonth de, YearMonth ate) {
-    }
-
-    /**
-     * Regras que alcançam o período do cálculo, com a vigência recortada a ele: num cálculo de
-     * 2024, a regra que vale desde 07/1994 aparece desde o primeiro mês do cálculo. A regra sem
-     * fim continua sem fim. Sem período, ficam as regras do regime como estão.
-     */
-    private List<RegraDto> regrasDoCalculo() {
-        return periodoDoCalculo()
-                .map(p -> regrasEntre(p.de(), p.ate()).stream().map(r -> recortada(r, p)).toList())
-                .orElseGet(() -> resultado.regime().regras());
-    }
-
-    private static RegraDto recortada(RegraDto regra, Periodo periodo) {
-        YearMonth inicio = regra.inicio().isBefore(periodo.de()) ? periodo.de() : regra.inicio();
-        YearMonth fim = regra.fim() != null && regra.fim().isAfter(periodo.ate()) ? periodo.ate() : regra.fim();
-        return new RegraDto(inicio, fim, regra.correcao(), regra.juros(), regra.percentualJurosMensal(),
-                regra.ultimoDiaTaxaFixa(), regra.descricaoJuros());
-    }
-
-    /**
-     * Período do cálculo: do primeiro termo inicial, de correção ou de juros, ao mês anterior à
-     * data-base, o último que o motor percorre. Se tudo vence no mês da data-base, é esse mês.
-     * Vazio se nenhuma linha tem termo inicial.
-     */
-    private Optional<Periodo> periodoDoCalculo() {
-        YearMonth ultimo = ultimoMesPercorrido();
-        return Stream.of(primeiroMes(Linha::inicioCorrecao), primeiroMes(Linha::inicioJuros))
-                .flatMap(Optional::stream)
-                .min(Comparator.naturalOrder())
-                .map(primeiro -> new Periodo(primeiro, primeiro.isAfter(ultimo) ? primeiro : ultimo));
-    }
-
-    /**
-     * Regras dos meses em que o motor aplicou o termo: do mais antigo deles (inclusive) ao mês
-     * da data-base (exclusive). Vazio se nenhuma linha percorre mês algum com esse termo.
-     */
-    private List<RegraDto> regrasAplicadas(Function<Linha, LocalDate> termo) {
-        YearMonth ultimo = ultimoMesPercorrido();
-        return primeiroMes(termo)
-                .filter(primeiro -> !primeiro.isAfter(ultimo))
-                .map(primeiro -> regrasEntre(primeiro, ultimo))
-                .orElse(List.of());
-    }
-
-    /** O termo inicial mais antigo entre as linhas, sem as que não o têm (ex.: sem juros). */
-    private Optional<YearMonth> primeiroMes(Function<Linha, LocalDate> termo) {
-        return resultado.linhas().stream()
-                .map(termo)
-                .filter(Objects::nonNull)
-                .map(YearMonth::from)
-                .min(Comparator.naturalOrder());
-    }
-
-    /** O mês anterior ao da data-base: o motor corrige e conta juros até ele. */
-    private YearMonth ultimoMesPercorrido() {
-        return YearMonth.from(resultado.dataBase()).minusMonths(1);
-    }
-
-    private List<RegraDto> regrasEntre(YearMonth de, YearMonth ate) {
-        return resultado.regime().regras().stream()
-                .filter(r -> !r.inicio().isAfter(ate) && (r.fim() == null || !r.fim().isBefore(de)))
-                .toList();
-    }
-
     // ---- memória de cálculo --------------------------------------------------------------
-
-    private static List<Coluna> colunas(List<Linha> linhas) {
-        boolean comSalarioMinimo = linhas.stream().anyMatch(l -> l.pensao() != null && l.pensao().salarioMinimo() != null);
-        boolean comPagamento = linhas.stream().anyMatch(l -> l.pensao() != null && l.pensao().valorPago().signum() > 0);
-        List<Coluna> colunas = new ArrayList<>();
-        colunas.add(new Coluna("Parcela", 1.6f, false, DemonstrativoPdf::nomeDaParcela, null));
-        colunas.add(new Coluna("Correção desde", 1.0f, false, l -> data(l.inicioCorrecao()), null));
-        colunas.add(new Coluna("Juros desde", 1.0f, false,
-                l -> l.inicioJuros() == null ? "sem juros" : data(l.inicioJuros()), null));
-        if (comSalarioMinimo) {
-            colunas.add(new Coluna("Salário mínimo (R$)", 1.1f, true,
-                    l -> l.pensao() == null || l.pensao().salarioMinimo() == null ? "—" : decimal(l.pensao().salarioMinimo()),
-                    null));
-        }
-        colunas.add(new Coluna("Devido (R$)", 1.1f, true,
-                l -> decimal(l.pensao() == null ? l.valorOriginal() : l.pensao().valorDevido()), null));
-        if (comPagamento) {
-            colunas.add(new Coluna("Pago (R$)", 1.0f, true,
-                    l -> l.pensao() == null || l.pensao().valorPago().signum() == 0 ? "—" : decimal(l.pensao().valorPago()),
-                    null));
-        }
-        colunas.add(new Coluna("Fator de correção", 1.1f, true, l -> fator(l.fatorCorrecao()), null));
-        colunas.add(new Coluna("Corrigido (R$)", 1.2f, true, l -> decimal(l.valorCorrigido()), Total.CORRIGIDO));
-        colunas.add(new Coluna("Juros (%)", 0.9f, true, l -> percentual(l.percentualJuros()), null));
-        colunas.add(new Coluna("Juros (R$)", 1.1f, true, l -> decimal(l.valorJuros()), Total.JUROS));
-        colunas.add(new Coluna("Atualizado (R$)", 1.2f, true, l -> decimal(l.subtotal()), Total.ATUALIZADO));
-        return List.copyOf(colunas);
-    }
-
-    private static String nomeDaParcela(Linha l) {
-        if (l.pensao() == null) {
-            return l.descricao();
-        }
-        boolean quitada = l.pensao().valorPago().signum() > 0 && l.valorOriginal().signum() == 0;
-        return l.pensao().mes().format(MES) + (l.pensao().decimoTerceiro() ? " e 13º" : "") + (quitada ? " (quitada)" : "");
-    }
 
     private void memoria(Document documento) {
         documento.add(secao("Memória de cálculo"));
-        Paragraph explicacao = new Paragraph(explicacaoDasColunas(), NOTA);
+        Paragraph explicacao = new Paragraph(conteudo.explicacaoDasColunas(), NOTA);
         explicacao.setSpacingAfter(6);
         documento.add(explicacao);
 
-        DemonstrativoResponse.Ritos ritos = resultado.ritos();
-        if (ritos == null) {
-            Totais totais = new Totais(resultado.totalCorrigido(), resultado.totalJuros(), resultado.debitoAtualizado());
-            tabela(documento, resultado.linhas(), totais, null);
-            return;
+        for (Grupo grupo : conteudo.grupos()) {
+            if (grupo.titulo() != null) {
+                // o título do rito não fica no pé da página, longe da tabela
+                reservar(documento, 90);
+                Paragraph titulo = new Paragraph(grupo.titulo(), NEGRITO);
+                titulo.setSpacingBefore(6);
+                documento.add(titulo);
+                Paragraph regra = new Paragraph(grupo.regra(), NOTA);
+                regra.setSpacingAfter(4);
+                documento.add(regra);
+            }
+            tabela(documento, grupo);
         }
-        for (Rito rito : Rito.values()) {
-            DemonstrativoResponse.Subtotal subtotal = rito == Rito.PRISAO ? ritos.prisao() : ritos.penhora();
-            // o título do rito não fica no pé da página, longe da tabela
-            reservar(documento, 90);
-            Paragraph titulo = new Paragraph(RITOS.get(rito)[0], NEGRITO);
-            titulo.setSpacingBefore(6);
-            documento.add(titulo);
-            Paragraph regra = new Paragraph(RITOS.get(rito)[1], NOTA);
-            regra.setSpacingAfter(4);
-            documento.add(regra);
-            List<Linha> doRito = resultado.linhas().stream().filter(l -> l.rito() == rito).toList();
-            Totais totais = new Totais(subtotal.totalCorrigido(), subtotal.totalJuros(), subtotal.debitoAtualizado());
-            tabela(documento, doRito, totais, rito);
-        }
-    }
-
-    private String explicacaoDasColunas() {
-        String pensao = resultado.linhas().stream().anyMatch(l -> l.pensao() != null)
-                ? "O devido é o valor da pensão no mês" + (pedido.pensao() != null && pedido.pensao().comDecimoTerceiro()
-                        ? " (em dobro em dezembro, com o 13º salário)" : "")
-                        + ", e o pago é abatido antes da correção. "
-                : "";
-        return pensao + "O fator de correção é o produto de (1 + variação) do índice em cada mês, do mês do termo inicial "
-                + "da correção até o mês anterior ao da data-base, sem arredondamento. Os juros de mora são simples: "
-                + "o percentual soma as taxas dos meses do termo inicial dos juros até o mês anterior ao da data-base "
-                + "e incide sobre o valor corrigido. Valores monetários arredondados a duas casas (meio para cima).";
     }
 
     /**
@@ -443,26 +173,23 @@ final class DemonstrativoPdf {
      * O fechamento não vai numa tabela à parte, que não se dividisse: medir se ela cabe no resto
      * da página não bate com a regra do OpenPDF, e ela chegava a abrir a página seguinte sem o
      * cabeçalho.
-     *
-     * @param rito o rito desta tabela, ou nulo se os ritos não são separados
      */
-    private void tabela(Document documento, List<Linha> linhas, Totais totais, Rito rito) {
+    private void tabela(Document documento, Grupo grupo) {
         PdfPTable parcelas = novaTabela();
         parcelas.setHeaderRows(1);
         parcelas.setSpacingAfter(8);
         cabecalhoDasColunas(parcelas);
-        List<Linha> ordenadas = linhas.stream().sorted(Comparator.comparing(Linha::inicioCorrecao)).toList();
-        for (Linha linha : ordenadas) {
+        for (Linha linha : grupo.linhas()) {
             for (Coluna coluna : colunas) {
-                parcelas.addCell(celula(coluna.valor().apply(linha), TABELA, coluna.numero()));
+                parcelas.addCell(celula(coluna.texto(linha), TABELA, coluna.numero()));
             }
         }
-        if (ordenadas.isEmpty()) {
+        if (grupo.linhas().isEmpty()) {
             PdfPCell vazia = celula("Nenhuma parcela neste rito.", NOTA, false);
             vazia.setColspan(colunas.size());
             parcelas.addCell(vazia);
         }
-        fechamento(parcelas, totais, ordenadas.size(), rito);
+        fechamento(parcelas, grupo);
         documento.add(parcelas);
     }
 
@@ -484,51 +211,21 @@ final class DemonstrativoPdf {
         }
     }
 
-    /**
-     * Acrescenta à tabela o subtotal e, se for o caso, os abatimentos e a multa e os honorários
-     * do art. 523. Os dois ficam na tabela sem ritos ou na da penhora; na da prisão, só o que dos
-     * abatimentos passou da penhora.
-     */
-    private void fechamento(PdfPTable tabela, Totais totais, int parcelas, Rito rito) {
-        int primeiraComTotal = 0;
-        while (colunas.get(primeiraComTotal).total() == null) {
-            primeiraComTotal++;
-        }
-        PdfPCell rotulo = celula("Subtotal, " + contar(parcelas, "parcela", "parcelas"), TABELA_NEGRITO, false);
+    /** Acrescenta à tabela o subtotal e o fechamento do grupo. */
+    private void fechamento(PdfPTable tabela, Grupo grupo) {
+        int primeiraComTotal = conteudo.primeiraColunaComTotal();
+        PdfPCell rotulo = celula(grupo.rotuloDoSubtotal(), TABELA_NEGRITO, false);
         rotulo.setColspan(primeiraComTotal);
         rotulo.setBackgroundColor(FUNDO_TOTAL);
         tabela.addCell(rotulo);
         for (Coluna coluna : colunas.subList(primeiraComTotal, colunas.size())) {
-            PdfPCell celula = celula(coluna.total() == null ? "" : decimal(totais.de(coluna.total())), TABELA_NEGRITO, true);
+            PdfPCell celula = celula(coluna.total() == null ? "" : decimal(grupo.totais().de(coluna.total())),
+                    TABELA_NEGRITO, true);
             celula.setBackgroundColor(FUNDO_TOTAL);
             tabela.addCell(celula);
         }
-
-        DemonstrativoResponse.Ritos ritos = resultado.ritos();
-        if (rito == Rito.PRISAO && ritos.abatidoPrisao().signum() > 0) {
-            linhaDeTotal(tabela, "Abatimentos que passaram do débito da penhora", ritos.abatidoPrisao().negate(), false);
-            linhaDeTotal(tabela, "Total da prisão", ritos.totalPrisao(), true);
-        }
-        if (rito == Rito.PRISAO) {
-            return;
-        }
-        if (!resultado.abatimentos().isEmpty()) {
-            for (DemonstrativoResponse.AbatimentoResponse a : resultado.abatimentos()) {
-                linhaDeTotal(tabela, "Abatimento de " + data(a.data())
-                        + (a.origem() == null || a.origem().isBlank() ? "" : " (" + a.origem() + ")"), a.valor().negate(), false);
-            }
-            if (ritos != null && ritos.abatidoPrisao().signum() > 0) {
-                linhaDeTotal(tabela, "Parte dos abatimentos que sai da prisão", ritos.abatidoPrisao(), false);
-            }
-            BigDecimal abatido = ritos == null ? resultado.totalAbatido() : ritos.abatidoPenhora();
-            linhaDeTotal(tabela, "Saldo", totais.atualizado().subtract(abatido), true);
-        }
-        if (comAcrescimos) {
-            linhaDeTotal(tabela, "Multa de 10% (art. 523, §1º, do CPC)", resultado.multaArt523(), false);
-            linhaDeTotal(tabela, "Honorários de 10% (art. 523, §1º, do CPC)", resultado.honorariosArt523(), false);
-            if (resultado.ritos() != null) {
-                linhaDeTotal(tabela, "Total da penhora", resultado.ritos().totalPenhora(), true);
-            }
+        for (LinhaDeTotal linha : grupo.fechamento()) {
+            linhaDeTotal(tabela, linha);
         }
     }
 
@@ -539,12 +236,12 @@ final class DemonstrativoPdf {
         }
     }
 
-    private void linhaDeTotal(PdfPTable tabela, String rotulo, BigDecimal valor, boolean destaque) {
-        Font fonte = destaque ? TABELA_NEGRITO : TABELA;
-        PdfPCell celula = celula(rotulo, fonte, true);
+    private void linhaDeTotal(PdfPTable tabela, LinhaDeTotal linha) {
+        Font fonte = linha.destaque() ? TABELA_NEGRITO : TABELA;
+        PdfPCell celula = celula(linha.rotulo(), fonte, true);
         celula.setColspan(colunas.size() - 1);
         tabela.addCell(celula);
-        tabela.addCell(celula(decimal(valor), fonte, true));
+        tabela.addCell(celula(decimal(linha.valor()), fonte, true));
     }
 
     // ---- totais --------------------------------------------------------------------------
@@ -552,38 +249,8 @@ final class DemonstrativoPdf {
     /** O quadro-resumo da primeira página: o débito de cada rito, os acréscimos e o total. */
     private void resumo(Document documento) {
         documento.add(secao("Resumo"));
-        Map<String, BigDecimal> linhas = new LinkedHashMap<>();
-        DemonstrativoResponse.Ritos ritos = resultado.ritos();
-        if (ritos != null) {
-            linhas.put("Rito da prisão: débito atualizado (" + contar(ritos.prisao().parcelas(), "parcela", "parcelas") + ")",
-                    ritos.prisao().debitoAtualizado());
-            if (ritos.abatidoPrisao().signum() > 0) {
-                linhas.put("Rito da prisão: abatimentos que passaram da penhora", ritos.abatidoPrisao().negate());
-            }
-            linhas.put("Rito da penhora: débito atualizado (" + contar(ritos.penhora().parcelas(), "parcela", "parcelas") + ")",
-                    ritos.penhora().debitoAtualizado());
-            if (ritos.abatidoPenhora().signum() > 0) {
-                linhas.put("Rito da penhora: abatimentos (valor nominal)", ritos.abatidoPenhora().negate());
-            }
-        } else {
-            linhas.put("Valor corrigido", resultado.totalCorrigido());
-            linhas.put("Juros de mora", resultado.totalJuros());
-            linhas.put("Débito atualizado", resultado.debitoAtualizado());
-            if (resultado.totalAbatido().signum() > 0) {
-                linhas.put("Abatimentos (valor nominal)", resultado.totalAbatido().negate());
-                linhas.put("Saldo", resultado.debitoAtualizado().subtract(resultado.totalAbatido()));
-            }
-        }
-        if (comAcrescimos) {
-            linhas.put("Multa de 10% (art. 523, §1º, do CPC)", resultado.multaArt523());
-            linhas.put("Honorários de 10% (art. 523, §1º, do CPC)", resultado.honorariosArt523());
-            if (ritos != null) {
-                linhas.put("Rito da penhora: total com os acréscimos", ritos.totalPenhora());
-            }
-        }
-
         PdfPTable tabela = quadroDeTotais();
-        linhas.forEach((rotulo, valor) -> {
+        conteudo.resumo().forEach((rotulo, valor) -> {
             tabela.addCell(celula(rotulo, NORMAL, false));
             tabela.addCell(celula(moeda(valor), NORMAL, true));
         });
@@ -600,16 +267,16 @@ final class DemonstrativoPdf {
     private void encerramento(Document documento) {
         PdfPTable total = quadroDeTotais();
         linhaDoTotalDaExecucao(total);
-        PdfPCell conteudo = new PdfPCell();
-        conteudo.setBorder(Rectangle.NO_BORDER);
-        conteudo.setPadding(0);
-        conteudo.addElement(total);
-        fontes().forEach(conteudo::addElement);
+        PdfPCell celula = new PdfPCell();
+        celula.setBorder(Rectangle.NO_BORDER);
+        celula.setPadding(0);
+        celula.addElement(total);
+        fontes().forEach(celula::addElement);
         PdfPTable bloco = new PdfPTable(1);
         bloco.setWidthPercentage(100);
         bloco.setKeepTogether(true);
         // sem espaço antes: a tabela da memória já deixa o dela
-        bloco.addCell(conteudo);
+        bloco.addCell(celula);
         documento.add(bloco);
     }
 
@@ -639,61 +306,15 @@ final class DemonstrativoPdf {
         // logo abaixo do total, que já separa a procedência da memória
         titulo.setSpacingBefore(6);
         elementos.add(titulo);
-        // só os índices que o motor de fato aplicou: a correção nos meses corrigidos e a taxa
-        // legal nos meses com juros, e não tudo o que a regra prevê
-        List<RegraDto> deCorrecao = regrasAplicadas(Linha::inicioCorrecao);
-        Set<Indice> indices = EnumSet.noneOf(Indice.class);
-        deCorrecao.forEach(r -> indices.add(r.correcao()));
-        if (regrasAplicadas(Linha::inicioJuros).stream()
-                .anyMatch(r -> r.juros() == TipoJuros.TAXA_LEGAL || r.juros() == TipoJuros.TRANSICAO_TAXA_LEGAL)) {
-            indices.add(Indice.TAXA_LEGAL);
-        }
-        List<String> itens = new ArrayList<>();
-        for (Indice indice : indices) {
-            String valores = indice.corrigeMoeda() ? "variações mensais" : "taxas mensais";
-            // a série que deu os valores deste cálculo: a SELIC de um cálculo salvo antes da SGS 11 veio da 4390
-            List<BigDecimal> usados = resultado.series().stream()
-                    .filter(s -> s.serie().equals(indice.name()))
-                    .flatMap(s -> s.valores().stream().map(DemonstrativoResponse.ValorMensal::valor))
-                    .toList();
-            itens.add(indice.descricao() + ": " + valores + " da " + SgsClient.fonte(indice, usados) + ".");
-        }
-        if (indices.isEmpty()) {
-            itens.add("Nenhuma série de índice incidiu na correção ou nos juros deste cálculo.");
-        }
-        if (regimePadrao()) {
-            // o período da tabela é o da regra do INPC no próprio regime, e não uma data fixa aqui
-            deCorrecao.stream().filter(r -> r.correcao() == Indice.INPC).findFirst().ifPresent(r -> itens.add(
-                    (r.fim() == null ? "O" : "Até " + r.fim().format(MES) + ", o")
-                            + " regime padrão segue a tabela de fatores de atualização monetária da "
-                            + "Corregedoria-Geral de Justiça do TJMG, de base INPC; o fator é composto das variações "
-                            + "mensais do INPC."));
-        }
-        if (resultado.linhas().stream().anyMatch(l -> l.pensao() != null)) {
-            itens.add("Salário mínimo nacional: valor vigente em cada mês, da série " + SgsClient.CODIGO_SALARIO_MINIMO
-                    + " do SGS/BCB.");
-        }
         // em corpo de nota: a procedência é consulta de quem confere, e cabe no fim da memória
         // em vez de abrir uma página só para ela
-        for (String item : itens) {
+        for (String item : conteudo.fontes()) {
             elementos.add(new Paragraph(ENTRELINHA_NOTA, "• " + item, NOTA));
         }
-        // sem salvar, as séries vêm do cache local, atualizado todo dia a partir do SGS; salvo, do
-        // snapshot, para que o PDF saia igual mesmo depois de o BCB revisar uma série
-        String valores = salvoEm == null
-                ? "com os valores publicados e em uso em " + emissao.format(DATA) + "."
-                : "com os valores em uso em " + salvoEm.format(DATA) + ", quando o cálculo foi salvo, guardados "
-                        + "com ele e reaplicados nesta emissão.";
-        Paragraph consulta = new Paragraph(ENTRELINHA_NOTA, "Séries do Sistema Gerenciador de Séries Temporais do Banco Central do "
-                + "Brasil (api.bcb.gov.br), " + valores, NOTA);
+        Paragraph consulta = new Paragraph(ENTRELINHA_NOTA, conteudo.consultaDasSeries(), NOTA);
         consulta.setSpacingBefore(4);
         elementos.add(consulta);
         return elementos;
-    }
-
-    /** Se o cálculo usou as regras do regime cível padrão do TJMG, com ou sem o nome dele. */
-    private boolean regimePadrao() {
-        return resultado.regime().regras().equals(RegimeDto.de(RegimeAtualizacao.civelPadrao()).regras());
     }
 
     // ---- rodapé --------------------------------------------------------------------------
@@ -718,15 +339,11 @@ final class DemonstrativoPdf {
             PdfContentByte canvas = writer.getDirectContent();
             // ações de alimentos correm em segredo de justiça (art. 189, II, do CPC): uma folha
             // solta do demonstrativo também o diz
-            ColumnText.showTextAligned(canvas, Element.ALIGN_RIGHT, new Phrase(SEGREDO_DE_JUSTICA, MARCA),
-                    document.right(), document.top() + 14, 0);
+            ColumnText.showTextAligned(canvas, Element.ALIGN_RIGHT,
+                    new Phrase(ConteudoDemonstrativo.SEGREDO_DE_JUSTICA, MARCA), document.right(), document.top() + 14, 0);
 
             float y = document.bottom() - 22;
-            String processo = pedido.processo() == null ? null : texto(pedido.processo().numero());
-            String identificacao = (processo == null ? "" : "Processo " + processo + " · ")
-                    + "Demonstrativo atualizado até " + data(resultado.dataBase())
-                    + " · emitido em " + emissao.format(DATA) + " às " + emissao.format(HORA);
-            ColumnText.showTextAligned(canvas, Element.ALIGN_LEFT, new Phrase(identificacao, NOTA),
+            ColumnText.showTextAligned(canvas, Element.ALIGN_LEFT, new Phrase(conteudo.identificacao(), NOTA),
                     document.left(), y, 0);
 
             String pagina = "Página " + writer.getPageNumber() + " de ";
@@ -798,68 +415,5 @@ final class DemonstrativoPdf {
         celula.setPadding(2);
         celula.setPaddingBottom(3);
         return celula;
-    }
-
-    // ---- formatos ------------------------------------------------------------------------
-
-    private static DecimalFormat formato(String padrao) {
-        DecimalFormat formato = new DecimalFormat(padrao, DecimalFormatSymbols.getInstance(PT_BR));
-        formato.setRoundingMode(RoundingMode.HALF_UP);
-        return formato;
-    }
-
-    private static String decimal(BigDecimal valor) {
-        return formato("#,##0.00").format(valor);
-    }
-
-    private static String moeda(BigDecimal valor) {
-        return "R$ " + decimal(valor);
-    }
-
-    /** Sete casas, como na tela; o fator completo, sem arredondar, é o que o motor aplica. */
-    private static String fator(BigDecimal valor) {
-        return formato("0.0000000").format(valor);
-    }
-
-    /**
-     * Quatro casas, como na tela, e até seis quando a taxa as tem: o BCB publica a taxa legal
-     * com seis, e com menos quem confere os juros a partir do percentual impresso pode errar o
-     * centavo. A taxa fixa sai "1,0000%", e não "1,000000%".
-     */
-    private static String percentual(BigDecimal valor) {
-        return formato("0.0000##").format(valor) + "%";
-    }
-
-    private static String numeroLivre(BigDecimal valor) {
-        return formato("#,##0.##########").format(valor);
-    }
-
-    private static String data(LocalDate data) {
-        return data == null ? "—" : data.format(DATA);
-    }
-
-    private static String periodo(RegraDto regra) {
-        if (regra.fim() == null) {
-            return "desde " + regra.inicio().format(MES);
-        }
-        return regra.inicio().equals(regra.fim())
-                ? regra.inicio().format(MES)
-                : regra.inicio().format(MES) + " a " + regra.fim().format(MES);
-    }
-
-    private static String nomeIndice(Indice indice) {
-        return switch (indice) {
-            case IPCA_E -> "IPCA-E";
-            default -> indice.name();
-        };
-    }
-
-    private static String contar(int n, String singular, String plural) {
-        return n + " " + (n == 1 ? singular : plural);
-    }
-
-    /** O texto sem espaços nas pontas, ou nulo se vazio. */
-    private static String texto(String valor) {
-        return valor == null || valor.isBlank() ? null : valor.strip();
     }
 }
