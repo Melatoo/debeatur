@@ -316,16 +316,30 @@ export interface Anexo {
   nome: string
 }
 
-/** O mesmo cálculo de `calcular`, como demonstrativo em PDF para juntar aos autos. */
-export async function gerarPdf(request: CalculoRequest): Promise<Anexo> {
-  const resposta = await fetch('/api/calculos/pdf', {
+/** O demonstrativo em PDF, para juntar aos autos, ou em planilha do Excel, com os mesmos dados. */
+export type FormatoDoArquivo = 'pdf' | 'xlsx'
+
+const TIPO_DO_ARQUIVO: Record<FormatoDoArquivo, string> = {
+  pdf: 'application/pdf',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+}
+
+/** O arquivo com o artigo, para as mensagens: "gerar o PDF", "gerar a planilha". */
+export const O_ARQUIVO: Record<FormatoDoArquivo, string> = { pdf: 'o PDF', xlsx: 'a planilha' }
+
+/** O mesmo cálculo de `calcular`, como demonstrativo em PDF ou em planilha. */
+export async function gerarArquivo(request: CalculoRequest, formato: FormatoDoArquivo): Promise<Anexo> {
+  const resposta = await fetch(`/api/calculos/${formato}`, {
     method: 'POST',
     // sem o problem+json, o erro do cálculo viria como 406, sem a mensagem
-    headers: await comCsrf({ 'Content-Type': 'application/json', Accept: 'application/pdf, application/problem+json' }),
+    headers: await comCsrf({
+      'Content-Type': 'application/json',
+      Accept: `${TIPO_DO_ARQUIVO[formato]}, application/problem+json`,
+    }),
     body: JSON.stringify(request),
   })
-  if (!resposta.ok) await lerResposta(resposta, 'gerar o PDF')
-  const nome = nomeDoAnexo(resposta.headers.get('Content-Disposition'), `demonstrativo-${request.dataBase}.pdf`)
+  if (!resposta.ok) await lerResposta(resposta, `gerar ${O_ARQUIVO[formato]}`)
+  const nome = nomeDoAnexo(resposta.headers.get('Content-Disposition'), `demonstrativo-${request.dataBase}.${formato}`)
   return { conteudo: await resposta.blob(), nome }
 }
 
@@ -395,13 +409,13 @@ export async function excluirCalculo(id: string): Promise<void> {
   if (resposta.status !== 204) await lerResposta(resposta, 'excluir o cálculo')
 }
 
-/** O PDF do cálculo salvo, com o snapshot das séries: os mesmos números da tela ao abri-lo. */
-export async function gerarPdfSalvo(id: string): Promise<Anexo> {
-  const resposta = await fetch(`/api/calculos/salvos/${encodeURIComponent(id)}/pdf`, {
-    headers: { Accept: 'application/pdf, application/problem+json' },
+/** O PDF ou a planilha do cálculo salvo, com o snapshot das séries: os mesmos números da tela ao abri-lo. */
+export async function gerarArquivoSalvo(id: string, formato: FormatoDoArquivo): Promise<Anexo> {
+  const resposta = await fetch(`/api/calculos/salvos/${encodeURIComponent(id)}/${formato}`, {
+    headers: { Accept: `${TIPO_DO_ARQUIVO[formato]}, application/problem+json` },
   })
-  if (!resposta.ok) await lerResposta(resposta, 'gerar o PDF')
-  const nome = nomeDoAnexo(resposta.headers.get('Content-Disposition'), `demonstrativo-${id}.pdf`)
+  if (!resposta.ok) await lerResposta(resposta, `gerar ${O_ARQUIVO[formato]}`)
+  const nome = nomeDoAnexo(resposta.headers.get('Content-Disposition'), `demonstrativo-${id}.${formato}`)
   return { conteudo: await resposta.blob(), nome }
 }
 

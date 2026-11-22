@@ -34,8 +34,10 @@ export interface ApiSimulada {
   pedidos: unknown[]
   /** Os ids dos cálculos salvos que receberam DELETE. */
   excluidos: string[]
-  /** Se o cálculo salvo foi excluído em outra janela: o PDF dele responde 404. */
+  /** Se o cálculo salvo foi excluído em outra janela: o PDF e a planilha dele respondem 404. */
   excluidoEmOutraJanela: boolean
+  /** Os PDFs e planilhas pedidos, como "POST /api/calculos/xlsx", na ordem. */
+  arquivos: string[]
   /** Chamadas que nenhuma rota simulada atendeu; o teste falha se sobrar alguma. */
   inesperadas: string[]
   /** POST e DELETE sem o token CSRF do cookie no cabeçalho; o teste falha se sobrar algum. */
@@ -58,6 +60,7 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
     pedidos: [],
     excluidos: [],
     excluidoEmOutraJanela: false,
+    arquivos: [],
     inesperadas: [],
     semToken: [],
   }
@@ -68,6 +71,16 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
       contentType: status < 400 ? 'application/json' : 'application/problem+json',
       path: caminho(arquivo),
     })
+  /** Um arquivo de mentira, com o tipo e o nome que o servidor daria; o conteúdo não importa aqui. */
+  const anexo = (route: Route, nome: string, chave: string) => {
+    const xlsx = chave.endsWith('/xlsx')
+    return route.fulfill({
+      status: 200,
+      contentType: xlsx ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf',
+      headers: { 'Content-Disposition': `attachment; filename="${nome}.${xlsx ? 'xlsx' : 'pdf'}"` },
+      body: xlsx ? 'PK' : '%PDF-',
+    })
+  }
   const naoAutenticado = (route: Route) => route.fulfill({ status: 401, body: '' })
   const tokenNoCookie = async () =>
     (await page.context().cookies()).find((c) => c.name === 'XSRF-TOKEN')?.value ?? null
@@ -141,10 +154,17 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
       case `DELETE /api/calculos/salvos/${ID_SALVO}`:
         api.excluidos.push(ID_SALVO)
         return route.fulfill({ status: 204, body: '' })
+      case 'POST /api/calculos/pdf':
+      case 'POST /api/calculos/xlsx': {
+        const { dataBase, processo } = pedido.postDataJSON()
+        api.arquivos.push(chave)
+        return anexo(route, `demonstrativo-${processo?.numero ? `${processo.numero}-` : ''}${dataBase}`, chave)
+      }
       case `GET /api/calculos/salvos/${ID_SALVO}/pdf`:
+      case `GET /api/calculos/salvos/${ID_SALVO}/xlsx`:
         if (!api.excluidoEmOutraJanela) {
-          api.inesperadas.push(chave)
-          return route.fulfill({ status: 501, json: { detail: `Sem simulação para ${chave}` } })
+          api.arquivos.push(chave)
+          return anexo(route, `demonstrativo-salvo`, chave)
         }
         return route.fulfill({
           status: 404,

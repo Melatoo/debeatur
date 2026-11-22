@@ -160,4 +160,5 @@ O escopo do MVP está em `docs/requisitos-mvp.md`, inclusive o que fica de fora.
 - [x] PostgreSQL + Flyway e cache das séries do SGS
 - [x] Cálculos salvos, com snapshot dos índices usados
 - [x] Exportação do demonstrativo em PDF
+- [x] Exportação do demonstrativo em Excel, com os mesmos dados do PDF
 - [x] Autenticação mínima (um usuário por escritório)
