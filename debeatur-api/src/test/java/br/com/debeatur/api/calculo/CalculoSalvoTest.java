@@ -543,7 +543,8 @@ class CalculoSalvoTest {
                 .query(UUID.class).single()).isEqualTo(membro);
         assertThat(mvc.get().uri("/api/calculos/salvos").with(comoMembro)).hasStatusOk().bodyJson()
                 .hasPathSatisfying("$", v -> v.assertThat().asArray().hasSize(1))
-                .hasPathSatisfying("$[0].titulo", v -> v.assertThat().isEqualTo("Do membro"));
+                .hasPathSatisfying("$[0].titulo", v -> v.assertThat().isEqualTo("Do membro"))
+                .hasPathSatisfying("$[0].autor", v -> v.assertThat().isEqualTo("membro@debeatur.test"));
         assertThat(mvc.get().uri("/api/calculos/salvos/" + doMembro).with(comoMembro)).hasStatusOk();
 
         // o do admin não aparece para o membro, nem para abrir, exportar, renomear ou excluir
@@ -558,12 +559,22 @@ class CalculoSalvoTest {
         assertThat(mvc.get().uri("/api/calculos/salvos").with(comoColega)).hasStatusOk().bodyJson().isLenientlyEqualTo("[]");
         assertThat(mvc.get().uri("/api/calculos/salvos/" + doMembro).with(comoColega)).hasStatus(404);
 
-        // e o admin vê, renomeia e exclui os de todos
+        // e o admin vê os de todos, com o autor de cada um, e os renomeia e exclui
+        String doAdminEmail = "admin-" + escritorio + "@debeatur.test";
         assertThat(mvc.get().uri("/api/calculos/salvos")).hasStatusOk().bodyJson()
-                .hasPathSatisfying("$", v -> v.assertThat().asArray().hasSize(2));
+                .hasPathSatisfying("$", v -> v.assertThat().asArray().hasSize(2))
+                .hasPathSatisfying("$[*].autor", v -> v.assertThat().asArray()
+                        .containsExactlyInAnyOrder("membro@debeatur.test", doAdminEmail));
         assertThat(mvc.patch().uri("/api/calculos/salvos/" + doMembro).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"titulo\": \"Revisto pelo admin\"}")).hasStatusOk();
+                .content("{\"titulo\": \"Revisto pelo admin\"}")).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.autor", v -> v.assertThat().isEqualTo("membro@debeatur.test"));
         assertThat(mvc.delete().uri("/api/calculos/salvos/" + doMembro)).hasStatus(204);
+
+        // o salvo antes de o escritório ter usuário aparece para o admin sem autor
+        jdbc.sql("UPDATE calculo SET autor_id = NULL WHERE id = ?").param(UUID.fromString(doAdmin)).update();
+        assertThat(mvc.get().uri("/api/calculos/salvos")).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$", v -> v.assertThat().asArray().hasSize(1))
+                .hasPathSatisfying("$[0].autor", v -> v.assertThat().isNull());
     }
 
     @Test

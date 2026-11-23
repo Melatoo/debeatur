@@ -27,12 +27,16 @@ final class CalculoSalvoDtos {
     record RenomearRequest(@NotBlank @Size(max = 200) String titulo) {
     }
 
-    /** @param processo o número do processo, se o pedido trouxer um */
+    /**
+     * @param processo o número do processo, se o pedido trouxer um
+     * @param autor    o e-mail de quem salvou; nulo no cálculo salvo antes de o escritório ter usuário
+     */
     record Resumo(UUID id, String titulo, String processo, LocalDate dataBase, String regime, BigDecimal total,
-                  Instant criadoEm) {
+                  Instant criadoEm, String autor) {
 
         static Resumo de(RepositorioCalculos.Resumo r) {
-            return new Resumo(r.id(), r.titulo(), r.processo(), r.dataBase(), r.regime(), r.total(), r.criadoEm());
+            return new Resumo(r.id(), r.titulo(), r.processo(), r.dataBase(), r.regime(), r.total(), r.criadoEm(),
+                    r.autor());
         }
     }
 

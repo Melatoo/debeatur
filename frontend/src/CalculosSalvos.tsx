@@ -18,6 +18,19 @@ const ROTULOS: Record<AcaoSalvo, { botao: string; andamento: string }> = {
 
 const ID_BUSCA = 'busca-calculos'
 
+/** O e-mail que quebra a linha antes do @, e não no meio do nome ou do domínio. */
+function EmailQuebravel({ email }: { email: string }) {
+  const arroba = email.indexOf('@')
+  if (arroba <= 0) return email
+  return (
+    <>
+      {email.slice(0, arroba)}
+      <wbr />
+      {email.slice(arroba)}
+    </>
+  )
+}
+
 interface PropsLista {
   aberta: boolean
   aoFechar: () => void
@@ -88,7 +101,10 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
   })
 
   // De novo quando a pessoa entra outra vez: a lista que levou 401 com a sessão vencida aparece.
-  const geracao = useSessao()?.geracao ?? 0
+  const sessao = useSessao()
+  const geracao = sessao?.geracao ?? 0
+  /** O admin vê os cálculos de todos e precisa saber de quem é cada um; o membro só vê os dele. */
+  const comAutor = sessao?.papel === 'ADMIN'
   useEffect(() => {
     let vale = true
     listarCalculos().then(
@@ -225,7 +241,8 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
             onChange={(e) => setBusca(e.target.value)}
           />
           <p className="dica" id="dica-busca">
-            Pelo título, pelo regime ou pelo número do processo, com ou sem pontos e traço.
+            Pelo título, pelo regime{comAutor && ', pelo e-mail de quem salvou'} ou pelo número do processo, com ou sem
+            pontos e traço.
           </p>
         </div>
       )}
@@ -259,6 +276,11 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
                 <th scope="col" role="columnheader">Data-base</th>
                 <th scope="col" role="columnheader">Total</th>
                 <th scope="col" role="columnheader">Salvo em</th>
+                {comAutor && (
+                  <th scope="col" role="columnheader" className="autor-salvo">
+                    Salvo por
+                  </th>
+                )}
                 <th scope="col" role="columnheader">
                   <span className="sr-only">Ações</span>
                 </th>
@@ -284,6 +306,19 @@ function ConteudoLista({ aoEscolher, aoRenomear, aoExcluir }: Omit<PropsLista, '
                   <td role="cell" data-rotulo="Data-base">{data(r.dataBase)}</td>
                   <td role="cell" data-rotulo="Total">{moeda(r.total)}</td>
                   <td role="cell" data-rotulo="Salvo em">{dataHora(new Date(r.criadoEm))}</td>
+                  {comAutor && (
+                    <td className="autor-salvo" role="cell" data-rotulo="Salvo por">
+                      {r.autor ? (
+                        // A linha quebra antes do @, e não no meio do nome ou do domínio.
+                        <EmailQuebravel email={r.autor} />
+                      ) : (
+                        <>
+                          <span aria-hidden="true">—</span>
+                          <span className="sr-only">Salvo antes dos usuários</span>
+                        </>
+                      )}
+                    </td>
+                  )}
                   <td className="acoes-salvo" role="cell">
                     <div className="acoes-principais">
                       {(['abrir', 'atualizar', 'duplicar'] as const)

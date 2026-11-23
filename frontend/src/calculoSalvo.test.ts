@@ -322,7 +322,12 @@ describe('atualizarRascunho', () => {
 })
 
 describe('filtrarCalculos', () => {
-  const resumo = (titulo: string, processo: string | null, regime = 'Regime cível padrão do TJMG'): ResumoCalculo => ({
+  const resumo = (
+    titulo: string,
+    processo: string | null,
+    regime = 'Regime cível padrão do TJMG',
+    autor: string | null = 'ana@escritorio.adv.br',
+  ): ResumoCalculo => ({
     id: titulo,
     titulo,
     processo,
@@ -330,12 +335,18 @@ describe('filtrarCalculos', () => {
     regime,
     total: 1000,
     criadoEm: '2024-11-01T12:00:00Z',
+    autor,
   })
   const lista = [
     resumo('Execução da Maria', '5001234-56.2024.8.13.0024'),
-    resumo('Pensão do João', null, 'Critérios fixados no título'),
-    resumo('Processo 0009876-12.2023.8.13.0702', '0009876-12.2023.8.13.0702'),
+    resumo('Pensão do João', null, 'Critérios fixados no título', 'caio@escritorio.adv.br'),
+    resumo('Processo 0009876-12.2023.8.13.0702', '0009876-12.2023.8.13.0702', undefined, null),
   ]
+
+  it('acha pelo e-mail de quem salvou', () => {
+    expect(titulos('caio')).toEqual(['Pensão do João'])
+    expect(titulos('ana@escritorio')).toEqual(['Execução da Maria'])
+  })
   const titulos = (busca: string) => filtrarCalculos(lista, busca).map((r) => r.titulo)
 
   it('sem busca devolve todos, na mesma ordem', () => {

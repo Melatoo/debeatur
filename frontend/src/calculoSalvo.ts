@@ -134,7 +134,8 @@ const soDigitos = (texto: string) => texto.replace(/\D/g, '')
 
 /**
  * Os cálculos salvos que batem com a busca, na mesma ordem. Cada palavra precisa aparecer no
- * título, no regime ou no número do processo, sem diferença de acento nem de maiúsculas.
+ * título, no regime, no número do processo ou no e-mail de quem salvou, sem diferença de acento
+ * nem de maiúsculas.
  *
  * Uma palavra só de números e pontuação procura no título e no processo, e acha o processo também
  * pelos dígitos: "5001234562024" acha "5001234-56.2024.8.13.0024", com ou sem a máscara do CNJ. Ela
@@ -145,7 +146,7 @@ export function filtrarCalculos(lista: readonly ResumoCalculo[], busca: string):
   const palavras = semAcento(busca).split(/\s+/).filter(Boolean)
   if (palavras.length === 0) return [...lista]
   return lista.filter((r) => {
-    const texto = semAcento(`${r.titulo} ${r.regime} ${r.processo ?? ''}`)
+    const texto = semAcento(`${r.titulo} ${r.regime} ${r.processo ?? ''} ${r.autor ?? ''}`)
     const textoSemRegime = semAcento(`${r.titulo} ${r.processo ?? ''}`)
     const digitos = soDigitos(r.processo ?? '')
     return palavras.every((p) => {

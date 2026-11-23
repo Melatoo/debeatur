@@ -25,6 +25,29 @@ test('a busca acha pelo título e pelo número do processo, com ou sem a máscar
   await expect(janela.getByText('Nenhum cálculo com “9999”.')).toBeVisible()
 })
 
+test('o admin vê quem salvou cada cálculo e busca pelo e-mail', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Cálculos salvos' }).click()
+  const janela = page.getByRole('dialog', { name: 'Cálculos salvos' })
+  await expect(janela.getByRole('columnheader', { name: 'Salvo por' })).toBeVisible()
+  await expect(janela.getByRole('cell', { name: 'caio@escritorio.adv.br' })).toBeVisible()
+
+  await janela.getByRole('searchbox', { name: 'Buscar' }).fill('caio')
+  await expect(janela.getByRole('row')).toHaveCount(2)
+  await expect(janela.getByRole('rowheader', { name: /Despesas escolares de D. E./ })).toBeVisible()
+  await semViolacoes(page)
+})
+
+test('o membro, que só vê os próprios cálculos, não tem a coluna de quem salvou', async ({ page, api }) => {
+  api.papel = 'MEMBRO'
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Cálculos salvos' }).click()
+  const janela = page.getByRole('dialog', { name: 'Cálculos salvos' })
+  await expect(janela.getByRole('row')).toHaveCount(3)
+  await expect(janela.getByRole('columnheader', { name: 'Salvo por' })).toHaveCount(0)
+  await expect(janela.getByText('pelo e-mail de quem salvou')).toHaveCount(0)
+})
+
 test('renomear troca o título na lista e no pé do formulário', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Cálculos salvos' }).click()

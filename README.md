@@ -147,7 +147,7 @@ curl -b sessao -X POST http://localhost:8080/api/calculos -H "X-XSRF-TOKEN: $tok
 | Endpoint | O que faz |
 |---|---|
 | `POST /api/calculos/salvos` | `{"titulo": "...", "calculo": <pedido de POST /api/calculos>}`: calcula, salva e devolve `201` com o id |
-| `GET /api/calculos/salvos` | lista os cálculos que o usuário vê (o admin, os do escritório; o membro, os dele), do mais recente para o mais antigo |
+| `GET /api/calculos/salvos` | lista os cálculos que o usuário vê (o admin, os do escritório; o membro, os dele), do mais recente para o mais antigo, cada um com o `autor` (o e-mail de quem salvou, ou `null` no salvo antes de o escritório ter usuário) |
 | `GET /api/calculos/salvos/{id}` | devolve o pedido salvo e o demonstrativo refeito com o snapshot |
 
 Cada cálculo salvo guarda o pedido, com o regime usado já resolvido, e o snapshot dos valores

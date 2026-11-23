@@ -372,6 +372,8 @@ export interface ResumoCalculo {
   total: number
   /** Instante ISO 8601. */
   criadoEm: string
+  /** O e-mail de quem salvou; nulo no cálculo salvo antes de o escritório ter usuário. */
+  autor: string | null
 }
 
 /**

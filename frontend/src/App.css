@@ -1296,7 +1296,7 @@ tfoot .total td {
   color: var(--texto-suave);
 }
 
-/* Título, processo, data-base, total, salvo em e ações. */
+/* Título, processo, data-base, total, salvo em, salvo por (só para o admin) e ações. */
 .tabela-salvos {
   min-width: 860px;
   table-layout: auto;
@@ -1306,6 +1306,12 @@ tfoot .total td {
 .processo-salvo {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* Quem salvou, só na lista do admin: é texto, fica à esquerda, e o e-mail quebra antes do @. */
+.tabela-salvos .autor-salvo {
+  text-align: left;
+  white-space: normal;
 }
 
 /* Renomear e Excluir: links sob Abrir, Atualizar e Duplicar, na célula de ações. */
