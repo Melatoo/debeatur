@@ -28,6 +28,7 @@ function paraPensaoEditavel(p: NonNullable<CalculoRequest['pensao']>): PensaoEdi
     base,
     percentual: p.percentual == null ? '' : campo(p.percentual),
     rendimentos: p.rendimentos == null ? '' : reais(p.rendimentos),
+    mudancasRendimentos: (p.mudancasRendimentos ?? []).map((m) => ({ aPartirDe: m.aPartirDe, valor: reais(m.valor) })),
     valoresFixos: p.valoresFixos?.length
       ? p.valoresFixos.map((v) => ({ aPartirDe: v.aPartirDe, valor: reais(v.valor) }))
       : vazia.valoresFixos,

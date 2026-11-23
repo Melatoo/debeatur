@@ -86,6 +86,14 @@ describe('rascunho', () => {
     expect(lerRascunho(armazenamento)?.rascunho).toEqual(comTema)
   })
 
+  it('abre o rascunho de antes das mudanças dos rendimentos sem mudanças', () => {
+    const armazenamento = armazenamentoEmMemoria()
+    const { mudancasRendimentos, ...pensao } = preenchido.pensao
+    expect(mudancasRendimentos).toEqual([])
+    armazenamento.setItem(CHAVE_RASCUNHO, comoTexto({ ...preenchido, pensao }))
+    expect(lerRascunho(armazenamento)?.rascunho).toEqual(preenchido)
+  })
+
   it('abre o rascunho de antes do Tema 1368 com a opção desmarcada', () => {
     const armazenamento = armazenamentoEmMemoria()
     const { tema1368, regimeTema1368, ...anterior } = { ...preenchido, regimeProprio: true, regras: [] }

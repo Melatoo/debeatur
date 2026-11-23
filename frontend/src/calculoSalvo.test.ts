@@ -54,6 +54,7 @@ describe('paraRascunho', () => {
       base: 'SALARIO_MINIMO',
       percentual: '30',
       rendimentos: '',
+      mudancasRendimentos: [],
       valoresFixos: [{ aPartirDe: '', valor: '' }],
       decimoTerceiro: false,
       diaVencimento: '10',

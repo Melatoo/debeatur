@@ -250,7 +250,9 @@ Acumulada" traz fatores próprios. Em 14/11/2026, salvo onde indicado:
   nominal, sem correção; a data aparece só na descrição. Multa e honorários incidem sobre o
   saldo já abatido.
 - **Percentual dos rendimentos:** o percentual incide sobre um valor de rendimentos
-  informado, igual em todos os meses.
+  informado, igual em todos os meses. As mudanças dos rendimentos por período são extensão do
+  Debeatur, sem gabarito externo: cada mês usa o valor vigente e segue a mesma conta do valor
+  único, que é a coberta pelo `GabaritoRendimentosDecimoTerceiroDpmgTest`.
 - **Valor fixo:** só nos modelos cíveis, em períodos com valor próprio e sem reajuste.
 - **SELIC Acumulada** (modelo cível, conferido em 18/11/2026): fator pelo produto das taxas
   mensais tiradas da SELIC diária, sem juros à parte e sem a virada da Lei 14.905/2024. A

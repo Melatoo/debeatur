@@ -62,14 +62,17 @@ public sealed interface BasePensao {
     }
 
     /**
-     * Percentual de um valor de rendimentos informado, o mesmo em todos os meses, como na
-     * planilha de alimentos da DPMG ("percentual dos rendimentos líquidos"). Não há reajuste:
-     * se os rendimentos mudaram, quem calcula informa outro cálculo ou usa {@link ValorFixo}.
+     * Percentual de um valor de rendimentos informado, como na planilha de alimentos da DPMG
+     * ("percentual dos rendimentos líquidos"). Sem mudanças, os rendimentos são os mesmos em
+     * todos os meses. Se mudaram (reajuste, novo emprego), cada mudança vale do mês informado
+     * até a próxima; não há reajuste automático.
      *
      * @param percentual  em pontos (ex.: {@code 30} para 30%)
-     * @param rendimentos rendimentos mensais sobre os quais incide o percentual
+     * @param rendimentos rendimentos mensais do início da pensão até a primeira mudança
+     * @param mudancas    rendimentos a partir de cada mês; pode ser vazio
      */
-    record PercentualDosRendimentos(BigDecimal percentual, Dinheiro rendimentos) implements BasePensao {
+    record PercentualDosRendimentos(BigDecimal percentual, Dinheiro rendimentos,
+                                    NavigableMap<YearMonth, Dinheiro> mudancas) implements BasePensao {
 
         public PercentualDosRendimentos {
             exigirPositivo(percentual, "O percentual dos rendimentos deve ser positivo");
@@ -77,16 +80,32 @@ public sealed interface BasePensao {
             if (rendimentos.compareTo(Dinheiro.ZERO) <= 0) {
                 throw new IllegalArgumentException("Os rendimentos devem ser positivos");
             }
+            Objects.requireNonNull(mudancas, "mudancas");
+            for (Map.Entry<YearMonth, Dinheiro> e : mudancas.entrySet()) {
+                Objects.requireNonNull(e.getKey(), "mes");
+                Objects.requireNonNull(e.getValue(), "valor");
+                if (e.getValue().compareTo(Dinheiro.ZERO) <= 0) {
+                    throw new IllegalArgumentException("Os rendimentos a partir de " + e.getKey()
+                            + " devem ser positivos");
+                }
+            }
+            mudancas = Collections.unmodifiableNavigableMap(new TreeMap<>(mudancas));
+        }
+
+        /** Rendimentos iguais em todos os meses. */
+        public PercentualDosRendimentos(BigDecimal percentual, Dinheiro rendimentos) {
+            this(percentual, rendimentos, new TreeMap<>());
         }
 
         @Override
         public Dinheiro base(YearMonth mes, SalarioMinimo salarioMinimo) {
-            return rendimentos;
+            Map.Entry<YearMonth, Dinheiro> mudanca = mudancas.floorEntry(mes);
+            return mudanca == null ? rendimentos : mudanca.getValue();
         }
 
         @Override
         public Dinheiro valor(YearMonth mes, SalarioMinimo salarioMinimo) {
-            return rendimentos.percentual(percentual);
+            return base(mes, salarioMinimo).percentual(percentual);
         }
     }
 

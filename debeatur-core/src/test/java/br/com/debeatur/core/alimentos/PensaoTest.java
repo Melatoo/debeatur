@@ -153,6 +153,48 @@ class PensaoTest {
     }
 
     @Test
+    void mudancaDosRendimentosValeAteAProxima() {
+        TreeMap<YearMonth, Dinheiro> mudancas = new TreeMap<>();
+        mudancas.put(YearMonth.of(2024, 3), Dinheiro.de("3500.00"));
+        mudancas.put(YearMonth.of(2024, 5), Dinheiro.de("2000.00"));
+        Pensao pensao = new Pensao(new BasePensao.PercentualDosRendimentos(new BigDecimal("30"),
+                Dinheiro.de("3000.00"), mudancas), 10, YearMonth.of(2024, 2), YearMonth.of(2024, 5),
+                InicioJuros.VENCIMENTO, null, false);
+
+        List<Pensao.ParcelaDoMes> meses = pensao.parcelasPorMes(null);
+
+        assertThat(meses).extracting(Pensao.ParcelaDoMes::base).containsExactly(Dinheiro.de("3000.00"),
+                Dinheiro.de("3500.00"), Dinheiro.de("3500.00"), Dinheiro.de("2000.00"));
+        assertThat(meses).extracting(m -> m.parcela().valor()).containsExactly(Dinheiro.de("900.00"),
+                Dinheiro.de("1050.00"), Dinheiro.de("1050.00"), Dinheiro.de("600.00"));
+    }
+
+    @Test
+    void rejeitaMudancaDosRendimentosForaDaPensao() {
+        for (YearMonth fora : List.of(YearMonth.of(2024, 2), YearMonth.of(2023, 12), YearMonth.of(2024, 6))) {
+            TreeMap<YearMonth, Dinheiro> mudancas = new TreeMap<>();
+            mudancas.put(fora, Dinheiro.de("3500.00"));
+            BasePensao base = new BasePensao.PercentualDosRendimentos(new BigDecimal("30"), Dinheiro.de("3000.00"),
+                    mudancas);
+
+            assertThatThrownBy(() -> new Pensao(base, 10, YearMonth.of(2024, 2), YearMonth.of(2024, 5),
+                    InicioJuros.VENCIMENTO, null, false))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("mudanças dos rendimentos");
+        }
+    }
+
+    @Test
+    void rejeitaMudancaDosRendimentosNaoPositiva() {
+        TreeMap<YearMonth, Dinheiro> mudancas = new TreeMap<>();
+        mudancas.put(YearMonth.of(2024, 3), Dinheiro.ZERO);
+
+        assertThatThrownBy(() -> new BasePensao.PercentualDosRendimentos(BigDecimal.TEN, Dinheiro.de("100.00"),
+                mudancas))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("03");
+    }
+
+    @Test
     void valorFixoValeAteOProximoPeriodoSemReajuste() {
         TreeMap<YearMonth, Dinheiro> valores = new TreeMap<>();
         valores.put(YearMonth.of(2024, 1), Dinheiro.de("500.00"));

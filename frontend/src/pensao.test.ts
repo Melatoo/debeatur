@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PensaoRequest } from './api'
-import { descreverPensao, erroDoDiaVencimento, erroDosValoresFixos, paraPensao, pensaoVazia } from './pensao'
+import { descreverPensao, erroDasMudancasDosRendimentos, erroDoDiaVencimento, erroDosValoresFixos, paraPensao, pensaoVazia } from './pensao'
 
 describe('erroDoDiaVencimento', () => {
   it.each(['1', '10', '31', '05', ' 7 '])('aceita %j', (dia) => {
@@ -31,6 +31,14 @@ describe('paraPensao', () => {
     const pedido = paraPensao({ ...base, base: 'RENDIMENTOS', percentual: '33,33', rendimentos: '3.000,00', decimoTerceiro: true }, false)
     expect(pedido).toMatchObject({ base: 'RENDIMENTOS', percentual: '33.33', rendimentos: '3000.00', decimoTerceiro: true })
     expect(pedido).not.toHaveProperty('valoresFixos')
+    expect(pedido).not.toHaveProperty('mudancasRendimentos')
+  })
+
+  it('em rendimentos, manda as mudanças; nas outras bases, não', () => {
+    const mudancasRendimentos = [{ aPartirDe: '2025-06', valor: '3.500,00' }]
+    const pedido = paraPensao({ ...base, base: 'RENDIMENTOS', percentual: '30', rendimentos: '3.000,00', mudancasRendimentos }, false)
+    expect(pedido.mudancasRendimentos).toEqual([{ aPartirDe: '2025-06', valor: '3500.00' }])
+    expect(paraPensao({ ...base, percentual: '30', mudancasRendimentos }, false)).not.toHaveProperty('mudancasRendimentos')
   })
 
   it('em valor fixo, manda os períodos sem percentual', () => {
@@ -99,6 +107,18 @@ describe('descreverPensao', () => {
     expect(
       descreverPensao({
         ...comum,
+        base: 'RENDIMENTOS',
+        percentual: '30',
+        rendimentos: '3000',
+        mudancasRendimentos: [
+          { aPartirDe: '2025-09', valor: '2000' },
+          { aPartirDe: '2025-03', valor: '3500' },
+        ],
+      }),
+    ).toMatch(/^30% dos rendimentos de R\$\s3\.000,00 até 02\/2025; R\$\s3\.500,00 a partir de 03\/2025; R\$\s2\.000,00 a partir de 09\/2025$/)
+    expect(
+      descreverPensao({
+        ...comum,
         base: 'VALOR_FIXO',
         percentual: null,
         valoresFixos: [
@@ -107,5 +127,30 @@ describe('descreverPensao', () => {
         ],
       }),
     ).toMatch(/^Valor fixo, sem reajuste: R\$\s500,00 a partir de 01\/2025; R\$\s650,00 a partir de 06\/2025$/)
+  })
+})
+
+describe('erroDasMudancasDosRendimentos', () => {
+  const periodo = { primeiroMes: '2025-01', ultimoMes: '2025-12' }
+  const valor = '1'
+
+  it('aceita mudanças entre o mês seguinte à primeira parcela e a última', () => {
+    expect(erroDasMudancasDosRendimentos({ ...periodo, mudancasRendimentos: [{ aPartirDe: '2025-02', valor }, { aPartirDe: '2025-12', valor }] })).toBe('')
+  })
+
+  it('recusa duas mudanças no mesmo mês', () => {
+    expect(erroDasMudancasDosRendimentos({ ...periodo, mudancasRendimentos: [{ aPartirDe: '2025-03', valor }, { aPartirDe: '2025-03', valor }] })).toBe(
+      'Há duas mudanças a partir do mesmo mês.',
+    )
+  })
+
+  it('recusa mudança na primeira parcela, antes dela ou depois da última', () => {
+    expect(erroDasMudancasDosRendimentos({ ...periodo, mudancasRendimentos: [{ aPartirDe: '2025-01', valor }] })).toBe(
+      'A mudança deve começar depois da primeira parcela (01/2025); para o início, use o campo Rendimentos.',
+    )
+    expect(erroDasMudancasDosRendimentos({ ...periodo, mudancasRendimentos: [{ aPartirDe: '2024-06', valor }] })).toContain('depois da primeira parcela')
+    expect(erroDasMudancasDosRendimentos({ ...periodo, mudancasRendimentos: [{ aPartirDe: '2026-01', valor }] })).toBe(
+      'A mudança deve começar até a última parcela (12/2025).',
+    )
   })
 })

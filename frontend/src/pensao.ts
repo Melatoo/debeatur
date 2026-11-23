@@ -9,6 +9,8 @@ export interface PensaoEditavel {
   percentual: string
   /** Só na base RENDIMENTOS. */
   rendimentos: string
+  /** Só na base RENDIMENTOS: rendimentos a partir de cada mês, se mudaram. */
+  mudancasRendimentos: ValorFixoRequest[]
   /** Só na base VALOR_FIXO. */
   valoresFixos: ValorFixoRequest[]
   decimoTerceiro: boolean
@@ -26,6 +28,7 @@ export const pensaoVazia = (): PensaoEditavel => ({
   base: 'SALARIO_MINIMO',
   percentual: '',
   rendimentos: '',
+  mudancasRendimentos: [],
   valoresFixos: [{ aPartirDe: '', valor: '' }],
   decimoTerceiro: false,
   diaVencimento: '10',
@@ -68,6 +71,24 @@ export function erroDosValoresFixos(p: Pick<PensaoEditavel, 'valoresFixos' | 'pr
     : ''
 }
 
+/**
+ * Mensagem para a primeira mudança dos rendimentos, ou '' se elas valem. Cada mudança fica depois
+ * da primeira parcela, quando valem os rendimentos iniciais, e até a última.
+ */
+export function erroDasMudancasDosRendimentos(
+  p: Pick<PensaoEditavel, 'mudancasRendimentos' | 'primeiroMes' | 'ultimoMes'>,
+): string {
+  const meses = p.mudancasRendimentos.map((m) => m.aPartirDe).filter(Boolean)
+  if (new Set(meses).size !== meses.length) return 'Há duas mudanças a partir do mesmo mês.'
+  if (p.primeiroMes && meses.some((m) => m <= p.primeiroMes)) {
+    return `A mudança deve começar depois da primeira parcela (${mes(p.primeiroMes)}); para o início, use o campo Rendimentos.`
+  }
+  if (p.ultimoMes && meses.some((m) => m > p.ultimoMes)) {
+    return `A mudança deve começar até a última parcela (${mes(p.ultimoMes)}).`
+  }
+  return ''
+}
+
 /** @param separarRitos sem a separação, o ajuizamento não vai para a API */
 export function paraPensao(p: PensaoEditavel, separarRitos: boolean, ritosPelaLei = false): PensaoRequest {
   const comPercentual = p.base !== 'VALOR_FIXO'
@@ -76,6 +97,13 @@ export function paraPensao(p: PensaoEditavel, separarRitos: boolean, ritosPelaLe
     ...(p.base !== 'SALARIO_MINIMO' && { base: p.base }),
     percentual: comPercentual ? exigirDecimal(p.percentual, `% ${p.base === 'RENDIMENTOS' ? 'dos rendimentos' : 'do salário mínimo'}`, false) : null,
     ...(p.base === 'RENDIMENTOS' && { rendimentos: exigirDecimal(p.rendimentos, 'Rendimentos') }),
+    ...(p.base === 'RENDIMENTOS' &&
+      p.mudancasRendimentos.length > 0 && {
+        mudancasRendimentos: p.mudancasRendimentos.map((m) => ({
+          aPartirDe: m.aPartirDe,
+          valor: exigirDecimal(m.valor, 'Rendimentos a partir de'),
+        })),
+      }),
     ...(p.base === 'VALOR_FIXO' && {
       valoresFixos: p.valoresFixos.map((v) => ({ aPartirDe: v.aPartirDe, valor: exigirDecimal(v.valor, 'Valor fixo') })),
     }),
@@ -99,13 +127,30 @@ export function paraPensao(p: PensaoEditavel, separarRitos: boolean, ritosPelaLe
   }
 }
 
+/** O mês anterior, em AAAA-MM. */
+function mesAnterior(aaaaMm: string): string {
+  const [ano, m] = aaaaMm.split('-').map(Number)
+  return m === 1 ? `${ano - 1}-12` : `${ano}-${String(m - 1).padStart(2, '0')}`
+}
+
+/** " até 01/2024; R$ 3.500,00 a partir de 02/2024", depois do valor inicial; sem mudanças, "iguais em todos os meses". */
+function descreverMudancas(mudancas: ValorFixoRequest[]): string {
+  if (mudancas.length === 0) return ', iguais em todos os meses'
+  const ordenadas = [...mudancas].sort((a, b) => a.aPartirDe.localeCompare(b.aPartirDe))
+  return ` até ${mes(mesAnterior(ordenadas[0].aPartirDe))}${ordenadas
+    .map((m) => `; ${moeda(Number(m.valor))} a partir de ${mes(m.aPartirDe)}`)
+    .join('')}`
+}
+
 /** A pensão do pedido em uma frase, igual na tela e no PDF. */
 export function descreverPensao(p: PensaoRequest): string {
   switch (p.base ?? 'SALARIO_MINIMO') {
     case 'SALARIO_MINIMO':
       return `${paraCampo(String(p.percentual))}% do salário mínimo vigente em cada mês`
     case 'RENDIMENTOS':
-      return `${paraCampo(String(p.percentual))}% dos rendimentos de ${moeda(Number(p.rendimentos))}, iguais em todos os meses`
+      return `${paraCampo(String(p.percentual))}% dos rendimentos de ${moeda(Number(p.rendimentos))}${descreverMudancas(
+        p.mudancasRendimentos ?? [],
+      )}`
     case 'VALOR_FIXO':
       return `Valor fixo, sem reajuste: ${[...(p.valoresFixos ?? [])]
         .sort((a, b) => a.aPartirDe.localeCompare(b.aPartirDe))

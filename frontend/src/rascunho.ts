@@ -64,6 +64,7 @@ const ehPensao = (v: unknown) =>
   comTextos(v, ['base', 'percentual', 'rendimentos', 'diaVencimento', 'primeiroMes', 'ultimoMes', 'inicioJuros', 'citacao', 'ajuizamento']) &&
   typeof v.decimoTerceiro === 'boolean' &&
   listaDe(v.valoresFixos, (f) => comTextos(f, ['aPartirDe', 'valor'])) &&
+  listaDe(v.mudancasRendimentos, (m) => comTextos(m, ['aPartirDe', 'valor'])) &&
   listaDe(v.pagamentos, (p) => comTextos(p, ['mes', 'valor'])) &&
   listaDe(v.abatimentos, (a) => comTextos(a, ['data', 'valor', 'origem']))
 
@@ -119,6 +120,12 @@ function semRegraRitos(rascunho: unknown): unknown {
   return { ...rascunho, ritosPelaLei: false }
 }
 
+/** Rascunho de antes das mudanças dos rendimentos: os rendimentos valem em todos os meses. */
+function semMudancasRendimentos(rascunho: unknown): unknown {
+  if (!ehObjeto(rascunho) || !ehObjeto(rascunho.pensao) || 'mudancasRendimentos' in rascunho.pensao) return rascunho
+  return { ...rascunho, pensao: { ...rascunho.pensao, mudancasRendimentos: [] } }
+}
+
 /**
  * A versão 1 só tinha a pensão em salário mínimo: base, rendimentos, valores fixos, 13º e
  * abatimentos entram com o valor do formulário em branco. O resto é conferido por {@link ehRascunho}.
@@ -134,8 +141,8 @@ function interpretar(texto: string): RascunhoSalvo | null {
   try {
     const salvo: unknown = JSON.parse(texto)
     if (!ehObjeto(salvo) || (salvo.versao !== VERSAO && salvo.versao !== 1)) return null
-    const rascunho = semRegraRitos(
-      semBaseHonorarios(semTema1368(salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho)),
+    const rascunho = semMudancasRendimentos(
+      semRegraRitos(semBaseHonorarios(semTema1368(salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho))),
     )
     if (!ehRascunho(rascunho)) return null
     const salvoEm = new Date(typeof salvo.salvoEm === 'string' ? salvo.salvoEm : NaN)

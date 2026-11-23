@@ -298,8 +298,13 @@ class AlimentosPropriedadesTest {
         BigDecimal percentual = BigDecimal.valueOf(aleatorio.nextInt(1, 10_001), 2);
         return switch (aleatorio.nextInt(3)) {
             case 0 -> new BasePensao.PercentualDoSalarioMinimo(percentual);
-            case 1 -> new BasePensao.PercentualDosRendimentos(percentual,
-                    new Dinheiro(BigDecimal.valueOf(aleatorio.nextLong(1_000_00, 50_000_00), 2)));
+            case 1 -> {
+                TreeMap<YearMonth, Dinheiro> mudancas = new TreeMap<>();
+                for (int i = ultimoMes.isAfter(primeiroMes) ? aleatorio.nextInt(0, 4) : 0; i > 0; i--) {
+                    mudancas.put(mes(aleatorio, primeiroMes.plusMonths(1), ultimoMes), rendimentos(aleatorio));
+                }
+                yield new BasePensao.PercentualDosRendimentos(percentual, rendimentos(aleatorio), mudancas);
+            }
             default -> {
                 TreeMap<YearMonth, Dinheiro> valores = new TreeMap<>();
                 valores.put(mes(aleatorio, primeiroMes.minusMonths(6), primeiroMes), valorFixo(aleatorio));
@@ -316,8 +321,15 @@ class AlimentosPropriedadesTest {
         return switch (base) {
             case BasePensao.PercentualDoSalarioMinimo b ->
                     new Dinheiro(salarioMinimo.vigente(mes).valor().multiply(b.percentual()).movePointLeft(2));
-            case BasePensao.PercentualDosRendimentos b ->
-                    new Dinheiro(b.rendimentos().valor().multiply(b.percentual()).movePointLeft(2));
+            case BasePensao.PercentualDosRendimentos b -> {
+                Dinheiro vigente = b.rendimentos();
+                for (var e : b.mudancas().entrySet()) {
+                    if (!e.getKey().isAfter(mes)) {
+                        vigente = e.getValue();
+                    }
+                }
+                yield new Dinheiro(vigente.valor().multiply(b.percentual()).movePointLeft(2));
+            }
             case BasePensao.ValorFixo b -> {
                 Dinheiro vigente = null;
                 for (var e : b.valoresAPartirDe().entrySet()) {
@@ -346,6 +358,10 @@ class AlimentosPropriedadesTest {
 
     private static Dinheiro valorFixo(SplittableRandom aleatorio) {
         return new Dinheiro(BigDecimal.valueOf(aleatorio.nextLong(100_00, 10_000_00), 2));
+    }
+
+    private static Dinheiro rendimentos(SplittableRandom aleatorio) {
+        return new Dinheiro(BigDecimal.valueOf(aleatorio.nextLong(1_000_00, 50_000_00), 2));
     }
 
     private static YearMonth mes(SplittableRandom aleatorio, YearMonth de, YearMonth ate) {
