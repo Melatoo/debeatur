@@ -101,7 +101,9 @@ admin desativa perde a sessão na hora, e a troca de papel vale no pedido seguin
 | `POST /api/convites/consulta` | aberto | `{"token"}`: o e-mail e o escritório do convite (`404` se venceu ou já foi usado) |
 | `POST /api/convites/aceite` | aberto | `{"token", "senha"}`: cria o usuário; depois ele entra pelo login |
 
-O convite vale 7 dias e uma vez só, e convidar de novo o mesmo e-mail troca o link. O link é
+Na tela, o admin convida e gerencia pelo botão Usuários, no topo; o convidado abre o link do
+e-mail, cria a senha e já entra. O convite vale 7 dias e uma vez só, e convidar de novo o mesmo
+e-mail troca o link. O link é
 `DEBEATUR_ENDERECO/convite#<token>` (padrão `http://localhost:3000`); o banco guarda só o
 SHA-256 do token. O e-mail sai pelo SMTP de `DEBEATUR_SMTP_HOST`, `DEBEATUR_SMTP_PORTA` (587),
 `DEBEATUR_SMTP_USUARIO` e `DEBEATUR_SMTP_SENHA`, com STARTTLS obrigatório

@@ -211,9 +211,16 @@ export class ErroDaApi extends Error {
   }
 }
 
+/**
+ * O perfil no escritório: o admin convida e gerencia os usuários e vê todos os cálculos do
+ * escritório; o membro vê só os que salvou.
+ */
+export type Papel = 'ADMIN' | 'MEMBRO'
+
 /** Quem está logado. */
 export interface Sessao {
   email: string
+  papel: Papel
 }
 
 const SESSAO_EXPIRADA = 'A sessão expirou. Entre de novo e repita o que estava fazendo.'
@@ -436,4 +443,88 @@ export async function buscarRegimePadrao(): Promise<Regime> {
 /** Regime do título omisso ou de "juros legais" pelo Tema 1368/STJ, montado no servidor. */
 export async function buscarRegimeTema1368(): Promise<Regime> {
   return lerResposta(await fetch('/api/regimes/tema-1368'), 'carregar o regime do Tema 1368')
+}
+
+/** Usuário do escritório, como o admin o vê. */
+export interface Usuario {
+  id: string
+  email: string
+  papel: Papel
+  /** O desativado não entra mais; os cálculos dele continuam com os admins. */
+  ativo: boolean
+  /** Instante ISO 8601. */
+  criadoEm: string
+}
+
+/** Convite ainda não aceito, vencido ou não. */
+export interface Convite {
+  id: string
+  email: string
+  papel: Papel
+  /** Instantes ISO 8601. */
+  criadoEm: string
+  expiraEm: string
+}
+
+/** O que o convidado vê antes de escolher a senha. */
+export interface ConviteAberto {
+  email: string
+  escritorio: string
+}
+
+/** Os usuários do escritório, ativos e desativados; só para o admin. */
+export async function listarUsuarios(): Promise<Usuario[]> {
+  return lerResposta(await fetch('/api/usuarios'), 'carregar os usuários')
+}
+
+/** Muda o perfil ou desativa; os campos ausentes ficam como estão. */
+export async function alterarUsuario(id: string, alteracao: { papel?: Papel; ativo?: boolean }): Promise<Usuario> {
+  const resposta = await fetch(`/api/usuarios/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: await comCsrf({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(alteracao),
+  })
+  return lerResposta(resposta, 'alterar o usuário')
+}
+
+export async function listarConvites(): Promise<Convite[]> {
+  return lerResposta(await fetch('/api/convites'), 'carregar os convites')
+}
+
+/** Envia o convite por e-mail; um convite pendente para o mesmo e-mail deixa de valer. */
+export async function convidar(email: string, papel: Papel): Promise<Convite> {
+  const resposta = await fetch('/api/convites', {
+    method: 'POST',
+    headers: await comCsrf({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ email, papel }),
+  })
+  return lerResposta(resposta, 'enviar o convite')
+}
+
+export async function cancelarConvite(id: string): Promise<void> {
+  const resposta = await fetch(`/api/convites/${encodeURIComponent(id)}`, { method: 'DELETE', headers: await comCsrf({}) })
+  if (resposta.status !== 204) await lerResposta(resposta, 'cancelar o convite')
+}
+
+/**
+ * O e-mail e o escritório do convite, sem login.
+ * @throws ErroDaApi 404 se o convite venceu, já foi usado ou foi trocado por outro
+ */
+export async function consultarConvite(token: string): Promise<ConviteAberto> {
+  const resposta = await fetch('/api/convites/consulta', {
+    method: 'POST',
+    headers: await comCsrf({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ token }),
+  })
+  return lerResposta(resposta, 'abrir o convite')
+}
+
+/** Cria o usuário com a senha escolhida; depois ele entra pelo login. */
+export async function aceitarConvite(token: string, senha: string): Promise<void> {
+  const resposta = await fetch('/api/convites/aceite', {
+    method: 'POST',
+    headers: await comCsrf({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ token, senha }),
+  })
+  if (resposta.status !== 204) await lerResposta(resposta, 'aceitar o convite')
 }

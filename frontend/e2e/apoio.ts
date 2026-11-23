@@ -42,7 +42,42 @@ export interface ApiSimulada {
   inesperadas: string[]
   /** POST e DELETE sem o token CSRF do cookie no cabeçalho; o teste falha se sobrar algum. */
   semToken: string[]
+  /** O perfil de quem está logado; começa admin. */
+  papel: 'ADMIN' | 'MEMBRO'
+  /** Os usuários do escritório, que o PATCH altera. */
+  usuarios: UsuarioSimulado[]
+  /** Os convites pendentes, que o POST e o DELETE mudam. */
+  convites: ConviteSimulado[]
+  /** O token que o POST /api/convites/consulta e o aceite reconhecem, e o e-mail do convite dele. */
+  conviteValido: { token: string; email: string } | null
+  /** As senhas recebidas no aceite do convite, para o teste conferir. */
+  aceites: { token: string; senha: string }[]
 }
+
+export interface UsuarioSimulado {
+  id: string
+  email: string
+  papel: 'ADMIN' | 'MEMBRO'
+  ativo: boolean
+  criadoEm: string
+}
+
+export interface ConviteSimulado {
+  id: string
+  email: string
+  papel: 'ADMIN' | 'MEMBRO'
+  criadoEm: string
+  expiraEm: string
+  /** Quem convidou; a API não o manda, mas apaga o convite quando essa pessoa perde o admin. */
+  convidadoPor: string
+}
+
+/** O convite como a API o manda: sem quem convidou. */
+const semQuemConvidou = (c: ConviteSimulado) => ({ id: c.id, email: c.email, papel: c.papel, criadoEm: c.criadoEm, expiraEm: c.expiraEm })
+
+/** O token de um convite que vale, no formato da API (32 bytes em Base64 para URL). */
+export const TOKEN_CONVITE = 'q9W3e0lXg4pR7sTkYb2NvH6cJmA8uZdF1iOxE5yKwLQ'
+export const EMAIL_CONVIDADA = 'bia@escritorio.adv.br'
 
 /**
  * A API simulada faz o CSRF como o Spring: o GET da sessão grava o cookie XSRF-TOKEN se não houver
@@ -63,7 +98,34 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
     arquivos: [],
     inesperadas: [],
     semToken: [],
+    papel: 'ADMIN',
+    usuarios: [
+      { id: 'u-ana', email: EMAIL, papel: 'ADMIN', ativo: true, criadoEm: '2026-10-01T12:00:00Z' },
+      { id: 'u-caio', email: 'caio@escritorio.adv.br', papel: 'MEMBRO', ativo: true, criadoEm: '2026-10-20T12:00:00Z' },
+    ],
+    convites: [
+      {
+        id: 'c-davi',
+        email: 'davi@escritorio.adv.br',
+        papel: 'MEMBRO',
+        criadoEm: '2026-11-01T12:00:00Z',
+        expiraEm: '2026-11-08T12:00:00Z',
+        convidadoPor: 'u-caio',
+      },
+    ],
+    conviteValido: { token: TOKEN_CONVITE, email: EMAIL_CONVIDADA },
+    aceites: [],
   }
+  let convitesEnviados = 0
+  let emailLogado = EMAIL
+  const problema = (route: Route, status: number, detail: string) =>
+    route.fulfill({ status, contentType: 'application/problem+json', json: { status, detail } })
+  const conviteInvalido = (route: Route) =>
+    problema(
+      route,
+      404,
+      'Este convite não vale mais: ele venceu, já foi usado ou foi trocado por outro. Peça um novo ao admin do escritório.',
+    )
   let emitidos = 0
   const responder = (route: Route, arquivo: string, status = 200) =>
     route.fulfill({
@@ -97,7 +159,8 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
         return route.fulfill({ status: 403, body: '' })
       }
     }
-    if (!chave.endsWith(' /api/sessao') && (!api.logado || api.expirar)) {
+    const aberta = chave.endsWith(' /api/sessao') || chave === 'POST /api/convites/consulta' || chave === 'POST /api/convites/aceite'
+    if (!aberta && (!api.logado || api.expirar)) {
       api.expirar = false
       api.logado = false
       return naoAutenticado(route)
@@ -106,9 +169,17 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
       case 'GET /api/sessao':
         if (api.falhaSessao) return route.fulfill({ status: api.falhaSessao, body: '' })
         if (!(await tokenNoCookie())) await gravarToken(url.origin)
-        return api.logado ? route.fulfill({ json: { email: EMAIL } }) : naoAutenticado(route)
+        return api.logado ? route.fulfill({ json: { email: emailLogado, papel: api.papel } }) : naoAutenticado(route)
       case 'POST /api/sessao': {
         const { email, senha } = pedido.postDataJSON()
+        // quem aceitou o convite entra com a senha que escolheu, como membro
+        if (email === EMAIL_CONVIDADA && api.aceites.some((a) => a.senha === senha)) {
+          api.logado = true
+          api.papel = 'MEMBRO'
+          emailLogado = EMAIL_CONVIDADA
+          await gravarToken(url.origin)
+          return route.fulfill({ json: { email: emailLogado, papel: api.papel } })
+        }
         if (api.bloquearLogin) {
           return route.fulfill({
             status: 429,
@@ -125,8 +196,9 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
           })
         }
         api.logado = true
+        emailLogado = EMAIL
         await gravarToken(url.origin)
-        return route.fulfill({ json: { email: EMAIL } })
+        return route.fulfill({ json: { email: EMAIL, papel: api.papel } })
       }
       case 'DELETE /api/sessao':
         if (api.falhaSair) return route.fulfill({ status: api.falhaSair, body: '' })
@@ -171,6 +243,65 @@ async function simularApi(page: Page): Promise<ApiSimulada> {
           contentType: 'application/problem+json',
           json: { status: 404, detail: 'Cálculo salvo não encontrado.' },
         })
+      case 'POST /api/convites/consulta': {
+        const { token } = pedido.postDataJSON()
+        const valido = api.conviteValido
+        if (!valido || token !== valido.token) return conviteInvalido(route)
+        return route.fulfill({ json: { email: valido.email, escritorio: 'Silva Advogados' } })
+      }
+      case 'POST /api/convites/aceite': {
+        const { token, senha } = pedido.postDataJSON()
+        if (token !== api.conviteValido?.token) return conviteInvalido(route)
+        api.aceites.push({ token, senha })
+        api.conviteValido = null
+        return route.fulfill({ status: 204, body: '' })
+      }
+    }
+    // A gestão é do admin: o membro recebe o 403 sem texto, como do Spring Security.
+    if (/^\w+ \/api\/(usuarios|convites)/.test(chave) && api.papel !== 'ADMIN') {
+      return route.fulfill({ status: 403, body: '' })
+    }
+    const idDaRota = url.pathname.split('/').pop() ?? ''
+    const comId = (recurso: string) => url.pathname.startsWith(`/api/${recurso}/`) && idDaRota !== ''
+    if (chave === 'GET /api/usuarios') return route.fulfill({ json: api.usuarios })
+    if (chave === 'GET /api/convites') {
+      return route.fulfill({ json: api.convites.map(semQuemConvidou) })
+    }
+    if (pedido.method() === 'DELETE' && comId('convites')) {
+      api.convites = api.convites.filter((c) => c.id !== idDaRota)
+      return route.fulfill({ status: 204, body: '' })
+    }
+    if (pedido.method() === 'PATCH' && comId('usuarios')) {
+      const usuario = api.usuarios.find((u) => u.id === idDaRota)
+      if (usuario?.email === emailLogado) {
+        return problema(route, 409, 'Você não pode mudar o seu próprio papel nem se desativar. Peça a outro admin do escritório.')
+      }
+      if (usuario) {
+        const eraAdmin = usuario.papel === 'ADMIN' && usuario.ativo
+        Object.assign(usuario, pedido.postDataJSON())
+        if (eraAdmin && (usuario.papel !== 'ADMIN' || !usuario.ativo)) {
+          api.convites = api.convites.filter((c) => c.convidadoPor !== usuario.id)
+        }
+        return route.fulfill({ json: usuario })
+      }
+    }
+    switch (chave) {
+      case 'POST /api/convites': {
+        const { email, papel } = pedido.postDataJSON()
+        if (api.usuarios.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
+          return problema(route, 409, 'Este e-mail já tem conta no Debeatur.')
+        }
+        const novo: ConviteSimulado = {
+          id: `c-novo-${++convitesEnviados}`,
+          email,
+          papel,
+          criadoEm: HOJE.toISOString(),
+          expiraEm: new Date(HOJE.getTime() + 7 * 24 * 3600 * 1000).toISOString(),
+          convidadoPor: api.usuarios.find((u) => u.email === emailLogado)?.id ?? '',
+        }
+        api.convites = [novo, ...api.convites.filter((c) => c.email.toLowerCase() !== email.toLowerCase())]
+        return route.fulfill({ status: 201, json: semQuemConvidou(novo) })
+      }
       default:
         api.inesperadas.push(chave)
         return route.fulfill({ status: 501, json: { detail: `Sem simulação para ${chave}` } })

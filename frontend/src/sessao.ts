@@ -1,7 +1,10 @@
 import { createContext, useContext } from 'react'
+import type { Papel } from './api'
 
 export interface SessaoAtual {
   email: string
+  /** O admin vê o botão Usuários; a API confere o papel de novo a cada pedido. */
+  papel: Papel
   /**
    * Conta os logins desta página: muda quando a pessoa entra de novo depois de a sessão expirar,
    * para o que falhou com a sessão vencida (a lista dos cálculos salvos) buscar de novo.

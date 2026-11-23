@@ -74,6 +74,7 @@ export function Acesso({ children }: { children: ReactNode }) {
     case 'logado': {
       const atual: SessaoAtual = {
         email: estado.sessao.email,
+        papel: estado.sessao.papel,
         geracao: estado.geracao,
         sair: async () => {
           try {

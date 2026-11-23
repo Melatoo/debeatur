@@ -25,6 +25,7 @@ import { estaVazia, fimDoMesAnterior, paraPedido, paraProcesso, parcelaVazia, ra
 import { atualizarRascunho, paraRascunho, regimeSalvo, tituloPadrao, type RegimeSalvo } from './calculoSalvo'
 import { ListaCalculosSalvos, SalvarCalculo, type AcaoSalvo } from './CalculosSalvos'
 import { useSessao } from './sessao'
+import { JanelaUsuarios } from './Usuarios'
 import {
   ESPERA_RASCUNHO_MS,
   apagarRascunho,
@@ -92,6 +93,7 @@ function App() {
   const sessao = useSessao()
   const [saindo, setSaindo] = useState(false)
   const [erroSair, setErroSair] = useState<string | null>(null)
+  const [usuariosAberta, setUsuariosAberta] = useState(false)
 
   /** Sem resposta do servidor, a sessão continua e o erro fica escrito no topo. */
   async function sairDaSessao() {
@@ -782,6 +784,11 @@ function App() {
             <button type="button" className="secundario" onClick={() => setListaAberta(true)}>
               Cálculos salvos
             </button>
+            {sessao?.papel === 'ADMIN' && (
+              <button type="button" className="secundario" onClick={() => setUsuariosAberta(true)}>
+                Usuários
+              </button>
+            )}
             {sessao && (
               <button
                 type="button"
@@ -1177,6 +1184,7 @@ function App() {
         )}
       </div>
 
+      {sessao?.papel === 'ADMIN' && <JanelaUsuarios aberta={usuariosAberta} aoFechar={() => setUsuariosAberta(false)} />}
       <ListaCalculosSalvos
         aberta={listaAberta}
         aoFechar={() => setListaAberta(false)}
