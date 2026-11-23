@@ -48,7 +48,7 @@ public class CalculosSalvos {
         DemonstrativoResponse demonstrativo = calculos.calcular(request.calculo(), gravacao);
         CalculoRequest pedido = request.calculo().comRegime(demonstrativo.regime());
         RepositorioCalculos.Resumo resumo = new RepositorioCalculos.Resumo(UUID.randomUUID(), titulo(request),
-                numeroDoProcesso(pedido), pedido.dataBase(), demonstrativo.regime().nome(), demonstrativo.total(), agora());
+                numeroDoProcesso(pedido), pedido.dataBase(), demonstrativo.regime().nome(), demonstrativo.total(), agora(), autor.email());
         SnapshotSeries snapshot = gravacao.snapshot();
         repositorio.inserir(autor, resumo, json.writeValueAsString(pedido), snapshot);
         // O mesmo demonstrativo que a reabertura dará: os números e os valores das séries são os de

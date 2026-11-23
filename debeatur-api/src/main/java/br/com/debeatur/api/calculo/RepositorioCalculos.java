@@ -28,9 +28,12 @@ import java.util.UUID;
 @Repository
 class RepositorioCalculos {
 
-    /** @param processo o número do processo no pedido, ou nulo; não tem coluna própria, sai do pedido */
+    /**
+     * @param processo o número do processo no pedido, ou nulo; não tem coluna própria, sai do pedido
+     * @param autor    o e-mail de quem salvou, ou nulo no cálculo salvo antes de o escritório ter usuário
+     */
     record Resumo(UUID id, String titulo, String processo, LocalDate dataBase, String regime, BigDecimal total,
-                  Instant criadoEm) {
+                  Instant criadoEm, String autor) {
     }
 
     /** @param pedidoJson o {@link CalculoRequest} em JSON, como foi gravado */
@@ -59,11 +62,14 @@ class RepositorioCalculos {
         }
     }
 
+    /** O e-mail de quem salvou, por subconsulta, para as colunas do {@link Alcance} não ficarem ambíguas. */
+    private static final String AUTOR = "(SELECT u.email FROM usuario u WHERE u.id = calculo.autor_id) AS autor";
+
     private static final String SELECT_RESUMO = """
             SELECT id, titulo, NULLIF(btrim(pedido -> 'processo' ->> 'numero'), '') AS processo, data_base, regime,
-                   total, criado_em
+                   total, criado_em, %s
             FROM calculo
-            """;
+            """.formatted(AUTOR);
 
     private final JdbcClient jdbc;
     /** O {@link JdbcClient} não grava em lote. */
@@ -103,8 +109,8 @@ class RepositorioCalculos {
         return alcance.aplicar(jdbc.sql("""
                         SELECT id, titulo, NULLIF(btrim(pedido -> 'processo' ->> 'numero'), '') AS processo,
                                data_base, regime, total,
-                               criado_em, pedido::text AS pedido
-                        FROM calculo WHERE id = :id AND\s""" + alcance.condicao()))
+                               criado_em, %s, pedido::text AS pedido
+                        FROM calculo WHERE id = :id AND\s""".formatted(AUTOR) + alcance.condicao()))
                 .param("id", id)
                 .query((rs, linha) -> Map.entry(resumo(rs, linha), rs.getString("pedido")))
                 .optional()
@@ -148,6 +154,6 @@ class RepositorioCalculos {
     private static Resumo resumo(ResultSet rs, int linha) throws SQLException {
         return new Resumo(rs.getObject("id", UUID.class), rs.getString("titulo"), rs.getString("processo"),
                 rs.getObject("data_base", LocalDate.class), rs.getString("regime"), rs.getBigDecimal("total"),
-                rs.getObject("criado_em", OffsetDateTime.class).toInstant());
+                rs.getObject("criado_em", OffsetDateTime.class).toInstant(), rs.getString("autor"));
     }
 }
