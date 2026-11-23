@@ -40,34 +40,37 @@ public class CalculoSalvoController {
     @PostMapping
     ResponseEntity<CalculoSalvoDtos.CalculoSalvo> salvar(@AuthenticationPrincipal UsuarioAutenticado usuario,
                                                          @Valid @RequestBody CalculoSalvoDtos.SalvarRequest request) {
-        CalculoSalvoDtos.CalculoSalvo salvo = calculos.salvar(usuario.escritorio(), request);
+        CalculoSalvoDtos.CalculoSalvo salvo = calculos.salvar(usuario, request);
         return ResponseEntity.created(URI.create("/api/calculos/salvos/" + salvo.id())).body(salvo);
     }
 
-    /** Os cálculos do escritório, do mais recente para o mais antigo. */
+    /**
+     * Do mais recente para o mais antigo: para o admin, os do escritório; para o membro, os que
+     * ele salvou.
+     */
     @GetMapping
     List<CalculoSalvoDtos.Resumo> listar(@AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return calculos.listar(usuario.escritorio());
+        return calculos.listar(usuario);
     }
 
     /** O pedido salvo e o demonstrativo refeito com o snapshot das séries. */
     @GetMapping("/{id}")
     CalculoSalvoDtos.CalculoSalvo reabrir(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
-        return calculos.reabrir(usuario.escritorio(), id);
+        return calculos.reabrir(usuario, id);
     }
 
     /** Troca o título; os números e o snapshot do cálculo não mudam. */
     @PatchMapping("/{id}")
     CalculoSalvoDtos.Resumo renomear(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id,
                                      @Valid @RequestBody CalculoSalvoDtos.RenomearRequest request) {
-        return calculos.renomear(usuario.escritorio(), id, request.titulo());
+        return calculos.renomear(usuario, id, request.titulo());
     }
 
     /** Exclui o cálculo e o snapshot das séries dele, sem volta. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void excluir(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
-        calculos.excluir(usuario.escritorio(), id);
+        calculos.excluir(usuario, id);
     }
 
     /**
@@ -76,7 +79,7 @@ public class CalculoSalvoController {
      */
     @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     ResponseEntity<byte[]> pdf(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
-        CalculoSalvoDtos.CalculoSalvo salvo = calculos.reabrir(usuario.escritorio(), id);
+        CalculoSalvoDtos.CalculoSalvo salvo = calculos.reabrir(usuario, id);
         byte[] pdf = DemonstrativoPdf.gerarSalvo(salvo.calculo(), salvo.demonstrativo(), emBrasilia(relogio.instant()),
                 emBrasilia(salvo.criadoEm()));
         return CalculoController.anexo(salvo.calculo(), pdf);
@@ -85,7 +88,7 @@ public class CalculoSalvoController {
     /** O demonstrativo do cálculo salvo em planilha, refeito com o snapshot, como o {@link #pdf}. */
     @GetMapping(value = "/{id}/xlsx", produces = DemonstrativoXlsx.TIPO)
     ResponseEntity<byte[]> xlsx(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
-        CalculoSalvoDtos.CalculoSalvo salvo = calculos.reabrir(usuario.escritorio(), id);
+        CalculoSalvoDtos.CalculoSalvo salvo = calculos.reabrir(usuario, id);
         byte[] xlsx = DemonstrativoXlsx.gerarSalvo(salvo.calculo(), salvo.demonstrativo(), emBrasilia(relogio.instant()),
                 emBrasilia(salvo.criadoEm()));
         return CalculoController.anexoXlsx(salvo.calculo(), xlsx);

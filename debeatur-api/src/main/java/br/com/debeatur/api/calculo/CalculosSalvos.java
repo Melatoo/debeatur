@@ -1,5 +1,6 @@
 package br.com.debeatur.api.calculo;
 
+import br.com.debeatur.api.acesso.UsuarioAutenticado;
 import br.com.debeatur.api.serie.FonteSeries;
 import br.com.debeatur.api.serie.SnapshotSeries;
 import org.springframework.stereotype.Service;
@@ -17,8 +18,9 @@ import java.util.UUID;
  * usou; reabrir refaz o demonstrativo com esse snapshot, e não com o cache, para que ele saia
  * igual mesmo depois de o BCB revisar uma série.
  *
- * <p>Todo cálculo pertence a um escritório, o do usuário logado, e um escritório não enxerga os
- * cálculos de outro: o cálculo de outro escritório dá o mesmo 404 do inexistente.
+ * <p>Todo cálculo pertence a um escritório, o do usuário que o salvou, e um escritório não
+ * enxerga os cálculos de outro. Dentro do escritório, o admin enxerga todos e o membro só os que
+ * ele mesmo salvou (#5). O cálculo que o usuário não enxerga dá o mesmo 404 do inexistente.
  */
 @Service
 public class CalculosSalvos {
@@ -41,14 +43,14 @@ public class CalculosSalvos {
     }
 
     /** Calcula com o cache das séries e salva o pedido com o snapshot do que foi usado. */
-    CalculoSalvoDtos.CalculoSalvo salvar(UUID escritorio, CalculoSalvoDtos.SalvarRequest request) {
+    CalculoSalvoDtos.CalculoSalvo salvar(UsuarioAutenticado autor, CalculoSalvoDtos.SalvarRequest request) {
         SnapshotSeries.Gravacao gravacao = SnapshotSeries.gravando(series);
         DemonstrativoResponse demonstrativo = calculos.calcular(request.calculo(), gravacao);
         CalculoRequest pedido = request.calculo().comRegime(demonstrativo.regime());
         RepositorioCalculos.Resumo resumo = new RepositorioCalculos.Resumo(UUID.randomUUID(), titulo(request),
                 numeroDoProcesso(pedido), pedido.dataBase(), demonstrativo.regime().nome(), demonstrativo.total(), agora());
         SnapshotSeries snapshot = gravacao.snapshot();
-        repositorio.inserir(escritorio, resumo, json.writeValueAsString(pedido), snapshot);
+        repositorio.inserir(autor, resumo, json.writeValueAsString(pedido), snapshot);
         // O mesmo demonstrativo que a reabertura dará: os números e os valores das séries são os de
         // agora, e as séries passam a dizer que são as guardadas com o cálculo.
         DemonstrativoResponse guardado = demonstrativo.comSeries(DemonstrativoResponse.SerieUsada.de(snapshot,
@@ -56,13 +58,13 @@ public class CalculosSalvos {
         return new CalculoSalvoDtos.CalculoSalvo(resumo.id(), resumo.titulo(), resumo.criadoEm(), pedido, guardado);
     }
 
-    List<CalculoSalvoDtos.Resumo> listar(UUID escritorio) {
-        return repositorio.listar(escritorio).stream().map(CalculoSalvoDtos.Resumo::de).toList();
+    List<CalculoSalvoDtos.Resumo> listar(UsuarioAutenticado usuario) {
+        return repositorio.listar(RepositorioCalculos.Alcance.de(usuario)).stream().map(CalculoSalvoDtos.Resumo::de).toList();
     }
 
-    /** @throws CalculoNaoEncontradoException se o cálculo não existir no escritório */
-    CalculoSalvoDtos.CalculoSalvo reabrir(UUID escritorio, UUID id) {
-        RepositorioCalculos.Salvo salvo = repositorio.buscar(escritorio, id)
+    /** @throws CalculoNaoEncontradoException se o cálculo não existir ou o usuário não o enxergar */
+    CalculoSalvoDtos.CalculoSalvo reabrir(UsuarioAutenticado usuario, UUID id) {
+        RepositorioCalculos.Salvo salvo = repositorio.buscar(RepositorioCalculos.Alcance.de(usuario), id)
                 .orElseThrow(() -> new CalculoNaoEncontradoException(id));
         CalculoRequest pedido = json.readValue(salvo.pedidoJson(), CalculoRequest.class);
         DemonstrativoResponse demonstrativo = calculos.calcular(pedido, salvo.snapshot());
@@ -70,16 +72,16 @@ public class CalculosSalvos {
         return new CalculoSalvoDtos.CalculoSalvo(resumo.id(), resumo.titulo(), resumo.criadoEm(), pedido, demonstrativo);
     }
 
-    /** @throws CalculoNaoEncontradoException se o cálculo não existir no escritório */
-    CalculoSalvoDtos.Resumo renomear(UUID escritorio, UUID id, String titulo) {
-        return repositorio.renomear(escritorio, id, titulo.strip())
+    /** @throws CalculoNaoEncontradoException se o cálculo não existir ou o usuário não o enxergar */
+    CalculoSalvoDtos.Resumo renomear(UsuarioAutenticado usuario, UUID id, String titulo) {
+        return repositorio.renomear(RepositorioCalculos.Alcance.de(usuario), id, titulo.strip())
                 .map(CalculoSalvoDtos.Resumo::de)
                 .orElseThrow(() -> new CalculoNaoEncontradoException(id));
     }
 
-    /** @throws CalculoNaoEncontradoException se o cálculo não existir no escritório */
-    void excluir(UUID escritorio, UUID id) {
-        if (!repositorio.excluir(escritorio, id)) {
+    /** @throws CalculoNaoEncontradoException se o cálculo não existir ou o usuário não o enxergar */
+    void excluir(UsuarioAutenticado usuario, UUID id) {
+        if (!repositorio.excluir(RepositorioCalculos.Alcance.de(usuario), id)) {
             throw new CalculoNaoEncontradoException(id);
         }
     }

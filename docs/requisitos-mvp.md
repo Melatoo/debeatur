@@ -12,6 +12,9 @@ execução de alimentos em planilha, como a planilha modelo da Defensoria Públi
 - Um escritório é um tenant, com um único usuário no MVP. O modelo de dados já nasce com
   `escritorio_id` (é barato agora e caro de adicionar depois).
 - Não há perfis ou permissões no MVP.
+- Depois do MVP (#5), o escritório passa a ter vários usuários, que entram por convite por
+  e-mail, cada um com um perfil: o admin gerencia os usuários e vê todos os cálculos do
+  escritório; o membro vê só os cálculos que ele mesmo salvou.
 
 ## Recorte jurídico
 
@@ -90,7 +93,7 @@ O MVP está pronto para uso em processo real quando:
 - Fazenda Pública (EC 113/2021, Tema 810 do STF, RPV/precatório)
 - Trabalhista (ADC 58)
 - Tabelas e regimes pré-definidos de outros tribunais
-- Múltiplos usuários por escritório e controle de permissões
+- Múltiplos usuários por escritório e controle de permissões (feitos depois do MVP, na #5)
 
 O cálculo cível em quantia certa, recorte original do MVP, continua no motor e na API, mas não
 é o foco do produto. Os itens fora do escopo estão na issue #5.

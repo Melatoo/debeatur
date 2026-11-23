@@ -41,10 +41,11 @@ class SessaoController {
     record Credenciais(@NotBlank @Size(max = 254) String email, @NotBlank String senha) {
     }
 
-    record Sessao(String email) {
+    /** @param papel para a tela saber se mostra a gestão dos usuários */
+    record Sessao(String email, Papel papel) {
 
         static Sessao de(UsuarioAutenticado usuario) {
-            return new Sessao(usuario.email());
+            return new Sessao(usuario.email(), usuario.papel());
         }
     }
 
