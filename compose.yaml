@@ -31,6 +31,15 @@ services:
       # usuário do escritório padrão, criado na primeira subida (ver o README)
       DEBEATUR_USUARIO_EMAIL: ${DEBEATUR_USUARIO_EMAIL:-}
       DEBEATUR_USUARIO_SENHA: ${DEBEATUR_USUARIO_SENHA:-}
+      # e-mail dos convites (ver o README); sem o SMTP, só o convite deixa de funcionar
+      DEBEATUR_ENDERECO: ${DEBEATUR_ENDERECO:-http://localhost:3000}
+      DEBEATUR_EMAIL_REMETENTE: ${DEBEATUR_EMAIL_REMETENTE:-}
+      DEBEATUR_SMTP_HOST: ${DEBEATUR_SMTP_HOST:-}
+      DEBEATUR_SMTP_PORTA: ${DEBEATUR_SMTP_PORTA:-587}
+      DEBEATUR_SMTP_USUARIO: ${DEBEATUR_SMTP_USUARIO:-}
+      DEBEATUR_SMTP_SENHA: ${DEBEATUR_SMTP_SENHA:-}
+      DEBEATUR_SMTP_AUTENTICA: ${DEBEATUR_SMTP_AUTENTICA:-true}
+      DEBEATUR_SMTP_STARTTLS: ${DEBEATUR_SMTP_STARTTLS:-true}
     depends_on:
       db:
         condition: service_healthy
@@ -44,6 +53,16 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+  # Caixa de e-mail falsa para testar os convites na máquina, só com --profile email-local: o
+  # SMTP fica em email:1025 para a API e a caixa em http://localhost:8025.
+  email:
+    image: axllent/mailpit:v1.27.11
+    profiles: [email-local]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
 
 volumes:
   dados:

@@ -31,14 +31,14 @@ class UsuarioInicialTest {
 
         subir("ana@escritorio.adv.br", "outra senha qualquer");
 
-        verify(usuarios, never()).inserir(any(), anyString(), anyString());
+        verify(usuarios, never()).inserir(any(), anyString(), any(), anyString());
     }
 
     @Test
     void semAsVariaveisSobeSemCriarNinguem() {
         assertThatCode(() -> subir("", "")).doesNotThrowAnyException();
 
-        verify(usuarios, never()).inserir(any(), anyString(), anyString());
+        verify(usuarios, never()).inserir(any(), anyString(), any(), anyString());
     }
 
     @Test
@@ -52,13 +52,13 @@ class UsuarioInicialTest {
     void recusaSenhaAlemDos72BytesDoBcrypt() {
         assertThatIllegalStateException().isThrownBy(() -> subir("ana@escritorio.adv.br", "ç".repeat(40)))
                 .withMessageContaining("72 bytes");
-        verify(usuarios, never()).inserir(any(), anyString(), anyString());
+        verify(usuarios, never()).inserir(any(), anyString(), any(), anyString());
     }
 
     @Test
     void aceitaSenhaDeExatos72Bytes() {
         subir("ana@escritorio.adv.br", "a".repeat(72));
 
-        verify(usuarios).inserir(eq(UsuarioInicial.ESCRITORIO_PADRAO), eq("ana@escritorio.adv.br"), anyString());
+        verify(usuarios).inserir(eq(UsuarioInicial.ESCRITORIO_PADRAO), eq("ana@escritorio.adv.br"), eq(Papel.ADMIN), anyString());
     }
 }

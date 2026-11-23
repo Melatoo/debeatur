@@ -7,26 +7,21 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
- * Cria, na subida, o usuário do escritório padrão a partir de {@code DEBEATUR_USUARIO_EMAIL} e
+ * Cria, na subida, o admin do escritório padrão a partir de {@code DEBEATUR_USUARIO_EMAIL} e
  * {@code DEBEATUR_USUARIO_SENHA}. O escritório padrão é o da migração V2, dono dos cálculos
- * salvos antes do login. Se o escritório já tem usuário, nada muda: a variável não redefine a
- * senha de quem já existe.
+ * salvos antes do login, e o admin fica como autor dos que estavam sem autor. Se o escritório já
+ * tem usuário, nada muda: a variável não redefine a senha de quem já existe. Os outros usuários
+ * entram por convite ({@link Convites}).
  */
 @Component
 class UsuarioInicial implements ApplicationRunner {
 
     static final UUID ESCRITORIO_PADRAO = UUID.fromString("00000000-0000-0000-0000-000000000001");
-
-    /** O mínimo recomendado pelo NIST SP 800-63B para senha escolhida pelo usuário. */
-    static final int TAMANHO_MINIMO_DA_SENHA = 8;
-
-    /** O bcrypt só considera 72 bytes, e o encoder do Spring recusa senha maior. */
-    static final int BYTES_MAXIMOS_DA_SENHA = 72;
 
     private static final Logger LOG = LoggerFactory.getLogger(UsuarioInicial.class);
 
@@ -45,6 +40,7 @@ class UsuarioInicial implements ApplicationRunner {
     }
 
     @Override
+    @Transactional
     public void run(ApplicationArguments argumentos) {
         if (usuarios.escritorioTemUsuario(ESCRITORIO_PADRAO)) {
             return;
@@ -53,15 +49,11 @@ class UsuarioInicial implements ApplicationRunner {
             LOG.warn("Nenhum usuário cadastrado: defina DEBEATUR_USUARIO_EMAIL e DEBEATUR_USUARIO_SENHA para entrar.");
             return;
         }
-        if (senha.length() < TAMANHO_MINIMO_DA_SENHA) {
-            throw new IllegalStateException(
-                    "DEBEATUR_USUARIO_SENHA precisa de ao menos " + TAMANHO_MINIMO_DA_SENHA + " caracteres.");
-        }
-        if (senha.getBytes(StandardCharsets.UTF_8).length > BYTES_MAXIMOS_DA_SENHA) {
-            throw new IllegalStateException("DEBEATUR_USUARIO_SENHA pode ter até " + BYTES_MAXIMOS_DA_SENHA
-                    + " bytes em UTF-8, o limite do bcrypt (letra acentuada conta 2).");
-        }
-        usuarios.inserir(ESCRITORIO_PADRAO, email, senhas.encode(senha));
-        LOG.info("Usuário {} criado para o escritório padrão.", email.strip());
+        RegrasDaSenha.problema(senha).ifPresent(problema -> {
+            throw new IllegalStateException("DEBEATUR_USUARIO_SENHA: " + problema);
+        });
+        UUID admin = usuarios.inserir(ESCRITORIO_PADRAO, email, Papel.ADMIN, senhas.encode(senha));
+        usuarios.adotarCalculosSemAutor(ESCRITORIO_PADRAO, admin);
+        LOG.info("Admin {} criado para o escritório padrão.", email.strip());
     }
 }

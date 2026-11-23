@@ -5,6 +5,26 @@ spring:
     url: ${DEBEATUR_DB_URL:jdbc:postgresql://localhost:5432/debeatur}
     username: ${DEBEATUR_DB_USUARIO:debeatur}
     password: ${DEBEATUR_DB_SENHA:debeatur}
+  # o SMTP dos convites; sem o servidor, convidar responde 503 e o resto da API funciona
+  mail:
+    host: ${DEBEATUR_SMTP_HOST:}
+    port: ${DEBEATUR_SMTP_PORTA:587}
+    username: ${DEBEATUR_SMTP_USUARIO:}
+    password: ${DEBEATUR_SMTP_SENHA:}
+    properties:
+      mail.smtp.auth: ${DEBEATUR_SMTP_AUTENTICA:true}
+      mail.smtp.starttls.enable: ${DEBEATUR_SMTP_STARTTLS:true}
+      mail.smtp.starttls.required: ${DEBEATUR_SMTP_STARTTLS:true}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+
+management:
+  health:
+    # o SMTP fora do ar não derruba a API: só o convite deixa de sair, e o healthcheck do
+    # compose seguraria o frontend
+    mail:
+      enabled: false
 
 server:
   port: 8080
@@ -20,7 +40,12 @@ server:
         same-site: lax
 
 debeatur:
-  # usuário do escritório padrão, criado na subida se o escritório ainda não tem um
+  # endereço do Debeatur como o usuário o abre, para o link do convite
+  endereco: ${DEBEATUR_ENDERECO:http://localhost:3000}
+  convite:
+    remetente: ${DEBEATUR_EMAIL_REMETENTE:}
+    validade: P7D
+  # admin do escritório padrão, criado na subida se o escritório ainda não tem usuário
   usuario-inicial:
     email: ${DEBEATUR_USUARIO_EMAIL:}
     senha: ${DEBEATUR_USUARIO_SENHA:}

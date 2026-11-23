@@ -2,6 +2,7 @@ package br.com.debeatur.api.calculo;
 
 import br.com.debeatur.api.PostgresDeTeste;
 import br.com.debeatur.api.acesso.ComUsuarioLogado;
+import br.com.debeatur.api.acesso.Papel;
 import br.com.debeatur.api.serie.CacheSeries;
 import br.com.debeatur.core.indice.Indice;
 import br.com.debeatur.indices.SgsClient;
@@ -22,6 +23,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import tools.jackson.databind.json.JsonMapper;
@@ -91,6 +93,7 @@ class CalculoSalvoTest {
 
     @BeforeEach
     void sgsSimulado() {
+        ComUsuarioLogado.cadastrar(jdbc, ComUsuarioLogado.ESCRITORIO_PADRAO);
         publicar(Indice.INPC, "0.37", "0.37", "0.46", "0.25", "0.26", "-0.14", "0.48");
         publicar(Indice.IPCA, "0.16", "0.38", "0.46", "0.21", "0.38", "-0.02", "0.44");
         publicado.get(Indice.TAXA_LEGAL).clear();
@@ -408,6 +411,7 @@ class CalculoSalvoTest {
     void planilhaDeOutroEscritorioDevolve404() throws Exception {
         UUID outro = UUID.randomUUID();
         jdbc.sql("INSERT INTO escritorio (id, nome) VALUES (?, 'Outro escritório')").param(outro).update();
+        ComUsuarioLogado.cadastrar(jdbc, outro);
         String id = JsonPath.read(salvar("Do escritório padrão", PEDIDO), "$.id");
 
         assertThat(mvc.get().uri("/api/calculos/salvos/" + id + "/xlsx").with(ComUsuarioLogado.logadoNo(outro))
@@ -429,6 +433,7 @@ class CalculoSalvoTest {
     void umEscritorioNaoEnxergaOsCalculosDeOutro() throws Exception {
         UUID outro = UUID.randomUUID();
         jdbc.sql("INSERT INTO escritorio (id, nome) VALUES (?, 'Outro escritório')").param(outro).update();
+        ComUsuarioLogado.cadastrar(jdbc, outro);
         String id = JsonPath.read(salvar("Do escritório padrão", PEDIDO), "$.id");
 
         assertThat(mvc.get().uri("/api/calculos/salvos").with(ComUsuarioLogado.logadoNo(outro)))
@@ -509,6 +514,7 @@ class CalculoSalvoTest {
     void umEscritorioNaoRenomeiaNemExcluiOsCalculosDeOutro() throws Exception {
         UUID outro = UUID.randomUUID();
         jdbc.sql("INSERT INTO escritorio (id, nome) VALUES (?, 'Outro escritório')").param(outro).update();
+        ComUsuarioLogado.cadastrar(jdbc, outro);
         String id = JsonPath.read(salvar("Do escritório padrão", PEDIDO), "$.id");
 
         assertThat(mvc.patch().uri("/api/calculos/salvos/" + id).with(ComUsuarioLogado.logadoNo(outro))
@@ -517,6 +523,47 @@ class CalculoSalvoTest {
                 .hasStatus(404);
         assertThat((String) JsonPath.read(obter("/api/calculos/salvos/" + id), "$.titulo"))
                 .isEqualTo("Do escritório padrão");
+    }
+
+    @Test
+    void oMembroSoEnxergaOsCalculosQueSalvouEOAdminEnxergaTodos() throws Exception {
+        UUID escritorio = ComUsuarioLogado.ESCRITORIO_PADRAO;
+        UUID membro = ComUsuarioLogado.cadastrar(jdbc, escritorio, "membro@debeatur.test", Papel.MEMBRO);
+        UUID colega = ComUsuarioLogado.cadastrar(jdbc, escritorio, "colega@debeatur.test", Papel.MEMBRO);
+        RequestPostProcessor comoMembro = ComUsuarioLogado.logadoComo(membro, escritorio, Papel.MEMBRO);
+        RequestPostProcessor comoColega = ComUsuarioLogado.logadoComo(colega, escritorio, Papel.MEMBRO);
+        String doAdmin = JsonPath.read(salvar("Do admin", PEDIDO), "$.id");
+        MvcTestResult salvo = mvc.post().uri("/api/calculos/salvos").with(comoMembro)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"titulo\": \"Do membro\", \"calculo\": %s}".formatted(PEDIDO))
+                .exchange();
+        assertThat(salvo).hasStatus(201);
+        String doMembro = JsonPath.read(salvo.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.id");
+
+        assertThat(jdbc.sql("SELECT autor_id FROM calculo WHERE id = ?").param(UUID.fromString(doMembro))
+                .query(UUID.class).single()).isEqualTo(membro);
+        assertThat(mvc.get().uri("/api/calculos/salvos").with(comoMembro)).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$", v -> v.assertThat().asArray().hasSize(1))
+                .hasPathSatisfying("$[0].titulo", v -> v.assertThat().isEqualTo("Do membro"));
+        assertThat(mvc.get().uri("/api/calculos/salvos/" + doMembro).with(comoMembro)).hasStatusOk();
+
+        // o do admin não aparece para o membro, nem para abrir, exportar, renomear ou excluir
+        assertThat(mvc.get().uri("/api/calculos/salvos/" + doAdmin).with(comoMembro)).hasStatus(404);
+        assertThat(mvc.get().uri("/api/calculos/salvos/" + doAdmin + "/pdf").with(comoMembro)
+                .accept(MediaType.APPLICATION_PDF, MediaType.APPLICATION_PROBLEM_JSON)).hasStatus(404);
+        assertThat(mvc.patch().uri("/api/calculos/salvos/" + doAdmin).with(comoMembro)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"titulo\": \"Tomado\"}")).hasStatus(404);
+        assertThat(mvc.delete().uri("/api/calculos/salvos/" + doAdmin).with(comoMembro)).hasStatus(404);
+
+        // nem o de um membro para o colega
+        assertThat(mvc.get().uri("/api/calculos/salvos").with(comoColega)).hasStatusOk().bodyJson().isLenientlyEqualTo("[]");
+        assertThat(mvc.get().uri("/api/calculos/salvos/" + doMembro).with(comoColega)).hasStatus(404);
+
+        // e o admin vê, renomeia e exclui os de todos
+        assertThat(mvc.get().uri("/api/calculos/salvos")).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$", v -> v.assertThat().asArray().hasSize(2));
+        assertThat(mvc.patch().uri("/api/calculos/salvos/" + doMembro).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"titulo\": \"Revisto pelo admin\"}")).hasStatusOk();
+        assertThat(mvc.delete().uri("/api/calculos/salvos/" + doMembro)).hasStatus(204);
     }
 
     @Test

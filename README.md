@@ -54,15 +54,16 @@ npm run dev
 
 ### Login
 
-Toda a API exige login, menos `POST`/`GET /api/sessao` e `/actuator/health`. No MVP cada
-escritório tem um usuário. Na subida, a API cria o usuário do escritório padrão (o dono dos
-cálculos salvos antes do login) a partir de `DEBEATUR_USUARIO_EMAIL` e `DEBEATUR_USUARIO_SENHA`
+Toda a API exige login, menos `POST`/`GET /api/sessao`, a consulta e o aceite de convite e
+`/actuator/health`. Na subida, a API cria o admin do escritório padrão (o dono dos cálculos
+salvos antes do login) a partir de `DEBEATUR_USUARIO_EMAIL` e `DEBEATUR_USUARIO_SENHA`
 (de 8 caracteres a 72 bytes em UTF-8, o limite do bcrypt; letra acentuada conta 2), se o
-escritório ainda não tiver um. Depois disso, as variáveis não mudam a senha de quem já existe.
+escritório ainda não tiver usuário. Depois disso, as variáveis não mudam a senha de quem já
+existe, e os outros usuários entram por convite.
 
 | Endpoint | O que faz |
 |---|---|
-| `GET /api/sessao` | `200` com `{"email"}` se há sessão, `401` se não; sempre grava o cookie `XSRF-TOKEN` |
+| `GET /api/sessao` | `200` com `{"email", "papel"}` se há sessão, `401` se não; sempre grava o cookie `XSRF-TOKEN` |
 | `POST /api/sessao` | `{"email", "senha"}`: entra; `401` com a mesma mensagem para e-mail ou senha errados, `429` com `Retry-After` (segundos) depois de muitas falhas, `503` se a consulta ao usuário falhar |
 | `DELETE /api/sessao` | sai (`204`, com ou sem sessão) e apaga o cookie `XSRF-TOKEN` |
 
@@ -82,6 +83,44 @@ que o nginx acrescenta ao `X-Forwarded-For`. Com um proxy à frente do nginx, el
 acrescentar o IP do cliente a esse cabeçalho e estar numa rede interna (ou em
 `server.tomcat.remoteip.internal-proxies`); senão todos os usuários aparecem com o IP do proxy e
 dividem o mesmo limite.
+
+### Usuários e convites
+
+O escritório tem vários usuários, cada um com um papel: o **admin** convida e gerencia os
+usuários e vê todos os cálculos do escritório; o **membro** calcula e vê só os cálculos que ele
+mesmo salvou. A cada pedido, a API confere se o usuário segue ativo e com o mesmo papel: quem o
+admin desativa perde a sessão na hora, e a troca de papel vale no pedido seguinte.
+
+| Endpoint | Quem | O que faz |
+|---|---|---|
+| `GET /api/usuarios` | admin | os usuários do escritório, ativos e desativados |
+| `PATCH /api/usuarios/{id}` | admin | `{"papel"?, "ativo"?}`: muda o papel ou desativa (`409` para o próprio usuário) |
+| `POST /api/convites` | admin | `{"email", "papel"}`: envia o convite por e-mail (`409` se o e-mail já tem conta, `503` sem SMTP) |
+| `GET /api/convites` | admin | os convites ainda não aceitos, vencidos ou não |
+| `DELETE /api/convites/{id}` | admin | cancela o convite pendente |
+| `POST /api/convites/consulta` | aberto | `{"token"}`: o e-mail e o escritório do convite (`404` se venceu ou já foi usado) |
+| `POST /api/convites/aceite` | aberto | `{"token", "senha"}`: cria o usuário; depois ele entra pelo login |
+
+O convite vale 7 dias e uma vez só, e convidar de novo o mesmo e-mail troca o link. O link é
+`DEBEATUR_ENDERECO/convite#<token>` (padrão `http://localhost:3000`); o banco guarda só o
+SHA-256 do token. O e-mail sai pelo SMTP de `DEBEATUR_SMTP_HOST`, `DEBEATUR_SMTP_PORTA` (587),
+`DEBEATUR_SMTP_USUARIO` e `DEBEATUR_SMTP_SENHA`, com STARTTLS obrigatório
+(`DEBEATUR_SMTP_STARTTLS`) e o remetente `DEBEATUR_EMAIL_REMETENTE`. Sem eles, a API sobe e só
+o convite responde `503`.
+
+Para testar na máquina, o perfil `email-local` do compose sobe o Mailpit, uma caixa de e-mail
+falsa em http://localhost:8025. No `.env`:
+
+```
+DEBEATUR_SMTP_HOST=email
+DEBEATUR_SMTP_PORTA=1025
+DEBEATUR_SMTP_AUTENTICA=false
+DEBEATUR_SMTP_STARTTLS=false
+DEBEATUR_EMAIL_REMETENTE=debeatur@localhost
+```
+
+e `docker compose --profile email-local up -d --build`. Com a API fora do Docker, use
+`DEBEATUR_SMTP_HOST=localhost`.
 
 Exemplo de chamada:
 
@@ -106,7 +145,7 @@ curl -b sessao -X POST http://localhost:8080/api/calculos -H "X-XSRF-TOKEN: $tok
 | Endpoint | O que faz |
 |---|---|
 | `POST /api/calculos/salvos` | `{"titulo": "...", "calculo": <pedido de POST /api/calculos>}`: calcula, salva e devolve `201` com o id |
-| `GET /api/calculos/salvos` | lista os cálculos do escritório logado, do mais recente para o mais antigo |
+| `GET /api/calculos/salvos` | lista os cálculos que o usuário vê (o admin, os do escritório; o membro, os dele), do mais recente para o mais antigo |
 | `GET /api/calculos/salvos/{id}` | devolve o pedido salvo e o demonstrativo refeito com o snapshot |
 
 Cada cálculo salvo guarda o pedido, com o regime usado já resolvido, e o snapshot dos valores
