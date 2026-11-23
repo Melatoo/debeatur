@@ -84,6 +84,8 @@ describe('paraRascunho', () => {
         citacao: null,
         pagamentos: [{ mes: '2024-06', valor: '200.00' }],
         ajuizamento: '2025-03-15',
+        // o salvo de antes da opção foi calculado pela lei, e o formulário reaberto manda isso explícito
+        regraRitos: 'LEI',
       },
       regime: undefined,
     })
@@ -98,6 +100,18 @@ describe('paraRascunho', () => {
     expect(paraPedido(r).baseHonorarios).toBe('DEBITO_COM_MULTA')
     // sem o art. 523, a base não importa e fica fora do pedido
     expect(paraPedido({ ...r, aplicarArt523: false })).not.toHaveProperty('baseHonorarios')
+  })
+
+  it('reabre a regra dos ritos salva, e o salvo sem ela continua pela lei', () => {
+    // o `salvo` é de antes da opção: a API o calculou pela lei, e ele reabre assim
+    expect(paraRascunho(salvo, padrao).ritosPelaLei).toBe(true)
+
+    const pelaDpmg = { ...salvo, pensao: { ...salvo.pensao, regraRitos: 'ULTIMOS_MESES_DO_CALCULO' } } as CalculoRequest
+    const r = paraRascunho(pelaDpmg, padrao)
+    expect(r.ritosPelaLei).toBe(false)
+    expect(paraPedido(r).pensao?.regraRitos).toBe('ULTIMOS_MESES_DO_CALCULO')
+    // sem separar os ritos, a regra não vai no pedido
+    expect(paraPedido({ ...r, separarRitos: false }).pensao).not.toHaveProperty('regraRitos')
   })
 
   it('reabre a pensão em valor fixo com 13º e abatimentos e gera o mesmo pedido', () => {
@@ -138,6 +152,7 @@ describe('paraRascunho', () => {
       pagamentos: [{ mes: '2024-06', valor: '200.00' }],
       abatimentos: [{ data: '2025-10-02', valor: '300.00', origem: 'Bloqueio' }],
       ajuizamento: '2025-03-15',
+      regraRitos: 'LEI',
     })
   })
 

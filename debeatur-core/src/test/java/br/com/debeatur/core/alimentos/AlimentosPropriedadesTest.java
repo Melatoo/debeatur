@@ -1,6 +1,7 @@
 package br.com.debeatur.core.alimentos;
 
 import br.com.debeatur.core.Dinheiro;
+import br.com.debeatur.core.calculo.BaseHonorarios;
 import br.com.debeatur.core.calculo.Demonstrativo;
 import br.com.debeatur.core.calculo.LinhaDemonstrativo;
 import br.com.debeatur.core.calculo.MotorCalculo;
@@ -150,6 +151,34 @@ class AlimentosPropriedadesTest {
                 assertThat(penhoraMaisRecente).as("caso %d: a penhora fica com as mais antigas", n)
                         .isBeforeOrEqualTo(prisaoAnteriorMaisAntiga);
             }
+        });
+    }
+
+    @Test
+    void pelaDpmgAPrisaoFicaComAsTresUltimasDoCalculo() {
+        paraCadaCaso((n, caso) -> {
+            Demonstrativo d = demonstrativo(caso);
+            DemonstrativoPorRito dpmg = DemonstrativoPorRito.separar(d, caso.ajuizamento(),
+                    RegraRitos.ULTIMOS_MESES_DO_CALCULO, caso.aplicarArt523(), caso.abatimentos(), BaseHonorarios.DEBITO);
+            DemonstrativoPorRito lei = DemonstrativoPorRito.separar(d, caso.ajuizamento(), RegraRitos.LEI,
+                    caso.aplicarArt523(), caso.abatimentos(), BaseHonorarios.DEBITO);
+
+            assertThat(dpmg.prisao().linhas()).as("caso %d: três na prisão", n)
+                    .hasSize(Math.min(d.linhas().size(), DemonstrativoPorRito.PARCELAS_ANTERIORES_NA_PRISAO));
+            assertThat(dpmg.prisao().debitoAtualizado().mais(dpmg.penhora().debitoAtualizado()))
+                    .as("caso %d: os ritos somam o débito", n).isEqualTo(d.debitoAtualizado());
+            LocalDate prisaoMaisAntiga = dpmg.prisao().linhas().stream()
+                    .map(l -> l.parcela().inicioCorrecao()).min(LocalDate::compareTo).orElse(null);
+            dpmg.penhora().linhas().forEach(l -> assertThat(l.parcela().inicioCorrecao())
+                    .as("caso %d: a penhora fica com as mais antigas", n).isBeforeOrEqualTo(prisaoMaisAntiga));
+            boolean nadaNoCurso = d.linhas().stream()
+                    .noneMatch(l -> l.parcela().inicioCorrecao().isAfter(caso.ajuizamento()));
+            if (nadaNoCurso) {
+                assertThat(dpmg).as("caso %d: sem parcela no curso, as regras coincidem", n).isEqualTo(lei);
+            }
+            assertThat(dpmg.total()).as("caso %d: a regra só muda o total pelos acréscimos da penhora", n)
+                    .isEqualTo(d.debitoAtualizado().menos(Abatimento.total(caso.abatimentos()))
+                            .mais(dpmg.multaArt523()).mais(dpmg.honorariosArt523()));
         });
     }
 

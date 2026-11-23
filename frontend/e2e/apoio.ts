@@ -194,7 +194,11 @@ export const test = base.extend<{ api: ApiSimulada }>({
 })
 export { expect }
 
-/** Preenche o caso de `pedido.json`: pensão de 30% do salário mínimo, ritos separados e dois pagamentos. */
+/**
+ * Preenche o caso de `pedido.json`: pensão de 30% do salário mínimo, ritos separados pela lei e
+ * dois pagamentos. A resposta gravada (`demonstrativo.json`) é da regra da lei; o padrão da tela,
+ * a da DPMG, tem teste próprio em `ritos.spec.ts`.
+ */
 export async function preencherCaso(page: Page) {
   await page.getByLabel('% do salário mínimo').fill('30')
   await page.getByLabel('Primeira parcela').fill('2024-01')
@@ -213,6 +217,7 @@ export async function preencherCaso(page: Page) {
   await page.getByLabel('Executado').fill('E. F. C.')
   await page.getByLabel('Data-base do cálculo').fill('2025-06-30')
   await page.getByLabel('Ajuizamento da execução').fill('2024-09-15')
+  await page.getByRole('radio', { name: /As três até o ajuizamento/ }).check()
 }
 
 /** Abre a página, preenche o caso e calcula, até o demonstrativo aparecer. */

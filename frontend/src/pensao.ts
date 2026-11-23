@@ -69,7 +69,7 @@ export function erroDosValoresFixos(p: Pick<PensaoEditavel, 'valoresFixos' | 'pr
 }
 
 /** @param separarRitos sem a separação, o ajuizamento não vai para a API */
-export function paraPensao(p: PensaoEditavel, separarRitos: boolean): PensaoRequest {
+export function paraPensao(p: PensaoEditavel, separarRitos: boolean, ritosPelaLei = false): PensaoRequest {
   const comPercentual = p.base !== 'VALOR_FIXO'
   return {
     // Salário mínimo vai sem base, como nos cálculos salvos antes das outras.
@@ -94,6 +94,8 @@ export function paraPensao(p: PensaoEditavel, separarRitos: boolean): PensaoRequ
       })),
     }),
     ajuizamento: separarRitos && p.ajuizamento ? p.ajuizamento : null,
+    // A tela manda sempre a regra ao separar; sem ela, a API seguiria a lei.
+    ...(separarRitos && p.ajuizamento && { regraRitos: ritosPelaLei ? 'LEI' : 'ULTIMOS_MESES_DO_CALCULO' }),
   }
 }
 

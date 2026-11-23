@@ -73,7 +73,7 @@ public record CalculoRequest(
     }
 
     /**
-     * A separação dos ritos conta as três parcelas anteriores ao ajuizamento por linha; com duas
+     * A separação dos ritos conta as três parcelas da prisão por linha, pelas duas regras; com duas
      * linhas no mesmo mês, a prisão cobriria menos de três meses.
      */
     private static void exigirUmaParcelaPorMes(List<Parcela> parcelas) {

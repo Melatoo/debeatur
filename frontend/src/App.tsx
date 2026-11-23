@@ -125,6 +125,7 @@ function App() {
     honorariosSobreAMulta,
     comPensao,
     separarRitos,
+    ritosPelaLei,
     pensao,
     parcelas,
     outrasAbertas,
@@ -360,6 +361,7 @@ function App() {
         comPensao,
         pensao,
         separarRitos,
+        ritosPelaLei,
         regimeProprio,
         nomeRegime,
         regras,
@@ -370,7 +372,7 @@ function App() {
     } catch (e) {
       return { pedido: null, chave: '', falha: e instanceof Error ? e.message : String(e) }
     }
-  }, [dataBase, aplicarArt523, honorariosSobreAMulta, parcelas, comPensao, pensao, separarRitos, regimeProprio, nomeRegime, regras, tema1368, regimeTema1368])
+  }, [dataBase, aplicarArt523, honorariosSobreAMulta, parcelas, comPensao, pensao, separarRitos, ritosPelaLei, regimeProprio, nomeRegime, regras, tema1368, regimeTema1368])
   const chaveAtual = atual.chave
   const chaveCalculada = calculo?.chave ?? null
 
@@ -903,11 +905,39 @@ function App() {
                   <input type="checkbox" checked={separarRitos} onChange={(e) => alterar('separarRitos', e.target.checked)} />
                   Separar os ritos da prisão e da penhora (art. 528 do CPC)
                 </label>
-                <p className="dica recuo">
-                  {separarRitos
-                    ? 'Vão para a prisão as três parcelas vencidas até o ajuizamento e as que vencem depois dele; as demais, para a penhora.'
-                    : 'Sem a separação, todas as parcelas formam um débito só.'}
-                </p>
+                {separarRitos ? (
+                  <div className="opcoes-recuadas" role="radiogroup" aria-labelledby="pergunta-ritos">
+                    <p id="pergunta-ritos" className="dica">
+                      Quais parcelas vão para a prisão? As demais vão para a penhora.
+                    </p>
+                    <label className="checkbox">
+                      <input
+                        type="radio"
+                        name="regraRitos"
+                        checked={!ritosPelaLei}
+                        onChange={() => alterar('ritosPelaLei', false)}
+                      />
+                      As três últimas do cálculo (DPMG)
+                    </label>
+                    <label className="checkbox">
+                      <input
+                        type="radio"
+                        name="regraRitos"
+                        checked={ritosPelaLei}
+                        onChange={() => alterar('ritosPelaLei', true)}
+                      />
+                      As três até o ajuizamento e as que vencem depois dele (art. 528, §7º, do CPC)
+                    </label>
+                    <Dica curta="As duas regras coincidem quando o cálculo termina no ajuizamento.">
+                      A planilha da DPMG põe na prisão os três últimos meses do cálculo. A lei e a Súmula 309 do STJ põem
+                      as três parcelas anteriores ao ajuizamento e todas as que vencem no curso do processo. Num cálculo
+                      atualizado depois do ajuizamento, a regra da DPMG manda para a penhora parcelas que a lei põe na
+                      prisão.
+                    </Dica>
+                  </div>
+                ) : (
+                  <p className="dica recuo">Sem a separação, todas as parcelas formam um débito só.</p>
+                )}
               </>
             )}
 
@@ -918,7 +948,7 @@ function App() {
                 : 'Multa e honorários do art. 523, §1º, do CPC (10% + 10%)'}
             </label>
             {aplicarArt523 && (
-              <div className="opcoes-honorarios" role="radiogroup" aria-labelledby="pergunta-honorarios">
+              <div className="opcoes-recuadas" role="radiogroup" aria-labelledby="pergunta-honorarios">
                 <p id="pergunta-honorarios" className="dica">
                   Sobre o que incidem os honorários?
                 </p>

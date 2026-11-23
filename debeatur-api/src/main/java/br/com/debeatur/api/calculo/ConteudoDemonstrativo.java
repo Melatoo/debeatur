@@ -5,6 +5,7 @@ import br.com.debeatur.api.calculo.DemonstrativoResponse.MesPensao;
 import br.com.debeatur.api.calculo.RegimeDto.RegraDto;
 import br.com.debeatur.api.calculo.RegimeDto.TipoJuros;
 import br.com.debeatur.core.alimentos.InicioJuros;
+import br.com.debeatur.core.alimentos.RegraRitos;
 import br.com.debeatur.core.alimentos.Rito;
 import br.com.debeatur.core.calculo.BaseHonorarios;
 import br.com.debeatur.core.indice.Indice;
@@ -56,6 +57,9 @@ final class ConteudoDemonstrativo {
                     "Art. 528, §3º, do CPC: as três parcelas vencidas até o ajuizamento e as que vencem depois dele."},
             Rito.PENHORA, new String[]{"Rito da penhora",
                     "Art. 528, §8º, do CPC: as parcelas mais antigas, com multa e honorários do art. 523, §1º."});
+
+    private static final String PRISAO_PELA_DPMG =
+            "As três últimas parcelas do cálculo, como a planilha da DPMG.";
 
     /** Colunas com total no rodapé, na ordem em que aparecem. */
     enum Total { CORRIGIDO, JUROS, ATUALIZADO }
@@ -440,7 +444,9 @@ final class ConteudoDemonstrativo {
             DemonstrativoResponse.Subtotal subtotal = rito == Rito.PRISAO ? ritos.prisao() : ritos.penhora();
             List<Linha> doRito = resultado.linhas().stream().filter(l -> l.rito() == rito).toList();
             Totais totais = new Totais(subtotal.totalCorrigido(), subtotal.totalJuros(), subtotal.debitoAtualizado());
-            grupos.add(new Grupo(RITOS.get(rito)[0], RITOS.get(rito)[1], ordenadas(doRito), totais,
+            String regra = rito == Rito.PRISAO && pedido.pensao().regraDosRitos() == RegraRitos.ULTIMOS_MESES_DO_CALCULO
+                    ? PRISAO_PELA_DPMG : RITOS.get(rito)[1];
+            grupos.add(new Grupo(RITOS.get(rito)[0], regra, ordenadas(doRito), totais,
                     fechamento(totais, rito)));
         }
         return grupos;

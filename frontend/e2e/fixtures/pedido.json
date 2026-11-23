@@ -19,7 +19,8 @@
         "valor": "300.00"
       }
     ],
-    "ajuizamento": "2024-09-15"
+    "ajuizamento": "2024-09-15",
+    "regraRitos": "LEI"
   },
   "processo": {
     "numero": "5001234-56.2024.8.13.0024",

@@ -48,6 +48,47 @@ class DemonstrativoPorRitoTest {
     }
 
     @Test
+    void pelaDpmgAPrisaoFicaComAsTresUltimasDoCalculoMesmoDepoisDoAjuizamento() {
+        Demonstrativo demonstrativo = demonstrativo(
+                linha("01/2024", LocalDate.of(2024, 1, 10), "100.00", "10.00"),
+                linha("02/2024", LocalDate.of(2024, 2, 10), "100.00", "9.00"),
+                linha("03/2024", LocalDate.of(2024, 3, 10), "100.00", "8.00"),
+                linha("04/2024", LocalDate.of(2024, 4, 10), "100.00", "7.00"),
+                linha("05/2024", LocalDate.of(2024, 5, 10), "100.00", "6.00"),
+                linha("06/2024", LocalDate.of(2024, 6, 10), "100.00", "5.00"),
+                linha("07/2024", LocalDate.of(2024, 7, 10), "100.00", "4.00"),
+                linha("08/2024", LocalDate.of(2024, 8, 10), "100.00", "3.00"));
+
+        DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo, AJUIZAMENTO,
+                RegraRitos.ULTIMOS_MESES_DO_CALCULO, false, List.of(), BaseHonorarios.DEBITO);
+
+        // 07 e 08/2024 vencem no curso do processo, mas a DPMG só olha os três últimos meses
+        assertThat(descricoes(porRito.subtotal(Rito.PRISAO))).containsExactly("06/2024", "07/2024", "08/2024");
+        assertThat(descricoes(porRito.subtotal(Rito.PENHORA)))
+                .containsExactly("01/2024", "02/2024", "03/2024", "04/2024", "05/2024");
+        assertThat(porRito.prisao().debitoAtualizado().mais(porRito.penhora().debitoAtualizado()))
+                .isEqualTo(demonstrativo.debitoAtualizado());
+    }
+
+    @Test
+    void comOCalculoTerminandoNoAjuizamentoAsDuasRegrasCoincidem() {
+        Demonstrativo demonstrativo = demonstrativo(
+                linha("01/2024", LocalDate.of(2024, 1, 10), "100.00", "10.00"),
+                linha("02/2024", LocalDate.of(2024, 2, 10), "100.00", "9.00"),
+                linha("03/2024", LocalDate.of(2024, 3, 10), "100.00", "8.00"),
+                linha("04/2024", LocalDate.of(2024, 4, 10), "100.00", "7.00"),
+                linha("05/2024", LocalDate.of(2024, 5, 10), "100.00", "6.00"),
+                linha("06/2024", LocalDate.of(2024, 6, 10), "100.00", "5.00"));
+
+        DemonstrativoPorRito lei = DemonstrativoPorRito.separar(demonstrativo, AJUIZAMENTO,
+                RegraRitos.LEI, true, List.of(), BaseHonorarios.DEBITO);
+        DemonstrativoPorRito dpmg = DemonstrativoPorRito.separar(demonstrativo, AJUIZAMENTO,
+                RegraRitos.ULTIMOS_MESES_DO_CALCULO, true, List.of(), BaseHonorarios.DEBITO);
+
+        assertThat(dpmg).isEqualTo(lei);
+    }
+
+    @Test
     void osSubtotaisSomamODebitoAtualizado() {
         Demonstrativo demonstrativo = demonstrativo(
                 linha("01/2024", LocalDate.of(2024, 1, 10), "423.61", "50.83"),

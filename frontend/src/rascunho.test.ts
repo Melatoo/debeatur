@@ -10,6 +10,7 @@ const vazio: Rascunho = {
   honorariosSobreAMulta: false,
   comPensao: true,
   separarRitos: true,
+  ritosPelaLei: false,
   pensao: pensaoVazia(),
   parcelas: [],
   outrasAbertas: false,
@@ -102,6 +103,14 @@ describe('rascunho', () => {
 
     salvarRascunho(armazenamento, { ...preenchido, honorariosSobreAMulta: true }, 'a')
     expect(lerRascunho(armazenamento)?.rascunho.honorariosSobreAMulta).toBe(true)
+  })
+
+  it('abre o rascunho de antes da regra dos ritos com o padrão do formulário, a regra da DPMG', () => {
+    const armazenamento = armazenamentoEmMemoria()
+    const { ritosPelaLei, ...anterior } = preenchido
+    expect(ritosPelaLei).toBe(false)
+    armazenamento.setItem(CHAVE_RASCUNHO, comoTexto(anterior))
+    expect(lerRascunho(armazenamento)?.rascunho).toEqual(preenchido)
   })
 
   it('segue sem armazenamento, ou com um que lança exceção', () => {

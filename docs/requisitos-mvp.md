@@ -34,12 +34,11 @@ pedido.
   (bloqueio em conta, depósito), saem do total pelo valor nominal, sem correção, e multa e
   honorários incidem sobre o saldo, como na planilha da DPMG. Com os ritos separados, saem do
   débito da penhora, onde a DPMG os põe; o que passar dele sai do da prisão.
-- **Dois ritos:** com a data do ajuizamento, as parcelas se dividem entre o rito da prisão (as
-  três anteriores ao ajuizamento e as que vencerem no curso do processo, art. 528, §7º, do CPC)
-  e o da penhora, com subtotais separados. A regra é a da lei, mesmo quando difere da planilha
-  da DPMG, que põe na prisão os três últimos meses do cálculo (`docs/gabarito.md`,
-  divergência 7). Os acréscimos do art. 523, §1º (multa e honorários de 10%), incidem só sobre
-  a penhora.
+- **Dois ritos:** com a data do ajuizamento, as parcelas se dividem entre o rito da prisão e o
+  da penhora, com subtotais separados. Vão para a prisão os três últimos meses do cálculo, como
+  a planilha da DPMG (padrão), ou as três parcelas anteriores ao ajuizamento e as que vencerem
+  no curso do processo, como a lei (art. 528, §7º, do CPC) (`docs/gabarito.md`, divergência 7).
+  Os acréscimos do art. 523, §1º (multa e honorários de 10%), incidem só sobre a penhora.
 - **Base dos honorários do art. 523:** sobre o débito, como a planilha da DPMG (padrão), ou
   sobre o débito com a multa, como o CADEJ (`docs/gabarito.md`, divergência 5).
 - **Prescrição:** aviso das parcelas vencidas mais de dois anos antes do ajuizamento (art. 206,
