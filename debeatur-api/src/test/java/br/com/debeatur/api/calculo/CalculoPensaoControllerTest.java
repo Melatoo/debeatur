@@ -381,6 +381,28 @@ class CalculoPensaoControllerTest {
     }
 
     @Test
+    void pensaoEmRendimentosQueMudam() {
+        String pensao = """
+                {"base": "RENDIMENTOS", "percentual": 30, "rendimentos": 3000.00,
+                 "mudancasRendimentos": [{"aPartirDe": "2024-01", "valor": 2000.00}],
+                 "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO"}
+                """;
+        String repetida = """
+                {"base": "RENDIMENTOS", "percentual": 30, "rendimentos": 3000.00,
+                 "mudancasRendimentos": [{"aPartirDe": "2024-01", "valor": 2000.00},
+                                         {"aPartirDe": "2024-01", "valor": 2500.00}],
+                 "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(900.0))
+                .hasPathSatisfying("$.linhas[1].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(600.0))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(1500.0));
+        assertThat(calcular(requisicao(repetida, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("mais de uma vez"));
+    }
+
+    @Test
     void pensaoEmValorFixoPorPeriodos() {
         String pensao = """
                 {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2024-02", "valor": 650.00},

@@ -28,8 +28,10 @@ import java.util.TreeMap;
  *                       o único tipo dos cálculos salvos antes dos outros
  * @param percentual     percentual do salário mínimo ou dos rendimentos, em pontos (ex.:
  *                       {@code 30} para 30%); obrigatório nessas bases
- * @param rendimentos    rendimentos mensais, iguais em todos os meses; obrigatório na base
- *                       {@link TipoBase#RENDIMENTOS}
+ * @param rendimentos    rendimentos mensais do início da pensão até a primeira mudança;
+ *                       obrigatório na base {@link TipoBase#RENDIMENTOS}
+ * @param mudancasRendimentos rendimentos a partir de cada mês, se mudaram depois do início; só
+ *                       na base {@link TipoBase#RENDIMENTOS}
  * @param valoresFixos   valor mensal a partir de cada mês; obrigatório na base
  *                       {@link TipoBase#VALOR_FIXO}, com o primeiro no início da pensão ou antes
  * @param decimoTerceiro se a pensão alcança o 13º salário, que dobra a parcela de dezembro
@@ -47,14 +49,15 @@ import java.util.TreeMap;
  *                       que eles não mudem ao reabrir. A tela manda sempre a regra escolhida, com
  *                       a da DPMG como padrão
  * <p>
- * Os campos da base, do 13º, dos abatimentos e da regra dos ritos são omitidos do JSON quando
- * nulos: uma pensão em salário mínimo sem eles continua gravada no formato 1 dos cálculos salvos,
+ * Os campos da base, das mudanças dos rendimentos, do 13º, dos abatimentos e da regra dos ritos
+ * são omitidos do JSON quando nulos: uma pensão em salário mínimo sem eles continua gravada no formato 1 dos cálculos salvos,
  * e os pedidos já gravados, que não os têm, são lidos com os padrões acima.
  */
 public record PensaoRequest(
         @JsonInclude(JsonInclude.Include.NON_NULL) TipoBase base,
         @Positive BigDecimal percentual,
         @JsonInclude(JsonInclude.Include.NON_NULL) @Positive BigDecimal rendimentos,
+        @JsonInclude(JsonInclude.Include.NON_NULL) List<@Valid MudancaRendimentosRequest> mudancasRendimentos,
         @JsonInclude(JsonInclude.Include.NON_NULL) List<@Valid ValorFixoRequest> valoresFixos,
         @JsonInclude(JsonInclude.Include.NON_NULL) Boolean decimoTerceiro,
         @NotNull @Min(1) @Max(31) Integer diaVencimento,
@@ -71,7 +74,7 @@ public record PensaoRequest(
     public enum TipoBase {
         /** Percentual do salário mínimo vigente em cada mês. */
         SALARIO_MINIMO,
-        /** Percentual de um valor de rendimentos informado, igual em todos os meses. */
+        /** Percentual de um valor de rendimentos informado, que pode mudar por período. */
         RENDIMENTOS,
         /** Valores fixos por período, sem reajuste. */
         VALOR_FIXO
@@ -81,6 +84,9 @@ public record PensaoRequest(
     }
 
     public record ValorFixoRequest(@NotNull YearMonth aPartirDe, @NotNull @Positive BigDecimal valor) {
+    }
+
+    public record MudancaRendimentosRequest(@NotNull YearMonth aPartirDe, @NotNull @Positive BigDecimal valor) {
     }
 
     public record AbatimentoRequest(@NotNull LocalDate data, @NotNull @Positive BigDecimal valor,
@@ -101,6 +107,10 @@ public record PensaoRequest(
         return Boolean.TRUE.equals(decimoTerceiro);
     }
 
+    public List<MudancaRendimentosRequest> mudancasDosRendimentos() {
+        return mudancasRendimentos == null ? List.of() : mudancasRendimentos;
+    }
+
     public List<AbatimentoRequest> abatimentosInformados() {
         return abatimentos == null ? List.of() : abatimentos;
     }
@@ -115,9 +125,18 @@ public record PensaoRequest(
         return switch (tipoBase()) {
             case SALARIO_MINIMO -> new BasePensao.PercentualDoSalarioMinimo(exigir(percentual,
                     "Informe o percentual do salário mínimo"));
-            case RENDIMENTOS -> new BasePensao.PercentualDosRendimentos(
-                    exigir(percentual, "Informe o percentual dos rendimentos"),
-                    new Dinheiro(exigir(rendimentos, "Informe os rendimentos mensais")));
+            case RENDIMENTOS -> {
+                TreeMap<YearMonth, Dinheiro> mudancas = new TreeMap<>();
+                for (MudancaRendimentosRequest m : mudancasDosRendimentos()) {
+                    if (mudancas.put(m.aPartirDe(), new Dinheiro(m.valor())) != null) {
+                        throw new IllegalArgumentException("Rendimentos a partir de " + m.aPartirDe()
+                                + " informados mais de uma vez");
+                    }
+                }
+                yield new BasePensao.PercentualDosRendimentos(
+                        exigir(percentual, "Informe o percentual dos rendimentos"),
+                        new Dinheiro(exigir(rendimentos, "Informe os rendimentos mensais")), mudancas);
+            }
             case VALOR_FIXO -> {
                 if (valoresFixos == null || valoresFixos.isEmpty()) {
                     throw new IllegalArgumentException("Informe ao menos um valor fixo");

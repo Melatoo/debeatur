@@ -57,8 +57,10 @@ export interface PensaoRequest {
   base?: TipoBase
   /** Percentual do salário mínimo ou dos rendimentos; nulo no valor fixo. */
   percentual: string | null
-  /** Rendimentos mensais, iguais em todos os meses; só na base RENDIMENTOS. */
+  /** Rendimentos mensais do início da pensão; só na base RENDIMENTOS. */
   rendimentos?: string
+  /** Rendimentos a partir de cada mês, se mudaram depois do início; só na base RENDIMENTOS. */
+  mudancasRendimentos?: ValorFixoRequest[]
   /** Só na base VALOR_FIXO; o primeiro valor cobre o início da pensão. */
   valoresFixos?: ValorFixoRequest[]
   /** Se a parcela de dezembro dobra com o 13º salário. */

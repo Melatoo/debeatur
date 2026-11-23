@@ -26,7 +26,9 @@ pedido.
   juros desde cada vencimento (#21).
 - **Outras parcelas:** valores avulsos com vencimento próprio, além da pensão.
 - **Pensão em percentual dos rendimentos:** o percentual sobre um valor de rendimentos
-  informado, igual em todos os meses, como na planilha da DPMG.
+  informado, igual em todos os meses, como na planilha da DPMG. Se os rendimentos mudaram
+  (reajuste, novo emprego), quem calcula informa o novo valor a partir de cada mês, que vale
+  até a próxima mudança, sem reajuste automático.
 - **Pensão em valor fixo:** períodos com valor próprio, sem reajuste automático, como na
   planilha da DPMG. Cada valor vale do mês informado até o próximo.
 - **13º salário:** opcional; o valor de dezembro dobra, como na planilha da DPMG.

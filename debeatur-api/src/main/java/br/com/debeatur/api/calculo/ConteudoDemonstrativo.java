@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -242,11 +243,22 @@ final class ConteudoDemonstrativo {
                 .toList();
     }
 
+    /** " até 01/2024; R$ 3.500,00 a partir de 02/2024", depois do valor inicial dos rendimentos. */
+    private static String mudancasDosRendimentos(PensaoRequest pensao) {
+        List<PensaoRequest.MudancaRendimentosRequest> mudancas = pensao.mudancasDosRendimentos().stream()
+                .sorted(Comparator.comparing(PensaoRequest.MudancaRendimentosRequest::aPartirDe))
+                .toList();
+        return " até " + mudancas.getFirst().aPartirDe().minusMonths(1).format(MES) + mudancas.stream()
+                .map(m -> "; " + moeda(m.valor()) + " a partir de " + m.aPartirDe().format(MES))
+                .collect(Collectors.joining());
+    }
+
     private static String descricaoDaPensao(PensaoRequest pensao) {
         return switch (pensao.tipoBase()) {
             case SALARIO_MINIMO -> numeroLivre(pensao.percentual()) + "% do salário mínimo vigente em cada mês";
             case RENDIMENTOS -> numeroLivre(pensao.percentual()) + "% dos rendimentos de " + moeda(pensao.rendimentos())
-                    + ", iguais em todos os meses";
+                    + (pensao.mudancasDosRendimentos().isEmpty() ? ", iguais em todos os meses"
+                    : mudancasDosRendimentos(pensao));
             case VALOR_FIXO -> "Valor fixo, sem reajuste: " + String.join("; ", pensao.valoresFixos().stream()
                     .sorted(Comparator.comparing(PensaoRequest.ValorFixoRequest::aPartirDe))
                     .map(v -> moeda(v.valor()) + " a partir de " + v.aPartirDe().format(MES))

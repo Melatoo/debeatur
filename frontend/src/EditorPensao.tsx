@@ -5,7 +5,13 @@ import { Validacao } from './validacao'
 import { CampoDecimal } from './CampoDecimal'
 import { contar, data, mes } from './formato'
 import { lerPagamentosColados } from './pagamentosColados'
-import { BASES, erroDoDiaVencimento, erroDosValoresFixos, type PensaoEditavel } from './pensao'
+import {
+  BASES,
+  erroDasMudancasDosRendimentos,
+  erroDoDiaVencimento,
+  erroDosValoresFixos,
+  type PensaoEditavel,
+} from './pensao'
 import { Dica } from './Dica'
 
 interface Props {
@@ -21,7 +27,12 @@ export function EditorPensao({ pensao, onPensao }: Props) {
     alterar({ valoresFixos: pensao.valoresFixos.map((v, i) => (i === indice ? { ...v, ...campos } : v)) })
   const alterarAbatimento = (indice: number, campos: Partial<AbatimentoRequest>) =>
     alterar({ abatimentos: pensao.abatimentos.map((a, i) => (i === indice ? { ...a, ...campos } : a)) })
+  const alterarMudanca = (indice: number, campos: Partial<ValorFixoRequest>) =>
+    alterar({
+      mudancasRendimentos: pensao.mudancasRendimentos.map((m, i) => (i === indice ? { ...m, ...campos } : m)),
+    })
   const erroFixos = erroDosValoresFixos(pensao)
+  const erroMudancas = erroDasMudancasDosRendimentos(pensao)
 
   return (
     <div className="editor-pensao">
@@ -65,7 +76,45 @@ export function EditorPensao({ pensao, onPensao }: Props) {
         )}
       </div>
       {pensao.base === 'RENDIMENTOS' && (
-        <p className="dica">O percentual incide sobre o mesmo valor de rendimentos em todos os meses, sem reajuste.</p>
+        <>
+          {pensao.mudancasRendimentos.map((m, i) => (
+            <fieldset key={i} className="pagamento">
+              <legend className="sr-only">Mudança dos rendimentos {i + 1}</legend>
+              <Campo rotulo="A partir de" erroProprio={i === 0 ? erroMudancas : undefined}>
+                <input
+                  type="month"
+                  required
+                  value={m.aPartirDe}
+                  onChange={(e) => alterarMudanca(i, { aPartirDe: e.target.value })}
+                />
+              </Campo>
+              <Campo rotulo="Rendimentos (R$)" seVazio="Informe os rendimentos a partir desse mês (ex.: 3.500,00).">
+                <CampoDecimal casas={2} required value={m.valor} onValor={(valor) => alterarMudanca(i, { valor })} />
+              </Campo>
+              <button
+                type="button"
+                className="secundario"
+                aria-label={`Remover a mudança dos rendimentos ${m.aPartirDe ? `a partir de ${mes(m.aPartirDe)}` : i + 1}`}
+                onClick={() => alterar({ mudancasRendimentos: pensao.mudancasRendimentos.filter((_, j) => j !== i) })}
+              >
+                Remover
+              </button>
+            </fieldset>
+          ))}
+          <button
+            type="button"
+            className="secundario"
+            onClick={() =>
+              alterar({ mudancasRendimentos: [...pensao.mudancasRendimentos, { aPartirDe: '', valor: '' }] })
+            }
+          >
+            Adicionar mudança dos rendimentos
+          </button>
+          <p className="dica">
+            Sem mudanças, o percentual incide sobre o mesmo valor em todos os meses. Cada mudança vale do mês informado
+            até a próxima, sem reajuste automático.
+          </p>
+        </>
       )}
       {pensao.base === 'VALOR_FIXO' && (
         <>
