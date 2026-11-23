@@ -197,6 +197,12 @@ function App() {
    * pode entregar o regime e desligar `buscandoRegime`.
    */
   const buscaDoRegime = useRef(0)
+  /**
+   * O Calcular foi clicado com o regime ainda a caminho: em vez de recusar o pedido sem regime, o
+   * cálculo sai quando a busca termina. Se ela falha, a espera acaba, e o aviso do regime diz por
+   * que nada saiu.
+   */
+  const [calcularAoChegar, setCalcularAoChegar] = useState(false)
 
   const ritosAtivos = comPensao && separarRitos
 
@@ -283,6 +289,8 @@ function App() {
         if (e instanceof ErroDaApi && e.status === 401) return
         if (tarde()) return
         setFalhaTema1368(true)
+        // O Calcular que esperava o regime desiste: o aviso da falha diz por que nada saiu.
+        setCalcularAoChegar(false)
         setBuscandoRegime(false)
         return
       }
@@ -483,6 +491,7 @@ function App() {
   function enviar(evento: FormEvent) {
     evento.preventDefault()
     cancelarEspera()
+    setCalcularAoChegar(false)
     setTentativas((n) => n + 1)
     const form = formulario.current
     // O checkValidity dispara o `invalid`, que abre as seções fechadas onde há campo a corrigir.
@@ -506,8 +515,18 @@ function App() {
       return
     }
     setResumo(null)
+    if (buscandoRegime) {
+      setCalcularAoChegar(true)
+      return
+    }
     void executar(true)
   }
+
+  // Terminada a busca do regime, o Calcular que esperava por ela envia o formulário de novo, para
+  // validar também as regras que chegaram. O `enviar` desliga a espera.
+  useEffect(() => {
+    if (calcularAoChegar && !buscandoRegime) formulario.current?.requestSubmit()
+  }, [calcularAoChegar, buscandoRegime])
 
   // Corrigido de volta ao caso do demonstrativo na tela, o formulário não recalcula, e nada fecharia
   // o resumo: ele some porque não há mais o que corrigir.
@@ -559,6 +578,7 @@ function App() {
     setRascunho(r)
     setCalculo(novoCalculo)
     setFalhaTema1368(false)
+    setCalcularAoChegar(false)
     // O caso desfeito pode ter sido limpo no meio da busca das regras: ela recomeça para ele.
     setBuscandoRegime(faltamRegras(r))
     if (faltamRegras(r)) void buscarRegras(r)
@@ -1063,10 +1083,10 @@ function App() {
               <button
                 type="submit"
                 className="esperando"
-                disabled={carregando && !calculo}
+                disabled={(carregando || calcularAoChegar) && !calculo}
                 aria-keyshortcuts={atalho.aria}
               >
-                {carregando && !calculo ? 'Calculando…' : 'Calcular'}
+                {(carregando || calcularAoChegar) && !calculo ? 'Calculando…' : 'Calcular'}
               </button>
               <button type="button" className="secundario" onClick={limpar} disabled={emBranco && !calculo}>
                 Limpar

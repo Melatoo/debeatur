@@ -52,18 +52,52 @@ test('dos outros critérios, o editor começa pelas regras do Tema 1368 e as gua
 
 test('se o regime do Tema 1368 não carrega, o aviso oferece tentar de novo e some quando ele chega', async ({ page, api }) => {
   let falhas = 1
-  await page.route('**/api/regimes/tema-1368', (route) => (falhas-- > 0 ? route.fulfill({ status: 503 }) : route.fallback()))
+  let liberar = () => {}
+  const segunda = new Promise<void>((resolve) => (liberar = resolve))
+  await page.route('**/api/regimes/tema-1368', async (route) => {
+    if (falhas-- > 0) return route.fulfill({ status: 503 })
+    await segunda
+    await route.fallback()
+  })
   await page.goto('/')
   await preencherCaso(page)
   await page.getByRole('radio', { name: TEMA_1368 }).check()
   const aviso = page.getByRole('alert').filter({ hasText: 'O regime do Tema 1368 não carregou.' })
   await expect(aviso).toBeVisible()
 
+  // O aviso sai quando a nova busca começa; o Calcular clicado antes de o regime chegar espera por ele.
   await aviso.getByRole('button', { name: 'Tentar de novo' }).click()
   await expect(aviso).toHaveCount(0)
   await page.getByRole('button', { name: 'Calcular', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Calculando…' })).toBeDisabled()
+  expect(api.pedidos).toHaveLength(0)
+  liberar()
   await expect(page.getByRole('heading', { name: 'Demonstrativo atualizado até 30/06/2025' })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
   expect(api.pedidos).toEqual([{ ...fixture<object>('pedido.json'), regime: fixture('regime-tema-1368.json') }])
+})
+
+test('o Calcular que espera o regime do Tema 1368 desiste se a busca falha de novo', async ({ page, api }) => {
+  let liberar = () => {}
+  const segunda = new Promise<void>((resolve) => (liberar = resolve))
+  let buscas = 0
+  await page.route('**/api/regimes/tema-1368', async (route) => {
+    if (buscas++ > 0) await segunda
+    await route.fulfill({ status: 503 })
+  })
+  await page.goto('/')
+  await preencherCaso(page)
+  await page.getByRole('radio', { name: TEMA_1368 }).check()
+  const aviso = page.getByRole('alert').filter({ hasText: 'O regime do Tema 1368 não carregou.' })
+  await aviso.getByRole('button', { name: 'Tentar de novo' }).click()
+  await expect(aviso).toHaveCount(0)
+  await page.getByRole('button', { name: 'Calcular', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Calculando…' })).toBeDisabled()
+
+  liberar()
+  await expect(aviso).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Calcular', exact: true })).toBeEnabled()
+  expect(api.pedidos).toHaveLength(0)
 })
 
 test('trocar de opção no meio da busca do Tema 1368 não recalcula sem regime', async ({ page, api }) => {

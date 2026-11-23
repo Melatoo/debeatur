@@ -40,7 +40,7 @@ No PDF, que se lê nos autos a partir da primeira página, um quadro-resumo (o d
 ## Conteúdo e voz
 
 - Português do Brasil, em frases curtas e na voz ativa. Termos do processo como o juiz e o advogado os usam: *parcela*, *ajuizamento*, *citação*, *rito da prisão*, *memória de cálculo*, *débito atualizado*.
-- O botão diz o que acontece: "Calcular", "Limpar", "Desfazer", "Adicionar parcela", "Baixar PDF", "Baixar Excel", "Copiar tabela", "Tentar de novo". Durante a ação, o rótulo vira o gerúndio com reticências: "Calculando…", "Gerando PDF…", "Gerando planilha…".
+- O botão diz o que acontece: "Calcular", "Limpar", "Desfazer", "Adicionar parcela", "Baixar PDF", "Baixar Excel", "Copiar tabela", "Tentar de novo". Durante a ação, o rótulo vira o gerúndio com reticências: "Calculando…", "Gerando PDF…", "Gerando planilha…". Um "Calcular" clicado com o regime ainda a caminho do servidor espera a busca, em vez de recusar o pedido; antes do primeiro cálculo, ele já mostra "Calculando…".
 - Um erro explica o que fazer, com exemplo: "Informe só números, com vírgula antes dos centavos (ex.: 1.234,56)." Nada de "valor inválido" sem dizer qual forma é a válida.
 - A situação é dita com o fato em negrito e o motivo logo depois, em texto normal: "**Demonstrativo desatualizado.**" seguido do porquê.
 - Dicas dizem para que serve o campo, não repetem o rótulo: "Opcionais: só identificam o processo no cabeçalho do PDF e da planilha." Uma dica tem uma frase à vista; o detalhe (exceções, exemplos, o porquê) fica atrás de "Saiba mais" (`Dica`), salvo o que muda o valor do cálculo, que fica na frase à vista. O "Saiba mais" é um botão com `aria-expanded` cujo rótulo não muda. O `aria-describedby` do campo aponta só para a frase curta.
