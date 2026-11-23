@@ -52,7 +52,9 @@ class PagamentosParciaisTest {
 
         assertThatThrownBy(() -> pagamentos.abater(parcelas))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("maior que a parcela");
+                .hasMessage("Pagamento de 2024-01 (R$ 423.61) maior que a parcela (R$ 423.60). Lance no mês até"
+                        + " o valor da parcela e o excedente (R$ 0.01) como abatimento, que sai do débito"
+                        + " atualizado pelo valor nominal");
     }
 
     @Test

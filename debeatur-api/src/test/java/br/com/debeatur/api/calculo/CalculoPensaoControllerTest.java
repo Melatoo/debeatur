@@ -335,7 +335,9 @@ class CalculoPensaoControllerTest {
                 """;
 
         assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
-                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("maior que a parcela"));
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString()
+                        .contains("maior que a parcela")
+                        .contains("excedente (R$ 76.40) como abatimento"));
     }
 
     @Test

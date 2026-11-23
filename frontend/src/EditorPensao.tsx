@@ -262,10 +262,10 @@ export function EditorPensao({ pensao, onPensao }: Props) {
       >
         Adicionar pagamento
       </button>
-      {/* Sem "Saiba mais": o que não é compensado muda o valor e fica à vista. */}
+      {/* Sem "Saiba mais": o limite da parcela muda o valor e fica à vista. */}
       <p className="dica">
-        O valor pago é abatido da parcela do mesmo mês, antes da correção; o que passar da parcela não é compensado com
-        as outras.
+        O valor pago é abatido da parcela do mesmo mês, antes da correção, e não pode passar dela. Se o devedor pagou
+        a mais, lance o excedente em Abatimentos.
       </p>
       <ColarPagamentos pensao={pensao} onPagamentos={(pagamentos) => alterar({ pagamentos })} />
 

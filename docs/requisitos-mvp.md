@@ -34,7 +34,8 @@ pedido.
 - **13º salário:** opcional; o valor de dezembro dobra, como na planilha da DPMG.
 - **Termo inicial dos juros:** configurável entre o vencimento de cada parcela e a citação.
 - **Pagamentos parciais:** abatidos da parcela do mesmo mês, sem imputação do art. 354 do CC,
-  como na planilha da DPMG.
+  como na planilha da DPMG. O pagamento não pode passar da parcela do mês; a recusa orienta
+  lançar o excedente como abatimento (#112).
 - **Abatimentos:** valores recebidos em qualquer data, mesmo depois do período cobrado
   (bloqueio em conta, depósito), saem do total pelo valor nominal, sem correção, e multa e
   honorários incidem sobre o saldo, como na planilha da DPMG. Com os ritos separados, saem do

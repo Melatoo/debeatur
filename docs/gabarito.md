@@ -234,6 +234,21 @@ relatório. Ele não passa em branco.
    valor monetário a duas casas antes de somar. No caso de `GabaritoRendimentosDecimoTerceiroDpmgTest`,
    cada um vale 1.217,147: a planilha mostra total de R$ 14.605,76, e o motor, R$ 14.605,77. A
    multa e os honorários são lançados nos autos em reais e centavos, então o motor fica como está.
+10. **Pagamento maior que a parcela do mês (#112).** O Debeatur recusa, e a mensagem orienta
+    lançar o excedente como abatimento (valor nominal, sobre o débito atualizado). O gerador da
+    DPMG aceita: num caso gerado no iadefensor em 23/11/2026 (modelo "Taxa legal (Bacen)", 30%
+    do salário mínimo de 01/2025 a 04/2025, R$ 1.000,00 pagos em 02/2025 contra a parcela de
+    R$ 455,40), a prévia mostra subtotal de R$ 1.821,60, total pago de R$ 1.000,00 e saldo de
+    R$ 821,60, sem recusa e sem aviso. O excedente não vai para as outras parcelas: o formulário
+    lança o pago na coluna VALOR PAGO do mês informado, e a diferença do mês sai negativa
+    (R$ 455,40 − R$ 1.000,00). A prévia é nominal;
+    pelas fórmulas do modelo (corrigido = diferença × índice, juros = corrigido × % juros, sem
+    limite em zero, como no modelo "SELIC Acumulada" conferido em 18/11/2026), o excedente
+    viraria um crédito corrigido e com juros desde o mês do pagamento. O .xlsx desse caso não foi
+    baixado, então essa última parte não foi conferida linha a linha. Nenhuma das fontes leva o
+    excedente pelo valor nominal às parcelas seguintes, e a imputação do art. 354 do CC continua
+    fora do escopo; a recusa fica como está até o dono decidir se o crédito negativo da planilha
+    vira opção.
 
 ## Planilha da DPMG
 
@@ -249,6 +264,8 @@ Acumulada" traz fatores próprios. Em 14/11/2026, salvo onde indicado:
 - **Abatimentos** (bloqueio em conta, depósito), em qualquer data: entram no total pelo valor
   nominal, sem correção; a data aparece só na descrição. Multa e honorários incidem sobre o
   saldo já abatido.
+- **Pagamento maior que a parcela** (prévia conferida em 23/11/2026): o gerador aceita e não
+  leva o excedente a outras parcelas; a diferença do mês fica negativa. Ver a divergência 10.
 - **Percentual dos rendimentos:** o percentual incide sobre um valor de rendimentos
   informado, igual em todos os meses. As mudanças dos rendimentos por período são extensão do
   Debeatur, sem gabarito externo: cada mês usa o valor vigente e segue a mesma conta do valor

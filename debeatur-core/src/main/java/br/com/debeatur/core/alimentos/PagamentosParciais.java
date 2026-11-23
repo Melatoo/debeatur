@@ -20,7 +20,8 @@ import java.util.Set;
  * imputação (art. 354 do CC) nem atualização do pagamento pela data em que foi feito.
  * <p>
  * Pagamento maior que a parcela do mês é rejeitado: a compensação de alimentos pagos a maior
- * com outras parcelas não é automática.
+ * com outras parcelas não é automática. A mensagem orienta lançar o excedente como
+ * {@link Abatimento}, que sai do débito atualizado pelo valor nominal (#112).
  */
 public final class PagamentosParciais {
 
@@ -60,7 +61,9 @@ public final class PagamentosParciais {
             }
             if (pago.compareTo(parcela.valor()) > 0) {
                 throw new IllegalArgumentException("Pagamento de " + mes + " (" + pago
-                        + ") maior que a parcela (" + parcela.valor() + ")");
+                        + ") maior que a parcela (" + parcela.valor() + "). Lance no mês até o valor da parcela"
+                        + " e o excedente (" + pago.menos(parcela.valor()) + ") como abatimento, que sai do"
+                        + " débito atualizado pelo valor nominal");
             }
             Dinheiro saldo = parcela.valor().menos(pago);
             String situacao = saldo.equals(Dinheiro.ZERO) ? " (quitada)" : " (saldo após pagamento parcial)";
