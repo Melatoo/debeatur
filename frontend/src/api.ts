@@ -43,6 +43,18 @@ export interface ValorFixoRequest {
   valor: string
 }
 
+/** Base da pensão a partir do mês `aPartirDe` (AAAA-MM) até a próxima mudança (revisional, acordo, definitivos). */
+export interface MudancaBaseRequest {
+  aPartirDe: string
+  base: TipoBase
+  /** Nas bases SALARIO_MINIMO e RENDIMENTOS. */
+  percentual?: string
+  /** Só na base RENDIMENTOS. */
+  rendimentos?: string
+  /** Só na base VALOR_FIXO. */
+  valor?: string
+}
+
 /** Valor recebido em qualquer data (bloqueio, depósito), que sai do débito atualizado pelo valor nominal. */
 export interface AbatimentoRequest {
   /** AAAA-MM-DD */
@@ -63,6 +75,8 @@ export interface PensaoRequest {
   mudancasRendimentos?: ValorFixoRequest[]
   /** Só na base VALOR_FIXO; o primeiro valor cobre o início da pensão. */
   valoresFixos?: ValorFixoRequest[]
+  /** Base a partir de cada mês, se ela mudou depois do início; a base acima vale até a primeira. */
+  mudancasBase?: MudancaBaseRequest[]
   /** Se a parcela de dezembro dobra com o 13º salário. */
   decimoTerceiro?: boolean
   diaVencimento: number

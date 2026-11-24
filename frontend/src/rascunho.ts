@@ -66,6 +66,7 @@ const ehPensao = (v: unknown) =>
   typeof v.pagoAMaiorComoCredito === 'boolean' &&
   listaDe(v.valoresFixos, (f) => comTextos(f, ['aPartirDe', 'valor'])) &&
   listaDe(v.mudancasRendimentos, (m) => comTextos(m, ['aPartirDe', 'valor'])) &&
+  listaDe(v.mudancasBase, (m) => comTextos(m, ['aPartirDe', 'base', 'percentual', 'rendimentos', 'valor'])) &&
   listaDe(v.pagamentos, (p) => comTextos(p, ['mes', 'valor'])) &&
   listaDe(v.abatimentos, (a) => comTextos(a, ['data', 'valor', 'origem']))
 
@@ -133,6 +134,12 @@ function semMudancasRendimentos(rascunho: unknown): unknown {
   return { ...rascunho, pensao: { ...rascunho.pensao, mudancasRendimentos: [] } }
 }
 
+/** Rascunho de antes das mudanças da base: a base vale a pensão inteira. */
+function semMudancasBase(rascunho: unknown): unknown {
+  if (!ehObjeto(rascunho) || !ehObjeto(rascunho.pensao) || 'mudancasBase' in rascunho.pensao) return rascunho
+  return { ...rascunho, pensao: { ...rascunho.pensao, mudancasBase: [] } }
+}
+
 /**
  * A versão 1 só tinha a pensão em salário mínimo: base, rendimentos, valores fixos, 13º e
  * abatimentos entram com o valor do formulário em branco. O resto é conferido por {@link ehRascunho}.
@@ -148,9 +155,11 @@ function interpretar(texto: string): RascunhoSalvo | null {
   try {
     const salvo: unknown = JSON.parse(texto)
     if (!ehObjeto(salvo) || (salvo.versao !== VERSAO && salvo.versao !== 1)) return null
-    const rascunho = semExcedentePagamento(
-      semMudancasRendimentos(
-        semRegraRitos(semBaseHonorarios(semTema1368(salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho))),
+    const rascunho = semMudancasBase(
+      semExcedentePagamento(
+        semMudancasRendimentos(
+          semRegraRitos(semBaseHonorarios(semTema1368(salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho))),
+        ),
       ),
     )
     if (!ehRascunho(rascunho)) return null

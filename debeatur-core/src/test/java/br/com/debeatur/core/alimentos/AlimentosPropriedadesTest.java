@@ -321,6 +321,15 @@ class AlimentosPropriedadesTest {
     }
 
     private static BasePensao base(SplittableRandom aleatorio, YearMonth primeiroMes, YearMonth ultimoMes) {
+        if (ultimoMes.isAfter(primeiroMes) && aleatorio.nextInt(4) == 0) {
+            // Base que muda: cada período com uma base simples, sem mudanças internas.
+            TreeMap<YearMonth, BasePensao> mudancas = new TreeMap<>();
+            for (int i = aleatorio.nextInt(1, 4); i > 0; i--) {
+                YearMonth aPartirDe = mes(aleatorio, primeiroMes.plusMonths(1), ultimoMes);
+                mudancas.put(aPartirDe, baseSimples(aleatorio, aPartirDe));
+            }
+            return new BasePensao.PorPeriodos(baseSimples(aleatorio, primeiroMes), mudancas);
+        }
         BigDecimal percentual = BigDecimal.valueOf(aleatorio.nextInt(1, 10_001), 2);
         return switch (aleatorio.nextInt(3)) {
             case 0 -> new BasePensao.PercentualDoSalarioMinimo(percentual);
@@ -342,9 +351,32 @@ class AlimentosPropriedadesTest {
         };
     }
 
+    /** Base de um período: salário mínimo, rendimentos ou um valor fixo desde {@code inicio}. */
+    private static BasePensao baseSimples(SplittableRandom aleatorio, YearMonth inicio) {
+        BigDecimal percentual = BigDecimal.valueOf(aleatorio.nextInt(1, 10_001), 2);
+        return switch (aleatorio.nextInt(3)) {
+            case 0 -> new BasePensao.PercentualDoSalarioMinimo(percentual);
+            case 1 -> new BasePensao.PercentualDosRendimentos(percentual, rendimentos(aleatorio));
+            default -> {
+                TreeMap<YearMonth, Dinheiro> valores = new TreeMap<>();
+                valores.put(inicio, valorFixo(aleatorio));
+                yield new BasePensao.ValorFixo(valores);
+            }
+        };
+    }
+
     /** Valor do mês comum calculado à parte, sem passar pela {@link BasePensao}. */
     private Dinheiro valorEsperadoDoMes(BasePensao base, YearMonth mes) {
         return switch (base) {
+            case BasePensao.PorPeriodos b -> {
+                BasePensao vigente = b.inicial();
+                for (var e : b.mudancas().entrySet()) {
+                    if (!e.getKey().isAfter(mes)) {
+                        vigente = e.getValue();
+                    }
+                }
+                yield valorEsperadoDoMes(vigente, mes);
+            }
             case BasePensao.PercentualDoSalarioMinimo b ->
                     new Dinheiro(salarioMinimo.vigente(mes).valor().multiply(b.percentual()).movePointLeft(2));
             case BasePensao.PercentualDosRendimentos b -> {

@@ -253,11 +253,31 @@ final class ConteudoDemonstrativo {
                 .collect(Collectors.joining());
     }
 
+    /** A base inicial e, se ela mudou, "; a partir de 01/2026, 20% do salário mínimo vigente em cada mês". */
     private static String descricaoDaPensao(PensaoRequest pensao) {
+        if (pensao.mudancasDaBase().isEmpty()) {
+            return descricaoDaBaseInicial(pensao);
+        }
+        return descricaoDaBaseInicial(pensao) + pensao.mudancasDaBase().stream()
+                .sorted(Comparator.comparing(PensaoRequest.MudancaBaseRequest::aPartirDe))
+                .map(m -> "; a partir de " + m.aPartirDe().format(MES) + ", " + descricaoDaMudanca(m))
+                .collect(Collectors.joining());
+    }
+
+    private static String descricaoDaMudanca(PensaoRequest.MudancaBaseRequest m) {
+        return switch (m.base()) {
+            case SALARIO_MINIMO -> numeroLivre(m.percentual()) + "% do salário mínimo vigente em cada mês";
+            case RENDIMENTOS -> numeroLivre(m.percentual()) + "% dos rendimentos de " + moeda(m.rendimentos());
+            case VALOR_FIXO -> "valor fixo de " + moeda(m.valor()) + ", sem reajuste";
+        };
+    }
+
+    private static String descricaoDaBaseInicial(PensaoRequest pensao) {
         return switch (pensao.tipoBase()) {
             case SALARIO_MINIMO -> numeroLivre(pensao.percentual()) + "% do salário mínimo vigente em cada mês";
             case RENDIMENTOS -> numeroLivre(pensao.percentual()) + "% dos rendimentos de " + moeda(pensao.rendimentos())
-                    + (pensao.mudancasDosRendimentos().isEmpty() ? ", iguais em todos os meses"
+                    + (pensao.mudancasDosRendimentos().isEmpty()
+                    ? (pensao.mudancasDaBase().isEmpty() ? ", iguais em todos os meses" : "")
                     : mudancasDosRendimentos(pensao));
             case VALOR_FIXO -> "Valor fixo, sem reajuste: " + String.join("; ", pensao.valoresFixos().stream()
                     .sorted(Comparator.comparing(PensaoRequest.ValorFixoRequest::aPartirDe))

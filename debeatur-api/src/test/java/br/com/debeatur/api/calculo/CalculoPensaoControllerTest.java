@@ -438,6 +438,67 @@ class CalculoPensaoControllerTest {
     }
 
     @Test
+    void pensaoComBaseQueMuda() {
+        when(series.carregarSalarioMinimo(YearMonth.of(2023, 12), YearMonth.of(2024, 3)))
+                .thenReturn(new SalarioMinimoEmMemoria()
+                        .com(YearMonth.of(2023, 12), "1320.00")
+                        .com(YearMonth.of(2024, 1), "1412.00")
+                        .com(YearMonth.of(2024, 2), "1412.00")
+                        .com(YearMonth.of(2024, 3), "1412.00"));
+        // 30% do SM; 20% do SM a partir de 02/2024; R$ 500,00 fixos a partir de 03/2024
+        String pensao = """
+                {"percentual": 30,
+                 "mudancasBase": [{"aPartirDe": "2024-03", "base": "VALOR_FIXO", "valor": 500.00},
+                                  {"aPartirDe": "2024-02", "base": "SALARIO_MINIMO", "percentual": 20}],
+                 "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-03", "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(396.0))
+                .hasPathSatisfying("$.linhas[1].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(423.6))
+                .hasPathSatisfying("$.linhas[2].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(282.4))
+                .hasPathSatisfying("$.linhas[2].pensao.salarioMinimo", v -> v.assertThat().asNumber().isEqualTo(1412.0))
+                .hasPathSatisfying("$.linhas[3].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(500.0))
+                .hasPathSatisfying("$.linhas[3].pensao.salarioMinimo", v -> v.assertThat().isNull())
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(1602.0));
+    }
+
+    @Test
+    void recusaMudancaDaBaseInvalida() {
+        String repetida = """
+                {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2023-12", "valor": 500.00}],
+                 "mudancasBase": [{"aPartirDe": "2024-01", "base": "VALOR_FIXO", "valor": 600.00},
+                                  {"aPartirDe": "2024-01", "base": "VALOR_FIXO", "valor": 700.00}],
+                 "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO"}
+                """;
+        String semPercentual = """
+                {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2023-12", "valor": 500.00}],
+                 "mudancasBase": [{"aPartirDe": "2024-01", "base": "RENDIMENTOS", "rendimentos": 3000.00}],
+                 "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO"}
+                """;
+        String noPrimeiroMes = """
+                {"base": "RENDIMENTOS", "percentual": 30, "rendimentos": 3000.00,
+                 "mudancasBase": [{"aPartirDe": "2023-12", "base": "VALOR_FIXO", "valor": 600.00}],
+                 "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-01", "inicioJuros": "VENCIMENTO"}
+                """;
+        String valorFixoDepois = """
+                {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2023-12", "valor": 500.00},
+                                                        {"aPartirDe": "2024-02", "valor": 550.00}],
+                 "mudancasBase": [{"aPartirDe": "2024-01", "base": "SALARIO_MINIMO", "percentual": 20}],
+                 "diaVencimento": 10, "primeiroMes": "2023-12", "ultimoMes": "2024-02", "inicioJuros": "VENCIMENTO"}
+                """;
+
+        assertThat(calcular(requisicao(repetida, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("mais de uma vez"));
+        assertThat(calcular(requisicao(semPercentual, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("percentual dos rendimentos"));
+        assertThat(calcular(requisicao(noPrimeiroMes, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("mudanças da base"));
+        assertThat(calcular(requisicao(valorFixoDepois, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("informe-o como mudança da base"));
+    }
+
+    @Test
     void pensaoEmValorFixoPorPeriodos() {
         String pensao = """
                 {"base": "VALOR_FIXO", "valoresFixos": [{"aPartirDe": "2024-02", "valor": 650.00},

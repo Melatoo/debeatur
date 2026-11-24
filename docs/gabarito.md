@@ -13,6 +13,7 @@ nunca do próprio motor.
 | `GabaritoHomologadoTest` | Cinco cálculos do CADEJ/TJMG em `CasosCadej` | Demonstrativo completo, com ICGJ ou IPCA e juros de taxa fixa |
 | `GabaritoRendimentosDecimoTerceiroDpmgTest` | Planilha da DPMG gerada no iadefensor em 15/11/2026 | Pensão em rendimentos, 13º, abatimento nominal e art. 523 sobre o saldo |
 | `GabaritoPagamentoMaiorDpmgTest` | Planilha da DPMG gerada no iadefensor em 23/11/2026 | Pagamento maior que a parcela do mês como crédito no próprio mês, corrigido e com juros (divergência 10) |
+| `GabaritoBasePorPeriodoDpmgTest` | Linhas da planilha modelo de alimentos da DPMG (outubro/2026) | Base que muda no meio da pensão (30% e 20% do salário mínimo, depois valor fixo), com 13º, igual às planilhas de cada período (#108) |
 | `GabaritoSelicDiariaTest` (`debeatur-indices`) | Planilha "SELIC Acumulada" da DPMG (18/11/2026) e uma simulação no CADEJ (11/11/2026) | SELIC do mês pela SGS 11 e fator pela SELIC, 01/2024 a 10/2026 (divergência 6) |
 
 ### CADEJ
@@ -273,6 +274,11 @@ Acumulada" traz fatores próprios. Em 14/11/2026, salvo onde indicado:
   Debeatur, sem gabarito externo: cada mês usa o valor vigente e segue a mesma conta do valor
   único, que é a coberta pelo `GabaritoRendimentosDecimoTerceiroDpmgTest`.
 - **Valor fixo:** só nos modelos cíveis, em períodos com valor próprio e sem reajuste.
+- **Base que muda no meio do período** (revisional, acordo): o gerador não troca a base nem o
+  percentual; quem calcula faz uma planilha por período. Cada linha da planilha só depende do
+  mês e do valor devido, então o Debeatur, com a base por períodos, tem que dar as linhas das
+  planilhas separadas. `GabaritoBasePorPeriodoDpmgTest` confere isso com as linhas do modelo de
+  outubro/2026 (#108).
 - **SELIC Acumulada** (modelo cível, conferido em 18/11/2026): fator pelo produto das taxas
   mensais tiradas da SELIC diária, sem juros à parte e sem a virada da Lei 14.905/2024. A
   coluna "DIFERENÇA" é `pago − valor`, e o valor corrigido é diferença × fator; sem

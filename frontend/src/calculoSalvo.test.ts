@@ -56,6 +56,7 @@ describe('paraRascunho', () => {
       rendimentos: '',
       mudancasRendimentos: [],
       valoresFixos: [{ aPartirDe: '', valor: '' }],
+      mudancasBase: [],
       decimoTerceiro: false,
       diaVencimento: '10',
       primeiroMes: '2024-04',
@@ -123,6 +124,32 @@ describe('paraRascunho', () => {
     expect(paraPedido(r).pensao?.regraRitos).toBe('ULTIMOS_MESES_DO_CALCULO')
     // sem separar os ritos, a regra não vai no pedido
     expect(paraPedido({ ...r, separarRitos: false }).pensao).not.toHaveProperty('regraRitos')
+  })
+
+  it('reabre as mudanças da base e gera o mesmo pedido', () => {
+    const comMudancas = {
+      ...salvo,
+      pensao: {
+        ...salvo.pensao,
+        mudancasBase: [
+          { aPartirDe: '2024-10', base: 'SALARIO_MINIMO', percentual: 20 },
+          { aPartirDe: '2025-01', base: 'RENDIMENTOS', percentual: 25.5, rendimentos: 3000 },
+          { aPartirDe: '2025-06', base: 'VALOR_FIXO', valor: 650.5 },
+        ],
+      },
+    } as unknown as CalculoRequest
+
+    const r = paraRascunho(comMudancas, padrao)
+    expect(r.pensao.mudancasBase).toEqual([
+      { aPartirDe: '2024-10', base: 'SALARIO_MINIMO', percentual: '20', rendimentos: '', valor: '' },
+      { aPartirDe: '2025-01', base: 'RENDIMENTOS', percentual: '25,5', rendimentos: '3000,00', valor: '' },
+      { aPartirDe: '2025-06', base: 'VALOR_FIXO', percentual: '', rendimentos: '', valor: '650,50' },
+    ])
+    expect(paraPedido(r).pensao?.mudancasBase).toEqual([
+      { aPartirDe: '2024-10', base: 'SALARIO_MINIMO', percentual: '20' },
+      { aPartirDe: '2025-01', base: 'RENDIMENTOS', percentual: '25.5', rendimentos: '3000.00' },
+      { aPartirDe: '2025-06', base: 'VALOR_FIXO', valor: '650.50' },
+    ])
   })
 
   it('reabre a pensão em valor fixo com 13º e abatimentos e gera o mesmo pedido', () => {

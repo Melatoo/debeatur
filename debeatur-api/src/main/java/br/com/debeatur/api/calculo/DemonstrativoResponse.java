@@ -91,7 +91,8 @@ public record DemonstrativoResponse(
      * Memória de uma parcela da pensão: o devido sai da base do mês (dobrado em dezembro, com o
      * 13º), e o valor original da linha é o devido menos o pago.
      *
-     * @param salarioMinimo  salário mínimo vigente no mês; nulo se a pensão não é em salário mínimo
+     * @param salarioMinimo  salário mínimo vigente no mês; nulo no mês em que a base da pensão não é o
+     *                       salário mínimo
      * @param decimoTerceiro se o devido inclui o 13º salário
      */
     public record MesPensao(YearMonth mes, BigDecimal salarioMinimo, BigDecimal valorDevido, BigDecimal valorPago,

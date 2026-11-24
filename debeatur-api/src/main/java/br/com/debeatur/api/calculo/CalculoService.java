@@ -122,7 +122,8 @@ public class CalculoService {
             Pensao.ParcelaDoMes devida = devidas.get(i);
             Dinheiro devido = devida.parcela().valor();
             Parcela saldo = saldos.get(i);
-            BigDecimal salario = salarioMinimo == null ? null : devida.base().valor();
+            // Com a base que muda, só os meses em salário mínimo mostram o salário.
+            BigDecimal salario = dominio.base().vigente(devida.mes()).usaSalarioMinimo() ? devida.base().valor() : null;
             memoria.put(saldo, new DemonstrativoResponse.MesPensao(devida.mes(), salario, devido.valor(),
                     devido.menos(saldo.valor()).valor(), devida.comDecimoTerceiro()));
         }

@@ -278,6 +278,26 @@ class CalculoPdfControllerTest {
     }
 
     @Test
+    void trazAsMudancasDaBase() throws IOException {
+        indicesDaPensao();
+        String pedido = """
+                {"dataBase": "2024-05-15", "aplicarArt523": false,
+                 "regime": {"regras": [{"inicio": "2023-01", "correcao": "INPC", "juros": "TAXA_FIXA", "percentualJurosMensal": 1}]},
+                 "pensao": {"base": "RENDIMENTOS", "percentual": 30, "rendimentos": 3000.00,
+                            "mudancasBase": [{"aPartirDe": "2024-03", "base": "VALOR_FIXO", "valor": 500.00},
+                                             {"aPartirDe": "2024-01", "base": "RENDIMENTOS", "percentual": 20,
+                                              "rendimentos": 3500.00}],
+                            "diaVencimento": 10, "primeiroMes": "2023-09", "ultimoMes": "2024-04",
+                            "inicioJuros": "VENCIMENTO"}}
+                """;
+
+        String pdf = texto(post("/api/calculos/pdf", pedido).getResponse().getContentAsByteArray());
+
+        assertThat(pdf).containsIgnoringWhitespaces("30% dos rendimentos de R$ 3.000,00; a partir de 01/2024, 20% dos"
+                + " rendimentos de R$ 3.500,00; a partir de 03/2024, valor fixo de R$ 500,00, sem reajuste");
+    }
+
+    @Test
     void trazABaseO13EOsAbatimentosNaPenhora() throws IOException {
         indicesDaPensao();
         String pedido = """
