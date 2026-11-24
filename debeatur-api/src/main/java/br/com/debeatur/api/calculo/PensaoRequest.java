@@ -35,6 +35,9 @@ import java.util.TreeMap;
  *                       na base {@link TipoBase#RENDIMENTOS}
  * @param valoresFixos   valor mensal a partir de cada mês; obrigatório na base
  *                       {@link TipoBase#VALOR_FIXO}, com o primeiro no início da pensão ou antes
+ * @param mudancasBase   base a partir de cada mês, se ela mudou depois do início (revisional,
+ *                       acordo, definitivos); a base dos campos acima vale até a primeira, e as
+ *                       mudanças dos rendimentos e os valores fixos dela ficam antes da primeira
  * @param decimoTerceiro se a pensão alcança o 13º salário, que dobra a parcela de dezembro
  * @param citacao        obrigatória se {@code inicioJuros} for {@link InicioJuros#CITACAO}
  * @param pagamentos     valores pagos, abatidos da parcela do mesmo mês antes da correção
@@ -53,7 +56,7 @@ import java.util.TreeMap;
  *                       que eles não mudem ao reabrir. A tela manda sempre a regra escolhida, com
  *                       a da DPMG como padrão
  * <p>
- * Os campos da base, das mudanças dos rendimentos, do 13º, dos abatimentos, da regra dos ritos e do
+ * Os campos da base, das mudanças dos rendimentos e da base, do 13º, dos abatimentos, da regra dos ritos e do
  * excedente dos pagamentos são omitidos do JSON quando nulos: uma pensão em salário mínimo sem eles continua gravada no formato 1 dos cálculos salvos,
  * e os pedidos já gravados, que não os têm, são lidos com os padrões acima.
  */
@@ -63,6 +66,7 @@ public record PensaoRequest(
         @JsonInclude(JsonInclude.Include.NON_NULL) @Positive BigDecimal rendimentos,
         @JsonInclude(JsonInclude.Include.NON_NULL) List<@Valid MudancaRendimentosRequest> mudancasRendimentos,
         @JsonInclude(JsonInclude.Include.NON_NULL) List<@Valid ValorFixoRequest> valoresFixos,
+        @JsonInclude(JsonInclude.Include.NON_NULL) List<@Valid MudancaBaseRequest> mudancasBase,
         @JsonInclude(JsonInclude.Include.NON_NULL) Boolean decimoTerceiro,
         @NotNull @Min(1) @Max(31) Integer diaVencimento,
         @NotNull YearMonth primeiroMes,
@@ -92,6 +96,34 @@ public record PensaoRequest(
     }
 
     public record MudancaRendimentosRequest(@NotNull YearMonth aPartirDe, @NotNull @Positive BigDecimal valor) {
+    }
+
+    /**
+     * Base da pensão a partir de um mês, até a próxima mudança (revisional, acordo, definitivos).
+     *
+     * @param percentual  do salário mínimo ou dos rendimentos; obrigatório nessas bases
+     * @param rendimentos obrigatório na base {@link TipoBase#RENDIMENTOS}
+     * @param valor       valor mensal; obrigatório na base {@link TipoBase#VALOR_FIXO}
+     */
+    public record MudancaBaseRequest(@NotNull YearMonth aPartirDe, @NotNull TipoBase base,
+                                     @JsonInclude(JsonInclude.Include.NON_NULL) @Positive BigDecimal percentual,
+                                     @JsonInclude(JsonInclude.Include.NON_NULL) @Positive BigDecimal rendimentos,
+                                     @JsonInclude(JsonInclude.Include.NON_NULL) @Positive BigDecimal valor) {
+
+        BasePensao paraDominio() {
+            return switch (base) {
+                case SALARIO_MINIMO -> new BasePensao.PercentualDoSalarioMinimo(exigir(percentual,
+                        "Informe o percentual do salário mínimo a partir de " + aPartirDe));
+                case RENDIMENTOS -> new BasePensao.PercentualDosRendimentos(
+                        exigir(percentual, "Informe o percentual dos rendimentos a partir de " + aPartirDe),
+                        new Dinheiro(exigir(rendimentos, "Informe os rendimentos a partir de " + aPartirDe)));
+                case VALOR_FIXO -> {
+                    TreeMap<YearMonth, Dinheiro> valores = new TreeMap<>();
+                    valores.put(aPartirDe, new Dinheiro(exigir(valor, "Informe o valor fixo a partir de " + aPartirDe)));
+                    yield new BasePensao.ValorFixo(valores);
+                }
+            };
+        }
     }
 
     public record AbatimentoRequest(@NotNull LocalDate data, @NotNull @Positive BigDecimal valor,
@@ -125,10 +157,25 @@ public record PensaoRequest(
         return abatimentos == null ? List.of() : abatimentos;
     }
 
+    public List<MudancaBaseRequest> mudancasDaBase() {
+        return mudancasBase == null ? List.of() : mudancasBase;
+    }
+
     /** @throws IllegalArgumentException se faltar o dado que a base exige */
     Pensao paraDominio() {
-        return new Pensao(baseParaDominio(), diaVencimento, primeiroMes, ultimoMes, inicioJuros, citacao,
-                comDecimoTerceiro());
+        BasePensao inicial = baseParaDominio();
+        if (mudancasDaBase().isEmpty()) {
+            return new Pensao(inicial, diaVencimento, primeiroMes, ultimoMes, inicioJuros, citacao,
+                    comDecimoTerceiro());
+        }
+        TreeMap<YearMonth, BasePensao> mudancas = new TreeMap<>();
+        for (MudancaBaseRequest m : mudancasDaBase()) {
+            if (mudancas.put(m.aPartirDe(), m.paraDominio()) != null) {
+                throw new IllegalArgumentException("Base a partir de " + m.aPartirDe() + " informada mais de uma vez");
+            }
+        }
+        return new Pensao(new BasePensao.PorPeriodos(inicial, mudancas), diaVencimento, primeiroMes, ultimoMes,
+                inicioJuros, citacao, comDecimoTerceiro());
     }
 
     private BasePensao baseParaDominio() {

@@ -32,6 +32,13 @@ function paraPensaoEditavel(p: NonNullable<CalculoRequest['pensao']>): PensaoEdi
     valoresFixos: p.valoresFixos?.length
       ? p.valoresFixos.map((v) => ({ aPartirDe: v.aPartirDe, valor: reais(v.valor) }))
       : vazia.valoresFixos,
+    mudancasBase: (p.mudancasBase ?? []).map((m) => ({
+      aPartirDe: m.aPartirDe,
+      base: m.base,
+      percentual: m.percentual == null ? '' : campo(m.percentual),
+      rendimentos: m.rendimentos == null ? '' : reais(m.rendimentos),
+      valor: m.valor == null ? '' : reais(m.valor),
+    })),
     decimoTerceiro: p.decimoTerceiro ?? false,
     diaVencimento: String(p.diaVencimento),
     primeiroMes: p.primeiroMes,

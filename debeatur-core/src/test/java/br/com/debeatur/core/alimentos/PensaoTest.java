@@ -232,6 +232,112 @@ class PensaoTest {
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("positivo");
     }
 
+    @Test
+    void baseQueMudaValeDoMesInformadoAteAProxima() {
+        // 30% do SM em 12/2023 e 01/2024; 20% do SM em 02/2024; R$ 500,00 fixos em 03/2024
+        TreeMap<YearMonth, BasePensao> mudancas = new TreeMap<>();
+        mudancas.put(YearMonth.of(2024, 3), valorFixo(YearMonth.of(2024, 3), "500.00"));
+        mudancas.put(YearMonth.of(2024, 2), new BasePensao.PercentualDoSalarioMinimo(new BigDecimal("20")));
+        BasePensao base = new BasePensao.PorPeriodos(new BasePensao.PercentualDoSalarioMinimo(new BigDecimal("30")),
+                mudancas);
+        Pensao pensao = new Pensao(base, 10, YearMonth.of(2023, 12), YearMonth.of(2024, 3),
+                InicioJuros.VENCIMENTO, null, true);
+
+        List<Pensao.ParcelaDoMes> meses = pensao.parcelasPorMes(SALARIO_MINIMO);
+
+        assertThat(base.usaSalarioMinimo()).isTrue();
+        assertThat(meses).extracting(Pensao.ParcelaDoMes::base).containsExactly(Dinheiro.de("1320.00"),
+                Dinheiro.de("1412.00"), Dinheiro.de("1412.00"), Dinheiro.de("500.00"));
+        // 12/2023 com 13º: 30% de 1.320,00 = 396,00, em dobro
+        assertThat(meses).extracting(m -> m.parcela().valor()).containsExactly(Dinheiro.de("792.00"),
+                Dinheiro.de("423.60"), Dinheiro.de("282.40"), Dinheiro.de("500.00"));
+        assertThat(base.vigente(YearMonth.of(2024, 1))).isEqualTo(base.vigente(YearMonth.of(2023, 12)));
+        assertThat(base.vigente(YearMonth.of(2024, 3))).isInstanceOf(BasePensao.ValorFixo.class);
+    }
+
+    @Test
+    void mudancasInternasDaBaseInicialFicamAntesDaMudancaDaBase() {
+        TreeMap<YearMonth, Dinheiro> rendimentos = new TreeMap<>();
+        rendimentos.put(YearMonth.of(2024, 3), Dinheiro.de("3500.00"));
+        BasePensao inicial = new BasePensao.PercentualDosRendimentos(new BigDecimal("30"), Dinheiro.de("3000.00"),
+                rendimentos);
+        TreeMap<YearMonth, BasePensao> mudancas = new TreeMap<>();
+        mudancas.put(YearMonth.of(2024, 4), valorFixo(YearMonth.of(2024, 4), "800.00"));
+
+        Pensao pensao = new Pensao(new BasePensao.PorPeriodos(inicial, mudancas), 10, YearMonth.of(2024, 2),
+                YearMonth.of(2024, 4), InicioJuros.VENCIMENTO, null, false);
+        assertThat(pensao.parcelas(null)).extracting(Parcela::valor)
+                .containsExactly(Dinheiro.de("900.00"), Dinheiro.de("1050.00"), Dinheiro.de("800.00"));
+
+        TreeMap<YearMonth, BasePensao> antes = new TreeMap<>();
+        antes.put(YearMonth.of(2024, 3), valorFixo(YearMonth.of(2024, 3), "800.00"));
+        assertThatThrownBy(() -> new BasePensao.PorPeriodos(inicial, antes))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("mudança da base");
+    }
+
+    @Test
+    void rejeitaMudancaDaBaseForaDaPensao() {
+        for (YearMonth fora : List.of(YearMonth.of(2024, 2), YearMonth.of(2023, 12), YearMonth.of(2024, 6))) {
+            TreeMap<YearMonth, BasePensao> mudancas = new TreeMap<>();
+            mudancas.put(fora, new BasePensao.PercentualDoSalarioMinimo(BigDecimal.TEN));
+            BasePensao base = new BasePensao.PorPeriodos(new BasePensao.PercentualDoSalarioMinimo(BigDecimal.ONE),
+                    mudancas);
+
+            assertThatThrownBy(() -> new Pensao(base, 10, YearMonth.of(2024, 2), YearMonth.of(2024, 5),
+                    InicioJuros.VENCIMENTO, null, false))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("mudanças da base");
+        }
+    }
+
+    @Test
+    void confereABaseInicialDaBaseQueMuda() {
+        TreeMap<YearMonth, BasePensao> mudancas = new TreeMap<>();
+        mudancas.put(YearMonth.of(2024, 4), new BasePensao.PercentualDoSalarioMinimo(BigDecimal.TEN));
+        BasePensao base = new BasePensao.PorPeriodos(valorFixo(YearMonth.of(2024, 3), "500.00"), mudancas);
+
+        assertThatThrownBy(() -> new Pensao(base, 10, YearMonth.of(2024, 2), YearMonth.of(2024, 5),
+                InicioJuros.VENCIMENTO, null, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("primeiro valor fixo");
+    }
+
+    @Test
+    void rejeitaBasesPorPeriodosInvalidas() {
+        BasePensao sm = new BasePensao.PercentualDoSalarioMinimo(BigDecimal.TEN);
+        assertThatThrownBy(() -> new BasePensao.PorPeriodos(sm, new TreeMap<>()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ao menos uma");
+
+        TreeMap<YearMonth, BasePensao> fixoDepois = new TreeMap<>();
+        fixoDepois.put(YearMonth.of(2024, 3), valorFixo(YearMonth.of(2024, 4), "500.00"));
+        assertThatThrownBy(() -> new BasePensao.PorPeriodos(sm, fixoDepois))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("começa depois");
+
+        TreeMap<YearMonth, BasePensao> umaMudanca = new TreeMap<>();
+        umaMudanca.put(YearMonth.of(2024, 3), sm);
+        BasePensao porPeriodos = new BasePensao.PorPeriodos(sm, umaMudanca);
+        TreeMap<YearMonth, BasePensao> aninhada = new TreeMap<>();
+        aninhada.put(YearMonth.of(2024, 4), porPeriodos);
+        assertThatThrownBy(() -> new BasePensao.PorPeriodos(sm, aninhada))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("por períodos");
+        assertThatThrownBy(() -> new BasePensao.PorPeriodos(porPeriodos, umaMudanca))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("por períodos");
+
+        TreeMap<YearMonth, Dinheiro> rendimentosAntes = new TreeMap<>();
+        rendimentosAntes.put(YearMonth.of(2024, 3), Dinheiro.de("100.00"));
+        TreeMap<YearMonth, BasePensao> rendimentos = new TreeMap<>();
+        rendimentos.put(YearMonth.of(2024, 3), new BasePensao.PercentualDosRendimentos(BigDecimal.TEN,
+                Dinheiro.de("50.00"), rendimentosAntes));
+        assertThatThrownBy(() -> new BasePensao.PorPeriodos(sm, rendimentos))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("depois dela");
+    }
+
+    private static BasePensao valorFixo(YearMonth aPartirDe, String valor) {
+        TreeMap<YearMonth, Dinheiro> valores = new TreeMap<>();
+        valores.put(aPartirDe, Dinheiro.de(valor));
+        return new BasePensao.ValorFixo(valores);
+    }
+
     private static Pensao pensao(String percentual, int dia, YearMonth de, YearMonth ate) {
         return Pensao.emSalarioMinimo(new BigDecimal(percentual), dia, de, ate, InicioJuros.VENCIMENTO, null);
     }

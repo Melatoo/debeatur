@@ -94,6 +94,27 @@ describe('rascunho', () => {
     expect(lerRascunho(armazenamento)?.rascunho).toEqual(preenchido)
   })
 
+  it('abre o rascunho de antes das mudanças da base sem mudanças', () => {
+    const armazenamento = armazenamentoEmMemoria()
+    const { mudancasBase, ...pensao } = preenchido.pensao
+    expect(mudancasBase).toEqual([])
+    armazenamento.setItem(CHAVE_RASCUNHO, comoTexto({ ...preenchido, pensao }))
+    expect(lerRascunho(armazenamento)?.rascunho).toEqual(preenchido)
+  })
+
+  it('guarda as mudanças da base', () => {
+    const armazenamento = armazenamentoEmMemoria()
+    const comMudanca = {
+      ...preenchido,
+      pensao: {
+        ...preenchido.pensao,
+        mudancasBase: [{ aPartirDe: '2026-01', base: 'VALOR_FIXO' as const, percentual: '', rendimentos: '', valor: '500,00' }],
+      },
+    }
+    salvarRascunho(armazenamento, comMudanca, 'a')
+    expect(lerRascunho(armazenamento)?.rascunho).toEqual(comMudanca)
+  })
+
   it('abre o rascunho de antes da opção do pagamento a maior com o crédito da DPMG', () => {
     const armazenamento = armazenamentoEmMemoria()
     const { pagoAMaiorComoCredito, ...pensao } = preenchido.pensao

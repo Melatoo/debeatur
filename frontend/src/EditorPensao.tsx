@@ -7,9 +7,12 @@ import { contar, data, mes } from './formato'
 import { lerPagamentosColados } from './pagamentosColados'
 import {
   BASES,
+  erroDasMudancasDaBase,
   erroDasMudancasDosRendimentos,
   erroDoDiaVencimento,
   erroDosValoresFixos,
+  mudancaBaseVazia,
+  type MudancaBaseEditavel,
   type PensaoEditavel,
 } from './pensao'
 import { Dica } from './Dica'
@@ -31,8 +34,11 @@ export function EditorPensao({ pensao, onPensao }: Props) {
     alterar({
       mudancasRendimentos: pensao.mudancasRendimentos.map((m, i) => (i === indice ? { ...m, ...campos } : m)),
     })
+  const alterarMudancaBase = (indice: number, campos: Partial<MudancaBaseEditavel>) =>
+    alterar({ mudancasBase: pensao.mudancasBase.map((m, i) => (i === indice ? { ...m, ...campos } : m)) })
   const erroFixos = erroDosValoresFixos(pensao)
   const erroMudancas = erroDasMudancasDosRendimentos(pensao)
+  const erroBase = erroDasMudancasDaBase(pensao)
 
   return (
     <div className="editor-pensao">
@@ -154,6 +160,78 @@ export function EditorPensao({ pensao, onPensao }: Props) {
           <p className="dica">Cada valor vale do mês informado até o próximo, sem reajuste automático.</p>
         </>
       )}
+
+      {pensao.mudancasBase.map((m, i) => (
+        <fieldset key={i} className="mudanca-base">
+          <legend className="sr-only">Mudança da base {i + 1}</legend>
+          <Campo rotulo="A partir de" erroProprio={i === 0 ? erroBase : undefined}>
+            <input
+              type="month"
+              required
+              value={m.aPartirDe}
+              onChange={(e) => alterarMudancaBase(i, { aPartirDe: e.target.value })}
+            />
+          </Campo>
+          <label>
+            Nova base
+            <select value={m.base} onChange={(e) => alterarMudancaBase(i, { base: e.target.value as TipoBase })}>
+              {(Object.keys(BASES) as TipoBase[]).map((b) => (
+                <option key={b} value={b}>
+                  {BASES[b]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {m.base !== 'VALOR_FIXO' && (
+            <Campo
+              rotulo={m.base === 'RENDIMENTOS' ? '% dos rendimentos' : '% do salário mínimo'}
+              seVazio="Informe o percentual a partir desse mês (ex.: 20)."
+            >
+              <CampoDecimal
+                casas={2}
+                milhar={false}
+                required
+                value={m.percentual}
+                onValor={(percentual) => alterarMudancaBase(i, { percentual })}
+              />
+            </Campo>
+          )}
+          {m.base === 'RENDIMENTOS' && (
+            <Campo rotulo="Rendimentos (R$)" seVazio="Informe os rendimentos a partir desse mês (ex.: 3.000,00).">
+              <CampoDecimal
+                casas={2}
+                required
+                value={m.rendimentos}
+                onValor={(rendimentos) => alterarMudancaBase(i, { rendimentos })}
+              />
+            </Campo>
+          )}
+          {m.base === 'VALOR_FIXO' && (
+            <Campo rotulo="Valor mensal (R$)" seVazio="Informe o valor mensal a partir desse mês (ex.: 500,00).">
+              <CampoDecimal casas={2} required value={m.valor} onValor={(valor) => alterarMudancaBase(i, { valor })} />
+            </Campo>
+          )}
+          <button
+            type="button"
+            className="secundario"
+            aria-label={`Remover a mudança da base ${m.aPartirDe ? `a partir de ${mes(m.aPartirDe)}` : i + 1}`}
+            onClick={() => alterar({ mudancasBase: pensao.mudancasBase.filter((_, j) => j !== i) })}
+          >
+            Remover
+          </button>
+        </fieldset>
+      ))}
+      <button
+        type="button"
+        className="secundario"
+        onClick={() => alterar({ mudancasBase: [...pensao.mudancasBase, mudancaBaseVazia()] })}
+      >
+        Adicionar mudança da base
+      </button>
+      <p className="dica">
+        Para revisional, acordo ou definitivos que mudam o percentual ou trocam a base. A base acima vale até a primeira
+        mudança, e cada mudança vale do mês informado até a próxima.
+      </p>
 
       <div className="campos quatro">
         {/* Campo de texto, como os outros números do formulário; a faixa de 1 a 31 vem do erroProprio, e não de min e max. */}

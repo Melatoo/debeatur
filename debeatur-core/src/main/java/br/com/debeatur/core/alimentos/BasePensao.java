@@ -33,6 +33,11 @@ public sealed interface BasePensao {
         return false;
     }
 
+    /** A base que dá o valor do mês: ela mesma, ou a do período em {@link PorPeriodos}. */
+    default BasePensao vigente(YearMonth mes) {
+        return this;
+    }
+
     /**
      * Percentual do salário mínimo vigente no mês do vencimento (Súmula 490 do STF).
      *
@@ -150,6 +155,89 @@ public sealed interface BasePensao {
         @Override
         public Dinheiro valor(YearMonth mes, SalarioMinimo salarioMinimo) {
             return base(mes, salarioMinimo);
+        }
+    }
+
+    /**
+     * Base que muda no meio da pensão: revisional que muda o percentual, acordo que troca a base,
+     * provisórios seguidos dos definitivos. A base inicial vale do início da pensão até a primeira
+     * mudança, e cada mudança vale do mês informado até a próxima; o último período vai até o fim
+     * da pensão. Cada mês usa a conta da base do seu período, como dois cálculos separados.
+     * <p>
+     * As mudanças internas de cada base (rendimentos que mudam, valores fixos por período) ficam
+     * dentro do período dela, e um valor fixo de uma mudança começa até o mês da mudança.
+     *
+     * @param inicial  base do início da pensão até a primeira mudança
+     * @param mudancas base a partir de cada mês; ao menos uma, nenhuma delas por períodos
+     */
+    record PorPeriodos(BasePensao inicial, NavigableMap<YearMonth, BasePensao> mudancas) implements BasePensao {
+
+        public PorPeriodos {
+            Objects.requireNonNull(inicial, "inicial");
+            Objects.requireNonNull(mudancas, "mudancas");
+            if (mudancas.isEmpty()) {
+                throw new IllegalArgumentException("Informe ao menos uma mudança da base");
+            }
+            mudancas = Collections.unmodifiableNavigableMap(new TreeMap<>(mudancas));
+            if (inicial instanceof PorPeriodos) {
+                throw new IllegalArgumentException("A base inicial não pode ser por períodos");
+            }
+            exigirMudancasInternasAntes(inicial, mudancas.firstKey());
+            for (Map.Entry<YearMonth, BasePensao> e : mudancas.entrySet()) {
+                YearMonth inicio = Objects.requireNonNull(e.getKey(), "mes");
+                BasePensao base = Objects.requireNonNull(e.getValue(), "base");
+                if (base instanceof PorPeriodos) {
+                    throw new IllegalArgumentException("A base a partir de " + inicio + " não pode ser por períodos");
+                }
+                if (base instanceof ValorFixo fixo && fixo.inicio().isAfter(inicio)) {
+                    throw new IllegalArgumentException("O valor fixo da base a partir de " + inicio
+                            + " começa depois dela, em " + fixo.inicio());
+                }
+                if (base instanceof PercentualDosRendimentos r && !r.mudancas().isEmpty()
+                        && !r.mudancas().firstKey().isAfter(inicio)) {
+                    throw new IllegalArgumentException("As mudanças dos rendimentos da base a partir de " + inicio
+                            + " devem ficar depois dela");
+                }
+                YearMonth proxima = mudancas.higherKey(inicio);
+                if (proxima != null) {
+                    exigirMudancasInternasAntes(base, proxima);
+                }
+            }
+        }
+
+        /** A base do período do mês. */
+        @Override
+        public BasePensao vigente(YearMonth mes) {
+            Map.Entry<YearMonth, BasePensao> mudanca = mudancas.floorEntry(mes);
+            return mudanca == null ? inicial : mudanca.getValue();
+        }
+
+        @Override
+        public Dinheiro base(YearMonth mes, SalarioMinimo salarioMinimo) {
+            return vigente(mes).base(mes, salarioMinimo);
+        }
+
+        @Override
+        public Dinheiro valor(YearMonth mes, SalarioMinimo salarioMinimo) {
+            return vigente(mes).valor(mes, salarioMinimo);
+        }
+
+        @Override
+        public boolean usaSalarioMinimo() {
+            return inicial.usaSalarioMinimo() || mudancas.values().stream().anyMatch(BasePensao::usaSalarioMinimo);
+        }
+
+        /** Mudanças internas da base (rendimentos, valores fixos) só antes do fim do período dela. */
+        private static void exigirMudancasInternasAntes(BasePensao base, YearMonth fimExclusivo) {
+            if (base instanceof PercentualDosRendimentos r && !r.mudancas().isEmpty()
+                    && !r.mudancas().lastKey().isBefore(fimExclusivo)) {
+                throw new IllegalArgumentException("A mudança dos rendimentos a partir de " + r.mudancas().lastKey()
+                        + " cai no período da base a partir de " + fimExclusivo + "; informe-a como mudança da base");
+            }
+            if (base instanceof ValorFixo f && !f.valoresAPartirDe().lastKey().isBefore(fimExclusivo)) {
+                throw new IllegalArgumentException("O valor fixo a partir de " + f.valoresAPartirDe().lastKey()
+                        + " cai no período da base a partir de " + fimExclusivo + "; informe-o como mudança da base");
+            }
         }
     }
 

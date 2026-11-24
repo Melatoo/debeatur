@@ -31,6 +31,11 @@ pedido.
   até a próxima mudança, sem reajuste automático.
 - **Pensão em valor fixo:** períodos com valor próprio, sem reajuste automático, como na
   planilha da DPMG. Cada valor vale do mês informado até o próximo.
+- **Base que muda no meio do período** (#108): revisional que muda o percentual, acordo que
+  troca a base, provisórios seguidos dos definitivos. A base inicial vale até a primeira mudança,
+  e cada mudança (salário mínimo, rendimentos ou valor fixo) vale do mês informado até a próxima.
+  Cada mês segue a conta da base do seu período, como cálculos separados, e o 13º, os pagamentos
+  e os ritos continuam sobre a lista única de parcelas.
 - **13º salário:** opcional; o valor de dezembro dobra, como na planilha da DPMG.
 - **Termo inicial dos juros:** configurável entre o vencimento de cada parcela e a citação.
 - **Pagamentos parciais:** abatidos da parcela do mesmo mês, sem imputação do art. 354 do CC,

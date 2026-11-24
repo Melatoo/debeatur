@@ -52,6 +52,21 @@ public record Pensao(BasePensao base, int diaVencimento, YearMonth primeiroMes, 
         if (inicioJuros == InicioJuros.CITACAO && citacao == null) {
             throw new IllegalArgumentException("Informe a data da citação para juros desde a citação");
         }
+        BasePensao inicial = base;
+        if (base instanceof BasePensao.PorPeriodos periodos) {
+            YearMonth primeiraMudanca = periodos.mudancas().firstKey();
+            YearMonth ultimaMudanca = periodos.mudancas().lastKey();
+            if (!primeiraMudanca.isAfter(primeiroMes) || ultimaMudanca.isAfter(ultimoMes)) {
+                throw new IllegalArgumentException("As mudanças da base devem ficar depois do primeiro mês da pensão ("
+                        + primeiroMes + ") e até o último (" + ultimoMes + ")");
+            }
+            inicial = periodos.inicial();
+        }
+        exigirBaseInicial(inicial, primeiroMes, ultimoMes);
+    }
+
+    /** A base do início da pensão cobre o primeiro mês, e as mudanças dela ficam dentro da pensão. */
+    private static void exigirBaseInicial(BasePensao base, YearMonth primeiroMes, YearMonth ultimoMes) {
         if (base instanceof BasePensao.PercentualDosRendimentos r && !r.mudancas().isEmpty()) {
             YearMonth primeiraMudanca = r.mudancas().firstKey();
             YearMonth ultimaMudanca = r.mudancas().lastKey();
