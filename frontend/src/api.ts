@@ -72,6 +72,8 @@ export interface PensaoRequest {
   /** Obrigatória com juros desde a citação. */
   citacao: string | null
   pagamentos: PagamentoRequest[]
+  /** O pagamento maior que a parcela do mês: recusado ou crédito no próprio mês (DPMG); sem ele, a API recusa, como nos cálculos salvos antes da opção. */
+  excedentePagamento?: ExcedentePagamento
   /** Saem do débito atualizado (ou do da penhora, com os ritos) pelo valor nominal; multa e honorários incidem sobre o saldo. */
   abatimentos?: AbatimentoRequest[]
   /** Se informado, separa as linhas entre o rito da prisão e o da penhora; o art. 523 incide só na penhora. */
@@ -79,6 +81,9 @@ export interface PensaoRequest {
   /** Quais parcelas vão para a prisão; sem ela, a API segue a lei, a regra dos cálculos salvos antes da opção. */
   regraRitos?: RegraRitos
 }
+
+/** Recusa o pagamento a maior ou o deixa como crédito no próprio mês, corrigido e com juros, como a planilha da DPMG. */
+export type ExcedentePagamento = 'RECUSAR' | 'CREDITO_NO_MES'
 
 /** As três últimas parcelas do cálculo (DPMG) ou as três até o ajuizamento mais as do curso (lei). */
 export type RegraRitos = 'ULTIMOS_MESES_DO_CALCULO' | 'LEI'

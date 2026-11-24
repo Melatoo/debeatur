@@ -90,9 +90,11 @@ describe('competenciasQuitadas', () => {
         linha('2021-01', 0, 400),
         linha('2021-02', 200, 200),
         linha('2021-03', 400, 0),
+        // paga a maior, com o crédito no próprio mês
+        linha('2021-04', -76.4, 500),
         { valorOriginal: 0, pensao: null },
       ]),
-    ).toEqual(new Set(['2021-01']))
+    ).toEqual(new Set(['2021-01', '2021-04']))
   })
 })
 

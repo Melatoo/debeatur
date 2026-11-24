@@ -78,9 +78,9 @@ export function parcelasAntigas(
   return meses.length > 0 ? { meses, marco, porAjuizamento: marco === ajuizamento } : null
 }
 
-/** As competências da pensão pagas por inteiro num demonstrativo: ficam nele, mas com saldo zero. */
+/** As competências da pensão pagas por inteiro num demonstrativo: ficam nele com saldo zero, ou negativo se pagas a maior. */
 export const competenciasQuitadas = (linhas: { valorOriginal: number; pensao: { mes: string; valorPago: number } | null }[]) =>
-  new Set(linhas.flatMap((l) => (l.pensao && l.pensao.valorPago > 0 && l.valorOriginal === 0 ? [l.pensao.mes] : [])))
+  new Set(linhas.flatMap((l) => (l.pensao && l.pensao.valorPago > 0 && l.valorOriginal <= 0 ? [l.pensao.mes] : [])))
 
 /** As competências em faixas contínuas: "01/2021 a 03/2021 e 05/2021". */
 function faixas(meses: string[]): string {

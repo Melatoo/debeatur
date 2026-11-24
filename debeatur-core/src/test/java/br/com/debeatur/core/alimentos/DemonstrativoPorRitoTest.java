@@ -48,6 +48,21 @@ class DemonstrativoPorRitoTest {
     }
 
     @Test
+    void recusaCreditoDoPagamentoAMaiorQueDeixaUmRitoNegativo() {
+        // 06/2024 pago a maior como crédito no mês: a prisão (04 a 06/2024) fica com −50,00
+        Demonstrativo demonstrativo = demonstrativo(
+                linha("01/2024", LocalDate.of(2024, 1, 10), "100.00", "10.00"),
+                linha("04/2024", LocalDate.of(2024, 4, 10), "100.00", "0.00"),
+                linha("05/2024", LocalDate.of(2024, 5, 10), "100.00", "0.00"),
+                linha("06/2024", LocalDate.of(2024, 6, 10), "-250.00", "0.00"));
+
+        assertThatThrownBy(() -> DemonstrativoPorRito.separar(demonstrativo, AJUIZAMENTO, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Os pagamentos a maior superam o devido no rito da prisão: o débito atualizado desse rito"
+                        + " ficou em R$ -50.00");
+    }
+
+    @Test
     void pelaDpmgAPrisaoFicaComAsTresUltimasDoCalculoMesmoDepoisDoAjuizamento() {
         Demonstrativo demonstrativo = demonstrativo(
                 linha("01/2024", LocalDate.of(2024, 1, 10), "100.00", "10.00"),

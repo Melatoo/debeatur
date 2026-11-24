@@ -94,7 +94,8 @@ interface Coluna {
 
 const nomeDaParcela = (l: LinhaDemonstrativo) => {
   if (!l.pensao) return l.descricao
-  const quitada = l.pensao.valorPago > 0 && l.valorOriginal === 0
+  // com o pagamento a maior como crédito no mês, o saldo fica negativo, e o mês também está pago
+  const quitada = l.pensao.valorPago > 0 && l.valorOriginal <= 0
   return `${mes(l.pensao.mes)}${l.pensao.decimoTerceiro ? ' e 13º' : ''}${quitada ? ' (quitada)' : ''}`
 }
 
@@ -538,7 +539,10 @@ export function Demonstrativo({ pedido, resultado, processo, situacao, motivo, a
               <dd>
                 {pagos.length === 0
                   ? 'Nenhum'
-                  : pagos.map((p) => `${mes(p.mes)}: ${moeda(p.valorPago)}`).join('; ')}
+                  : pagos.map((p) => `${mes(p.mes)}: ${moeda(p.valorPago)}`).join('; ') +
+                    (pagos.some((p) => p.valorPago > p.valorDevido)
+                      ? '. O que passou da parcela do mês ficou como crédito no próprio mês, corrigido e com juros, como na planilha da DPMG'
+                      : '')}
               </dd>
             </div>
             <div>

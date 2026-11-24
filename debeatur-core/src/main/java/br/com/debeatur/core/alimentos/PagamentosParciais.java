@@ -19,13 +19,23 @@ import java.util.Set;
  * parcela do mesmo mês, antes da correção, e o saldo é que se corrige e recebe juros. Não há
  * imputação (art. 354 do CC) nem atualização do pagamento pela data em que foi feito.
  * <p>
- * Pagamento maior que a parcela do mês é rejeitado: a compensação de alimentos pagos a maior
- * com outras parcelas não é automática. A mensagem orienta lançar o excedente como
- * {@link Abatimento}, que sai do débito atualizado pelo valor nominal (#112).
+ * O pagamento maior que a parcela do mês segue o {@link ExcedentePagamento} escolhido (#112):
+ * por padrão é rejeitado, e a mensagem orienta lançar o excedente como {@link Abatimento}; como
+ * crédito no mês, o saldo da parcela fica negativo, como na planilha da DPMG.
  */
 public final class PagamentosParciais {
 
     private final Map<YearMonth, Dinheiro> pagos = new HashMap<>();
+    private final ExcedentePagamento excedente;
+
+    /** Pagamentos que recusam o excedente, o padrão dos cálculos salvos antes da opção. */
+    public PagamentosParciais() {
+        this(ExcedentePagamento.RECUSAR);
+    }
+
+    public PagamentosParciais(ExcedentePagamento excedente) {
+        this.excedente = Objects.requireNonNull(excedente, "excedente");
+    }
 
     public PagamentosParciais com(YearMonth mes, Dinheiro valor) {
         Objects.requireNonNull(mes, "mes");
@@ -41,10 +51,12 @@ public final class PagamentosParciais {
 
     /**
      * Abate cada pagamento da parcela que vence no mesmo mês, mantendo as datas de correção e
-     * de juros. A parcela quitada fica no demonstrativo com saldo zero.
+     * de juros. A parcela quitada fica no demonstrativo com saldo zero; a paga a maior, com o
+     * crédito como saldo negativo, se o excedente for {@link ExcedentePagamento#CREDITO_NO_MES}.
      *
      * @throws IllegalArgumentException se um pagamento não tiver parcela no mês, se o mês tiver
-     *                                  mais de uma parcela ou se o pagamento exceder a parcela
+     *                                  mais de uma parcela ou se o pagamento exceder a parcela e o
+     *                                  excedente for {@link ExcedentePagamento#RECUSAR}
      */
     public List<Parcela> abater(List<Parcela> parcelas) {
         Set<YearMonth> meses = new HashSet<>();
@@ -59,14 +71,16 @@ public final class PagamentosParciais {
                 saldos.add(parcela);
                 continue;
             }
-            if (pago.compareTo(parcela.valor()) > 0) {
+            if (pago.compareTo(parcela.valor()) > 0 && excedente == ExcedentePagamento.RECUSAR) {
                 throw new IllegalArgumentException("Pagamento de " + mes + " (" + pago
                         + ") maior que a parcela (" + parcela.valor() + "). Lance no mês até o valor da parcela"
                         + " e o excedente (" + pago.menos(parcela.valor()) + ") como abatimento, que sai do"
                         + " débito atualizado pelo valor nominal");
             }
             Dinheiro saldo = parcela.valor().menos(pago);
-            String situacao = saldo.equals(Dinheiro.ZERO) ? " (quitada)" : " (saldo após pagamento parcial)";
+            int sinal = saldo.compareTo(Dinheiro.ZERO);
+            String situacao = sinal == 0 ? " (quitada)"
+                    : sinal < 0 ? " (crédito do pagamento a maior)" : " (saldo após pagamento parcial)";
             saldos.add(new Parcela(parcela.descricao() + situacao, saldo,
                     parcela.inicioCorrecao(), parcela.inicioJuros()));
         }

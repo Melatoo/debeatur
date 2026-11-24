@@ -41,6 +41,15 @@ describe('paraPensao', () => {
     expect(paraPensao({ ...base, percentual: '30', mudancasRendimentos }, false)).not.toHaveProperty('mudancasRendimentos')
   })
 
+  it('manda o destino do pagamento a maior só com pagamentos', () => {
+    expect(paraPensao({ ...base, percentual: '30' }, false)).not.toHaveProperty('excedentePagamento')
+    const pagamentos = [{ mes: '2025-02', valor: '1.000,00' }]
+    expect(paraPensao({ ...base, percentual: '30', pagamentos }, false).excedentePagamento).toBe('CREDITO_NO_MES')
+    expect(
+      paraPensao({ ...base, percentual: '30', pagamentos, pagoAMaiorComoCredito: false }, false).excedentePagamento,
+    ).toBe('RECUSAR')
+  })
+
   it('em valor fixo, manda os períodos sem percentual', () => {
     const pedido = paraPensao(
       { ...base, base: 'VALOR_FIXO', percentual: '30', valoresFixos: [{ aPartirDe: '2025-01', valor: '1.200,50' }] },

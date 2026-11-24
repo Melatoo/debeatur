@@ -63,6 +63,7 @@ const ehParcela = (v: unknown) =>
 const ehPensao = (v: unknown) =>
   comTextos(v, ['base', 'percentual', 'rendimentos', 'diaVencimento', 'primeiroMes', 'ultimoMes', 'inicioJuros', 'citacao', 'ajuizamento']) &&
   typeof v.decimoTerceiro === 'boolean' &&
+  typeof v.pagoAMaiorComoCredito === 'boolean' &&
   listaDe(v.valoresFixos, (f) => comTextos(f, ['aPartirDe', 'valor'])) &&
   listaDe(v.mudancasRendimentos, (m) => comTextos(m, ['aPartirDe', 'valor'])) &&
   listaDe(v.pagamentos, (p) => comTextos(p, ['mes', 'valor'])) &&
@@ -120,6 +121,12 @@ function semRegraRitos(rascunho: unknown): unknown {
   return { ...rascunho, ritosPelaLei: false }
 }
 
+/** Rascunho de antes da opção do pagamento a maior: vale o padrão do formulário, o crédito da DPMG. */
+function semExcedentePagamento(rascunho: unknown): unknown {
+  if (!ehObjeto(rascunho) || !ehObjeto(rascunho.pensao) || 'pagoAMaiorComoCredito' in rascunho.pensao) return rascunho
+  return { ...rascunho, pensao: { ...rascunho.pensao, pagoAMaiorComoCredito: true } }
+}
+
 /** Rascunho de antes das mudanças dos rendimentos: os rendimentos valem em todos os meses. */
 function semMudancasRendimentos(rascunho: unknown): unknown {
   if (!ehObjeto(rascunho) || !ehObjeto(rascunho.pensao) || 'mudancasRendimentos' in rascunho.pensao) return rascunho
@@ -141,8 +148,10 @@ function interpretar(texto: string): RascunhoSalvo | null {
   try {
     const salvo: unknown = JSON.parse(texto)
     if (!ehObjeto(salvo) || (salvo.versao !== VERSAO && salvo.versao !== 1)) return null
-    const rascunho = semMudancasRendimentos(
-      semRegraRitos(semBaseHonorarios(semTema1368(salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho))),
+    const rascunho = semExcedentePagamento(
+      semMudancasRendimentos(
+        semRegraRitos(semBaseHonorarios(semTema1368(salvo.versao === 1 ? daVersao1(salvo.rascunho) : salvo.rascunho))),
+      ),
     )
     if (!ehRascunho(rascunho)) return null
     const salvoEm = new Date(typeof salvo.salvoEm === 'string' ? salvo.salvoEm : NaN)

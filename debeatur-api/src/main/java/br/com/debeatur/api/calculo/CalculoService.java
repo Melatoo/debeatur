@@ -58,6 +58,11 @@ public class CalculoService {
                 : parcelas(request.pensao(), request.dataBase(), lidas);
         ParametrosCalculo parametros = request.paraDominio(pensao.parcelas());
         Demonstrativo demonstrativo = calcular(parametros, lidas);
+        if (demonstrativo.debitoAtualizado().compareTo(Dinheiro.ZERO) < 0) {
+            // só acontece com o pagamento a maior como crédito no mês (ExcedentePagamento.CREDITO_NO_MES)
+            throw new IllegalArgumentException("Os pagamentos a maior superam o devido: o débito atualizado ficou em "
+                    + demonstrativo.debitoAtualizado());
+        }
         List<DemonstrativoResponse.SerieUsada> series = DemonstrativoResponse.SerieUsada.de(lidas.snapshot(), fonte);
         if (request.separaPorRito()) {
             DemonstrativoPorRito porRito = DemonstrativoPorRito.separar(demonstrativo,

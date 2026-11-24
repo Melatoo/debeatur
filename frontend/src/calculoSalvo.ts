@@ -39,6 +39,8 @@ function paraPensaoEditavel(p: NonNullable<CalculoRequest['pensao']>): PensaoEdi
     inicioJuros: p.inicioJuros,
     citacao: p.citacao ?? '',
     pagamentos: (p.pagamentos ?? []).map((pg) => ({ mes: pg.mes, valor: reais(pg.valor) })),
+    // Sem a opção, o cálculo foi salvo quando o pagamento a maior era recusado.
+    pagoAMaiorComoCredito: p.excedentePagamento === 'CREDITO_NO_MES',
     abatimentos: (p.abatimentos ?? []).map((a) => ({ data: a.data, valor: reais(a.valor), origem: a.origem ?? '' })),
     ajuizamento: p.ajuizamento ?? '',
   }

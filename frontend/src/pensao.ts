@@ -20,6 +20,8 @@ export interface PensaoEditavel {
   inicioJuros: InicioJuros
   citacao: string
   pagamentos: PagamentoRequest[]
+  /** O que passar da parcela do mês fica como crédito no próprio mês (DPMG); desmarcado, o cálculo recusa. */
+  pagoAMaiorComoCredito: boolean
   abatimentos: AbatimentoRequest[]
   ajuizamento: string
 }
@@ -37,6 +39,7 @@ export const pensaoVazia = (): PensaoEditavel => ({
   inicioJuros: 'VENCIMENTO',
   citacao: '',
   pagamentos: [],
+  pagoAMaiorComoCredito: true,
   abatimentos: [],
   ajuizamento: '',
 })
@@ -114,6 +117,8 @@ export function paraPensao(p: PensaoEditavel, separarRitos: boolean, ritosPelaLe
     inicioJuros: p.inicioJuros,
     citacao: p.inicioJuros === 'CITACAO' ? p.citacao : null,
     pagamentos: p.pagamentos.map((pg) => ({ ...pg, valor: exigirDecimal(pg.valor, 'Valor pago') })),
+    // Só com pagamentos, para que os pedidos sem eles fiquem como antes da opção.
+    ...(p.pagamentos.length > 0 && { excedentePagamento: p.pagoAMaiorComoCredito ? 'CREDITO_NO_MES' : 'RECUSAR' }),
     ...(p.abatimentos.length > 0 && {
       abatimentos: p.abatimentos.map((a) => ({
         data: a.data,

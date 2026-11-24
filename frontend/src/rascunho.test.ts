@@ -94,6 +94,14 @@ describe('rascunho', () => {
     expect(lerRascunho(armazenamento)?.rascunho).toEqual(preenchido)
   })
 
+  it('abre o rascunho de antes da opção do pagamento a maior com o crédito da DPMG', () => {
+    const armazenamento = armazenamentoEmMemoria()
+    const { pagoAMaiorComoCredito, ...pensao } = preenchido.pensao
+    expect(pagoAMaiorComoCredito).toBe(true)
+    armazenamento.setItem(CHAVE_RASCUNHO, comoTexto({ ...preenchido, pensao }))
+    expect(lerRascunho(armazenamento)?.rascunho).toEqual(preenchido)
+  })
+
   it('abre o rascunho de antes do Tema 1368 com a opção desmarcada', () => {
     const armazenamento = armazenamentoEmMemoria()
     const { tema1368, regimeTema1368, ...anterior } = { ...preenchido, regimeProprio: true, regras: [] }
