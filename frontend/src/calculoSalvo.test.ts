@@ -63,6 +63,7 @@ describe('paraRascunho', () => {
       inicioJuros: 'VENCIMENTO',
       citacao: '',
       pagamentos: [{ mes: '2024-06', valor: '200,00' }],
+      pagoAMaiorComoCredito: false,
       abatimentos: [],
       ajuizamento: '2025-03-15',
     })
@@ -84,12 +85,21 @@ describe('paraRascunho', () => {
         inicioJuros: 'VENCIMENTO',
         citacao: null,
         pagamentos: [{ mes: '2024-06', valor: '200.00' }],
+        // o salvo de antes da opção recusava o pagamento a maior, e o formulário reaberto manda isso explícito
+        excedentePagamento: 'RECUSAR',
         ajuizamento: '2025-03-15',
         // o salvo de antes da opção foi calculado pela lei, e o formulário reaberto manda isso explícito
         regraRitos: 'LEI',
       },
       regime: undefined,
     })
+  })
+
+  it('reabre o pagamento a maior como crédito no mês', () => {
+    const comCredito = { ...salvo, pensao: { ...salvo.pensao, excedentePagamento: 'CREDITO_NO_MES' } } as CalculoRequest
+    const r = paraRascunho(comCredito, padrao)
+    expect(r.pensao.pagoAMaiorComoCredito).toBe(true)
+    expect(paraPedido(r).pensao?.excedentePagamento).toBe('CREDITO_NO_MES')
   })
 
   it('reabre a base dos honorários escolhida, e o padrão não vai no pedido', () => {
@@ -151,6 +161,7 @@ describe('paraRascunho', () => {
       inicioJuros: 'VENCIMENTO',
       citacao: null,
       pagamentos: [{ mes: '2024-06', valor: '200.00' }],
+      excedentePagamento: 'RECUSAR',
       abatimentos: [{ data: '2025-10-02', valor: '300.00', origem: 'Bloqueio' }],
       ajuizamento: '2025-03-15',
       regraRitos: 'LEI',

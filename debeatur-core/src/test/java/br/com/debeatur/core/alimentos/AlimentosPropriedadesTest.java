@@ -114,6 +114,32 @@ class AlimentosPropriedadesTest {
     }
 
     @Test
+    void comCreditoNoMesOExcedenteFicaNoProprioMesENadaSomeNemAparece() {
+        paraCadaCaso((n, caso) -> {
+            List<Parcela> parcelas = caso.pensao().parcelas(salarioMinimo);
+            PagamentosParciais credito = new PagamentosParciais(ExcedentePagamento.CREDITO_NO_MES);
+            caso.pagos().forEach(credito::com);
+            // até a parcela, a opção não muda nada
+            assertThat(credito.abater(parcelas)).as("caso %d: igual à recusa", n)
+                    .isEqualTo(caso.pagamentos().abater(parcelas));
+
+            // em dobro, parte dos pagamentos passa da parcela
+            PagamentosParciais emDobro = new PagamentosParciais(ExcedentePagamento.CREDITO_NO_MES);
+            caso.pagos().forEach((mes, valor) -> emDobro.com(mes, valor.mais(valor)));
+            List<Parcela> saldos = emDobro.abater(parcelas);
+            for (int i = 0; i < parcelas.size(); i++) {
+                Parcela antes = parcelas.get(i);
+                Parcela depois = saldos.get(i);
+                Dinheiro pago = caso.pagos().getOrDefault(YearMonth.from(antes.inicioCorrecao()), Dinheiro.ZERO);
+                assertThat(depois.valor()).as("caso %d, parcela %d: saldo", n, i)
+                        .isEqualTo(antes.valor().menos(pago.mais(pago)));
+                assertThat(depois.inicioCorrecao()).as("caso %d, parcela %d: correção", n, i).isEqualTo(antes.inicioCorrecao());
+                assertThat(depois.inicioJuros()).as("caso %d, parcela %d: juros", n, i).isEqualTo(antes.inicioJuros());
+            }
+        });
+    }
+
+    @Test
     void ritosRepartemODebitoPelasRegrasDaPrisao() {
         paraCadaCaso((n, caso) -> {
             Demonstrativo d = demonstrativo(caso);

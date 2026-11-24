@@ -52,7 +52,31 @@ class PagamentosParciaisTest {
 
         assertThatThrownBy(() -> pagamentos.abater(parcelas))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("maior que a parcela");
+                .hasMessage("Pagamento de 2024-01 (R$ 423.61) maior que a parcela (R$ 423.60). Lance no mês até"
+                        + " o valor da parcela e o excedente (R$ 0.01) como abatimento, que sai do débito"
+                        + " atualizado pelo valor nominal");
+    }
+
+    @Test
+    void comCreditoNoMesOPagamentoMaiorDeixaOSaldoNegativo() {
+        List<Parcela> saldos = new PagamentosParciais(ExcedentePagamento.CREDITO_NO_MES)
+                .com(YearMonth.of(2024, 1), Dinheiro.de("500.00"))
+                .abater(parcelas);
+
+        assertThat(saldos.getFirst()).isEqualTo(new Parcela("Alimentos 01/2024 (crédito do pagamento a maior)",
+                Dinheiro.de("-76.40"), DIA_10_JAN, DIA_10_JAN));
+        assertThat(saldos.get(1)).isEqualTo(parcelas.get(1));
+    }
+
+    @Test
+    void comCreditoNoMesOPagamentoAteAParcelaNaoMuda() {
+        List<Parcela> saldos = new PagamentosParciais(ExcedentePagamento.CREDITO_NO_MES)
+                .com(YearMonth.of(2024, 2), Dinheiro.de("200.00"))
+                .abater(parcelas);
+
+        assertThat(saldos).isEqualTo(new PagamentosParciais()
+                .com(YearMonth.of(2024, 2), Dinheiro.de("200.00"))
+                .abater(parcelas));
     }
 
     @Test

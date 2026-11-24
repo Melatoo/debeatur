@@ -12,6 +12,7 @@ nunca do próprio motor.
 | `GabaritoHomologadoTest` | Cálculos homologados em `CasosHomologados` | Demonstrativo completo, linha a linha e totais |
 | `GabaritoHomologadoTest` | Cinco cálculos do CADEJ/TJMG em `CasosCadej` | Demonstrativo completo, com ICGJ ou IPCA e juros de taxa fixa |
 | `GabaritoRendimentosDecimoTerceiroDpmgTest` | Planilha da DPMG gerada no iadefensor em 15/11/2026 | Pensão em rendimentos, 13º, abatimento nominal e art. 523 sobre o saldo |
+| `GabaritoPagamentoMaiorDpmgTest` | Planilha da DPMG gerada no iadefensor em 23/11/2026 | Pagamento maior que a parcela do mês como crédito no próprio mês, corrigido e com juros (divergência 10) |
 | `GabaritoSelicDiariaTest` (`debeatur-indices`) | Planilha "SELIC Acumulada" da DPMG (18/11/2026) e uma simulação no CADEJ (11/11/2026) | SELIC do mês pela SGS 11 e fator pela SELIC, 01/2024 a 10/2026 (divergência 6) |
 
 ### CADEJ
@@ -234,6 +235,21 @@ relatório. Ele não passa em branco.
    valor monetário a duas casas antes de somar. No caso de `GabaritoRendimentosDecimoTerceiroDpmgTest`,
    cada um vale 1.217,147: a planilha mostra total de R$ 14.605,76, e o motor, R$ 14.605,77. A
    multa e os honorários são lançados nos autos em reais e centavos, então o motor fica como está.
+10. **Pagamento maior que a parcela do mês (#112).** A planilha da DPMG aceita e não leva o
+    excedente a outras parcelas: a diferença do mês (pago − devido) é corrigida pelo índice e
+    recebe os juros do próprio mês, como as demais, e entra no subtotal com o sinal oposto ao do
+    débito. O .xlsx de um caso gerado no iadefensor em 23/11/2026 (modelo "Taxa legal (Bacen)",
+    data-base 11/2026, 30% do salário mínimo de 01/2025 a 04/2025, R$ 1.000,00 pagos em 02/2025
+    contra a parcela de R$ 455,40) dá em 02/2025 R$ 544,60 × 1,083625586533933 = R$ 590,14 de
+    crédito corrigido, mais 15,63034% = R$ 92,24 de juros, e subtotal de R$ 1.006,63
+    (`GabaritoPagamentoMaiorDpmgTest`, que reproduz as quatro linhas e o subtotal). Ninguém leva o
+    excedente pelo valor nominal às parcelas seguintes, e a imputação do art. 354 do CC segue fora
+    do escopo. A escolha é do cálculo (`ExcedentePagamento`): o crédito no mês, como a planilha, é
+    o padrão da tela; a recusa, com a orientação de lançar o excedente como abatimento (valor
+    nominal, sobre o débito atualizado), é a outra opção e o comportamento dos cálculos salvos antes
+    dela. Se os créditos passam do devido, no total ou no débito de um rito, o cálculo é recusado.
+    Para essa data-base, as séries fixadas do IPCA e do INPC ganharam 10/2026, extraídas do SGS
+    em 23/11/2026.
 
 ## Planilha da DPMG
 
@@ -249,6 +265,9 @@ Acumulada" traz fatores próprios. Em 14/11/2026, salvo onde indicado:
 - **Abatimentos** (bloqueio em conta, depósito), em qualquer data: entram no total pelo valor
   nominal, sem correção; a data aparece só na descrição. Multa e honorários incidem sobre o
   saldo já abatido.
+- **Pagamento maior que a parcela** (.xlsx conferido em 23/11/2026): o gerador aceita e não
+  leva o excedente a outras parcelas; a diferença do mês vira crédito corrigido e com juros do
+  próprio mês. Ver a divergência 10.
 - **Percentual dos rendimentos:** o percentual incide sobre um valor de rendimentos
   informado, igual em todos os meses. As mudanças dos rendimentos por período são extensão do
   Debeatur, sem gabarito externo: cada mês usa o valor vigente e segue a mesma conta do valor

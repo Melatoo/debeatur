@@ -19,6 +19,7 @@
         "valor": "300.00"
       }
     ],
+    "excedentePagamento": "CREDITO_NO_MES",
     "ajuizamento": "2024-09-15",
     "regraRitos": "LEI"
   },

@@ -262,10 +262,21 @@ export function EditorPensao({ pensao, onPensao }: Props) {
       >
         Adicionar pagamento
       </button>
-      {/* Sem "Saiba mais": o que não é compensado muda o valor e fica à vista. */}
+      {pensao.pagamentos.length > 0 && (
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={pensao.pagoAMaiorComoCredito}
+            onChange={(e) => alterar({ pagoAMaiorComoCredito: e.target.checked })}
+          />
+          O que passar da parcela do mês fica como crédito no próprio mês (planilha da DPMG)
+        </label>
+      )}
+      {/* Sem "Saiba mais": o destino do excedente muda o valor e fica à vista. */}
       <p className="dica">
-        O valor pago é abatido da parcela do mesmo mês, antes da correção; o que passar da parcela não é compensado com
-        as outras.
+        O valor pago é abatido da parcela do mesmo mês, antes da correção. Se passar dela, a opção acima decide: o
+        excedente vira crédito no próprio mês, corrigido e com juros, ou o pagamento é recusado e o excedente vai em
+        Abatimentos, pelo valor nominal.
       </p>
       <ColarPagamentos pensao={pensao} onPagamentos={(pagamentos) => alterar({ pagamentos })} />
 

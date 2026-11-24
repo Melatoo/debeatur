@@ -48,7 +48,7 @@ export function LinhaDoTempo({ linhas, ajuizamento }: Props) {
               title={`${mes(l.pensao!.mes)}: ${moeda(l.subtotal)} atualizado${pago ? `, ${moeda(pago)} pago` : ''}`}
             >
               {pago > 0 && <span className="pago" style={{ height: `${(pago / maior) * 100}%` }} />}
-              <span className={`barra ${classe}`} style={{ height: `${(l.subtotal / maior) * 100}%` }} />
+              <span className={`barra ${classe}`} style={{ height: `${(Math.max(l.subtotal, 0) / maior) * 100}%` }} />
             </div>
           )
         })}

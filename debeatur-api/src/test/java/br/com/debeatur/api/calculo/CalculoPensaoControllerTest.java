@@ -335,7 +335,42 @@ class CalculoPensaoControllerTest {
                 """;
 
         assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
-                .hasPathSatisfying("$.detail", v -> v.assertThat().asString().contains("maior que a parcela"));
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString()
+                        .contains("maior que a parcela")
+                        .contains("excedente (R$ 76.40) como abatimento"));
+    }
+
+    @Test
+    void pagamentoMaiorComoCreditoNoMesAbateAsOutrasParcelas() {
+        when(series.carregarSalarioMinimo(any(), any()))
+                .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00")
+                        .com(YearMonth.of(2024, 2), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-02",
+                 "inicioJuros": "VENCIMENTO", "pagamentos": [{"mes": "2024-01", "valor": 500.00}],
+                 "excedentePagamento": "CREDITO_NO_MES"}
+                """;
+
+        // índices zerados e sem juros: 423,60 − 500,00 = −76,40 em 01/2024; 423,60 − 76,40 = 347,20
+        assertThat(calcular(requisicao(pensao, null))).hasStatusOk().bodyJson()
+                .hasPathSatisfying("$.linhas[0].valorOriginal", v -> v.assertThat().asNumber().isEqualTo(-76.4))
+                .hasPathSatisfying("$.linhas[0].pensao.valorPago", v -> v.assertThat().asNumber().isEqualTo(500.0))
+                .hasPathSatisfying("$.total", v -> v.assertThat().asNumber().isEqualTo(347.2));
+    }
+
+    @Test
+    void recusaCreditoQueSuperaODevido() {
+        when(series.carregarSalarioMinimo(any(), any()))
+                .thenReturn(new SalarioMinimoEmMemoria().com(YearMonth.of(2024, 1), "1412.00"));
+        String pensao = """
+                {"percentual": 30, "diaVencimento": 10, "primeiroMes": "2024-01", "ultimoMes": "2024-01",
+                 "inicioJuros": "VENCIMENTO", "pagamentos": [{"mes": "2024-01", "valor": 500.00}],
+                 "excedentePagamento": "CREDITO_NO_MES"}
+                """;
+
+        assertThat(calcular(requisicao(pensao, null))).hasStatus(400).bodyJson()
+                .hasPathSatisfying("$.detail", v -> v.assertThat().asString()
+                        .contains("Os pagamentos a maior superam o devido"));
     }
 
     @Test

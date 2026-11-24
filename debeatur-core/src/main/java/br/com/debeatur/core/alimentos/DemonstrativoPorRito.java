@@ -162,6 +162,9 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
         Subtotal subtotalPenhora = Subtotal.de(penhora);
         Dinheiro debitoPenhora = subtotalPenhora.debitoAtualizado();
         Dinheiro debitoPrisao = subtotalPrisao.debitoAtualizado();
+        // Um pagamento a maior lançado como crédito no mês tem saldo negativo e fica no rito do mês dele.
+        exigirNaoNegativo(debitoPrisao, Rito.PRISAO);
+        exigirNaoNegativo(debitoPenhora, Rito.PENHORA);
         Dinheiro abatido = Abatimento.total(abatimentos);
         if (abatido.compareTo(debitoPenhora.mais(debitoPrisao)) > 0) {
             throw new IllegalArgumentException("Os abatimentos (" + abatido + ") superam o débito atualizado ("
@@ -191,6 +194,14 @@ public record DemonstrativoPorRito(LocalDate ajuizamento, List<Rito> ritoDasLinh
             case PRISAO -> prisao;
             case PENHORA -> penhora;
         };
+    }
+
+    private static void exigirNaoNegativo(Dinheiro debito, Rito rito) {
+        if (debito.compareTo(Dinheiro.ZERO) < 0) {
+            throw new IllegalArgumentException("Os pagamentos a maior superam o devido no rito da "
+                    + (rito == Rito.PRISAO ? "prisão" : "penhora") + ": o débito atualizado desse rito ficou em "
+                    + debito);
+        }
     }
 
     private static LocalDate vencimento(LinhaDemonstrativo linha) {

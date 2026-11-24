@@ -3,6 +3,7 @@ package br.com.debeatur.api.calculo;
 import br.com.debeatur.core.Dinheiro;
 import br.com.debeatur.core.alimentos.Abatimento;
 import br.com.debeatur.core.alimentos.BasePensao;
+import br.com.debeatur.core.alimentos.ExcedentePagamento;
 import br.com.debeatur.core.alimentos.InicioJuros;
 import br.com.debeatur.core.alimentos.PagamentosParciais;
 import br.com.debeatur.core.alimentos.Pensao;
@@ -37,6 +38,9 @@ import java.util.TreeMap;
  * @param decimoTerceiro se a pensão alcança o 13º salário, que dobra a parcela de dezembro
  * @param citacao        obrigatória se {@code inicioJuros} for {@link InicioJuros#CITACAO}
  * @param pagamentos     valores pagos, abatidos da parcela do mesmo mês antes da correção
+ * @param excedentePagamento o que fazer com o pagamento maior que a parcela do mês; nulo vale
+ *                       {@link ExcedentePagamento#RECUSAR}, o comportamento dos cálculos salvos
+ *                       antes da opção. A tela manda sempre a escolha, com a da DPMG como padrão
  * @param abatimentos    valores recebidos em qualquer data (bloqueio, depósito), que saem do
  *                       débito atualizado pelo valor nominal; com os ritos separados, saem da
  *                       penhora
@@ -49,8 +53,8 @@ import java.util.TreeMap;
  *                       que eles não mudem ao reabrir. A tela manda sempre a regra escolhida, com
  *                       a da DPMG como padrão
  * <p>
- * Os campos da base, das mudanças dos rendimentos, do 13º, dos abatimentos e da regra dos ritos
- * são omitidos do JSON quando nulos: uma pensão em salário mínimo sem eles continua gravada no formato 1 dos cálculos salvos,
+ * Os campos da base, das mudanças dos rendimentos, do 13º, dos abatimentos, da regra dos ritos e do
+ * excedente dos pagamentos são omitidos do JSON quando nulos: uma pensão em salário mínimo sem eles continua gravada no formato 1 dos cálculos salvos,
  * e os pedidos já gravados, que não os têm, são lidos com os padrões acima.
  */
 public record PensaoRequest(
@@ -66,6 +70,7 @@ public record PensaoRequest(
         @NotNull InicioJuros inicioJuros,
         LocalDate citacao,
         List<@Valid PagamentoRequest> pagamentos,
+        @JsonInclude(JsonInclude.Include.NON_NULL) ExcedentePagamento excedentePagamento,
         @JsonInclude(JsonInclude.Include.NON_NULL) List<@Valid AbatimentoRequest> abatimentos,
         LocalDate ajuizamento,
         @JsonInclude(JsonInclude.Include.NON_NULL) RegraRitos regraRitos) {
@@ -101,6 +106,11 @@ public record PensaoRequest(
     /** A regra dos ritos, com a dos cálculos salvos antes da opção. */
     public RegraRitos regraDosRitos() {
         return regraRitos == null ? RegraRitos.LEI : regraRitos;
+    }
+
+    /** O que fazer com o pagamento a maior, com o padrão dos cálculos salvos antes da opção. */
+    public ExcedentePagamento excedenteDosPagamentos() {
+        return excedentePagamento == null ? ExcedentePagamento.RECUSAR : excedentePagamento;
     }
 
     public boolean comDecimoTerceiro() {
@@ -154,7 +164,7 @@ public record PensaoRequest(
     }
 
     PagamentosParciais pagamentosParaDominio() {
-        PagamentosParciais pagos = new PagamentosParciais();
+        PagamentosParciais pagos = new PagamentosParciais(excedenteDosPagamentos());
         if (pagamentos != null) {
             pagamentos.forEach(p -> pagos.com(p.mes(), new Dinheiro(p.valor())));
         }

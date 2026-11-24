@@ -292,7 +292,12 @@ final class ConteudoDemonstrativo {
         if (pagos.isEmpty()) {
             return "Nenhum";
         }
-        return String.join("; ", pagos.stream().map(p -> p.mes().format(MES) + ": " + moeda(p.valorPago())).toList());
+        String lista = String.join("; ", pagos.stream().map(p -> p.mes().format(MES) + ": " + moeda(p.valorPago())).toList());
+        boolean aMaior = pagos.stream().anyMatch(p -> p.valorPago().compareTo(p.valorDevido()) > 0);
+        return aMaior
+                ? lista + ". O que passou da parcela do mês ficou como crédito no próprio mês, corrigido e com juros,"
+                        + " como na planilha da DPMG"
+                : lista;
     }
 
     private String art523() {
@@ -419,7 +424,7 @@ final class ConteudoDemonstrativo {
         if (l.pensao() == null) {
             return l.descricao();
         }
-        boolean quitada = l.pensao().valorPago().signum() > 0 && l.valorOriginal().signum() == 0;
+        boolean quitada = l.pensao().valorPago().signum() > 0 && l.valorOriginal().signum() <= 0;
         return l.pensao().mes().format(MES) + (l.pensao().decimoTerceiro() ? " e 13º" : "") + (quitada ? " (quitada)" : "");
     }
 
