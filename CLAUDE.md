@@ -55,6 +55,9 @@ O login usa o usuário do escritório que já está no banco; não crie nem alte
 
 ## Fluxo de trabalho
 
+- As etapas (triagem, plano, implementação, verificação, review, deploy) e o que barra cada uma
+  estão em `docs/fluxo-de-trabalho.md`. Os hooks de `.claude/settings.json` pedem a confirmação do
+  dono antes de editar gabarito, migração existente, `.github/` e as regras do agente.
 - Nada de push direto na `main`: tudo passa por PR com o CI verde.
 - Mudanças no `debeatur-core`, na autenticação e na persistência são revisadas linha a linha;
   mantenha esses PRs pequenos.
